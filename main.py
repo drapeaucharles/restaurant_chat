@@ -21,6 +21,20 @@ models.Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI
 app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+origins = ["*"]  # <-- allow everything for test
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # Dependency to open DB session
 def get_db():
