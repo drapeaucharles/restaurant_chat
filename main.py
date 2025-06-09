@@ -12,7 +12,16 @@ from services.restaurant_service import create_restaurant_service
 from services.client_service import create_or_update_client_service
 from services.chat_service import chat_service
 from dotenv import load_dotenv
+from fastapi import HTTPException
 
+@app.get("/restaurant/{restaurant_id}")
+def get_restaurant(restaurant_id: str, db: Session = Depends(get_db)):
+    restaurant = db.query(models.Restaurant).filter_by(restaurant_id=restaurant_id).first()
+
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    return restaurant.data
 # Load env variables
 load_dotenv()
 
