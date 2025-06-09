@@ -39,14 +39,7 @@ app.add_middleware(
 
 
 
-@app.get("/restaurant/{restaurant_id}")
-def get_restaurant(restaurant_id: str, db: Session = Depends(get_db)):
-    restaurant = db.query(models.Restaurant).filter_by(restaurant_id=restaurant_id).first()
 
-    if not restaurant:
-        raise HTTPException(status_code=404, detail="Restaurant not found")
-
-    return restaurant.data
 # Dependency to open DB session
 def get_db():
     db = SessionLocal()
@@ -57,6 +50,14 @@ def get_db():
 
 # ---------------- Routes ----------------
 
+@app.get("/restaurant/{restaurant_id}")
+def get_restaurant(restaurant_id: str, db: Session = Depends(get_db)):
+    restaurant = db.query(models.Restaurant).filter_by(restaurant_id=restaurant_id).first()
+
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+
+    return restaurant.data
 @app.get("/healthcheck")
 def healthcheck():
     return {"status": "ok"}
