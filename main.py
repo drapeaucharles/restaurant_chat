@@ -1,9 +1,9 @@
 # main.py
 
 import uuid
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine
+from database import SessionLocal, engine, get_db
 import models
 from schemas.restaurant import RestaurantCreateRequest
 from schemas.client import ClientCreateRequest
@@ -12,7 +12,6 @@ from services.restaurant_service import create_restaurant_service
 from services.client_service import create_or_update_client_service
 from services.chat_service import chat_service
 from dotenv import load_dotenv
-from fastapi import HTTPException
 
 
 # Load env variables
