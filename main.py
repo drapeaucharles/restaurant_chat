@@ -49,6 +49,9 @@ def get_db():
         db.close()
 
 # ---------------- Routes ----------------
+@app.get("/test-alive")
+def test():
+    return {"ok": True}
 
 @app.get("/restaurant/{restaurant_id}")
 def get_restaurant(restaurant_id: str, db: Session = Depends(get_db)):
