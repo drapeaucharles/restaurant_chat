@@ -1,5 +1,3 @@
-# schemas/restaurant.py
-
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -22,3 +20,8 @@ class RestaurantData(BaseModel):
 class RestaurantCreateRequest(BaseModel):
     restaurant_id: str
     data: RestaurantData
+    password: str  # ✅ Added for authentication
+
+class RestaurantLoginRequest(BaseModel):
+    restaurant_id: str
+    password: str

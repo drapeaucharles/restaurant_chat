@@ -6,3 +6,5 @@ python-dotenv
 openai>=1.0.0
 pinecone
 pydantic
+python-jose[cryptography]
+passlib[bcrypt]

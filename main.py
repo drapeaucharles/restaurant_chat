@@ -13,6 +13,11 @@ from services.client_service import create_or_update_client_service
 from services.chat_service import chat_service
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
+
+#auth login
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="restaurant/login")
+
 
 
 # Load env variables
@@ -52,6 +57,22 @@ def get_db():
 @app.get("/test-alive")
 def test():
     return {"ok": True}
+    
+@app.post("/restaurant/update")
+def update_restaurant(
+    restaurantData: RestaurantCreateRequest,
+    db: Session = Depends(get_db),
+    restaurant_id: str = Depends(get_current_restaurant)
+):
+    # Ensure restaurant_id in token matches the one in request (if included)
+    restaurant = db.query(models.Restaurant).filter_by(restaurant_id=restaurant_id).first()
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    
+    # Update logic here
+    restaurant.data = restaurantData.dict()
+    db.commit()
+    return {"message": "Updated successfully"}
 
 @app.get("/restaurant/info")
 def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
@@ -73,8 +94,15 @@ def healthcheck():
 
 @app.post("/restaurant/create")
 def create_restaurant(req: RestaurantCreateRequest, db: Session = Depends(get_db)):
-    result = create_restaurant_service(req, db)
-    return result
+    new_restaurant = models.Restaurant(
+        restaurant_id=req.restaurant_id,
+        data=req.dict(),
+        password=req.password  # Accept and store
+    )
+    db.add(new_restaurant)
+    db.commit()
+    return {"message": "Restaurant created"}
+
 
 @app.get("/debug/routes")
 def list_routes():
