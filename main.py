@@ -53,12 +53,18 @@ def get_db():
 def test():
     return {"ok": True}
 
-@app.get("/restaurant/{restaurant_id}")
-def get_restaurant(restaurant_id: str, db: Session = Depends(get_db)):
+@app.get("/restaurant/info")
+def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
     restaurant = db.query(models.Restaurant).filter_by(restaurant_id=restaurant_id).first()
-
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
+    return {
+        "restaurant_id": restaurant.restaurant_id,
+        "name": restaurant.data.get("name"),
+        "story": restaurant.data.get("story"),
+        "menu": restaurant.data.get("menu", []),
+        "faq": restaurant.data.get("faq", [])
+    }
 
     return restaurant.data
 @app.get("/healthcheck")
