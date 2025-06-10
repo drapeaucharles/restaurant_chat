@@ -3,7 +3,7 @@
 import uuid
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine
+from database import SessionLocal, engine, get_db
 import models
 from schemas.restaurant import RestaurantCreateRequest
 from schemas.client import ClientCreateRequest
