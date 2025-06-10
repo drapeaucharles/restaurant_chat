@@ -67,6 +67,10 @@ def create_restaurant(req: RestaurantCreateRequest, db: Session = Depends(get_db
     result = create_restaurant_service(req, db)
     return result
 
+@app.get("/debug/routes")
+def list_routes():
+    return [route.path for route in app.routes]
+
 @app.get("/restaurant/list")
 def list_restaurants(db: Session = Depends(get_db)):
     restaurants = db.query(models.Restaurant).all()
@@ -80,7 +84,6 @@ def list_restaurants(db: Session = Depends(get_db)):
         }
         for r in restaurants
     ]
-
 
 @app.post("/client/create-or-update")
 def create_or_update_client(req: ClientCreateRequest, db: Session = Depends(get_db)):
