@@ -67,7 +67,7 @@ def create_restaurant(req: RestaurantCreateRequest, db: Session = Depends(get_db
     result = create_restaurant_service(req, db)
     return result
 
-@app.get("/restaurants")
+@app.get("/restaurant/list")
 def list_restaurants(db: Session = Depends(get_db)):
     restaurants = db.query(models.Restaurant).all()
 
