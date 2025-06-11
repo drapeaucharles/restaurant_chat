@@ -1,147 +1,66 @@
-# main.py
+"""
+Main FastAPI application with route registration and middleware setup.
+"""
 
-import uuid
-from fastapi import FastAPI, HTTPException, Depends
-from sqlalchemy.orm import Session
-from database import SessionLocal, engine, get_db
-import models
-from schemas.restaurant import RestaurantCreateRequest
-from schemas.client import ClientCreateRequest
-from schemas.chat import ChatRequest, ChatResponse
-from services.restaurant_service import create_restaurant_service
-from services.client_service import create_or_update_client_service
-from services.chat_service import chat_service
-from dotenv import load_dotenv
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
+from dotenv import load_dotenv
 
-#auth login
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="restaurant/login")
+from database import engine
+import models
+from routes import auth, restaurant, chat, clients, chats
 
-
-
-# Load env variables
+# Load environment variables
 load_dotenv()
 
-# Create DB tables if not exist
+# Create database tables
 models.Base.metadata.create_all(bind=engine)
 
-# Initialize FastAPI
-app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
+# Initialize FastAPI app
+app = FastAPI(
+    title="Restaurant Management API",
+    description="API for managing restaurants, clients, and chat interactions",
+    version="1.0.0"
+)
 
-app = FastAPI()
-
-origins = ["*"]  # <-- allow everything for test
-
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # In production, specify actual origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Include routers
+app.include_router(auth.router)
+app.include_router(restaurant.router)
+app.include_router(chat.router)  # Keep existing chat router for backward compatibility
+app.include_router(clients.router)  # New client management router
+app.include_router(chats.router)  # New chat management router
 
 
+# Health check endpoints
+@app.get("/")
+def root():
+    """Root endpoint."""
+    return {"message": "Restaurant Management API", "status": "running"}
 
-# Dependency to open DB session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
-# ---------------- Routes ----------------
+@app.get("/health")
+def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
+
 @app.get("/test-alive")
-def test():
+def test_alive():
+    """Test endpoint to verify API is alive."""
     return {"ok": True}
-    
-@app.post("/restaurant/update")
-def update_restaurant(
-    restaurantData: RestaurantCreateRequest,
-    db: Session = Depends(get_db),
-    restaurant_id: str = Depends(get_current_restaurant)
-):
-    # Ensure restaurant_id in token matches the one in request (if included)
-    restaurant = db.query(models.Restaurant).filter_by(restaurant_id=restaurant_id).first()
-    if not restaurant:
-        raise HTTPException(status_code=404, detail="Restaurant not found")
-    
-    # Update logic here
-    restaurant.data = restaurantData.dict()
-    db.commit()
-    return {"message": "Updated successfully"}
-
-@app.get("/restaurant/info")
-def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
-    restaurant = db.query(models.Restaurant).filter_by(restaurant_id=restaurant_id).first()
-    if not restaurant:
-        raise HTTPException(status_code=404, detail="Restaurant not found")
-    return {
-        "restaurant_id": restaurant.restaurant_id,
-        "name": restaurant.data.get("name"),
-        "story": restaurant.data.get("story"),
-        "menu": restaurant.data.get("menu", []),
-        "faq": restaurant.data.get("faq", [])
-    }
-
-    return restaurant.data
-@app.get("/healthcheck")
-def healthcheck():
-    return {"status": "ok"}
-
-@app.post("/restaurant/create")
-def create_restaurant(req: RestaurantCreateRequest, db: Session = Depends(get_db)):
-    new_restaurant = models.Restaurant(
-        restaurant_id=req.restaurant_id,
-        data=req.dict(),
-        password=req.password  # Accept and store
-    )
-    db.add(new_restaurant)
-    db.commit()
-    return {"message": "Restaurant created"}
 
 
 @app.get("/debug/routes")
 def list_routes():
-    return [route.path for route in app.routes]
+    """Debug endpoint to list all available routes."""
+    return [{"path": route.path, "methods": route.methods} for route in app.routes]
 
-@app.get("/restaurant/list")
-def list_restaurants(db: Session = Depends(get_db)):
-    restaurants = db.query(models.Restaurant).all()
-    return [
-        {
-            "restaurant_id": r.restaurant_id,
-            "name": r.data.get("name"),
-            "story": r.data.get("story"),
-            "menu": r.data.get("menu", []),
-            "faq": r.data.get("faq", [])
-        }
-        for r in restaurants
-    ]
-
-@app.post("/client/create-or-update")
-def create_or_update_client(req: ClientCreateRequest, db: Session = Depends(get_db)):
-    result = create_or_update_client_service(req, db)
-    return result
-
-@app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest, db: Session = Depends(get_db)):
-    result = chat_service(req, db)
-    return result
-
-@app.post("/chat/logs")
-def chat_logs(restaurant_id: str, db: Session = Depends(get_db)):
-    logs = db.query(models.ChatLog).filter_by(restaurant_id=restaurant_id).all()
-    return [
-        {
-            "message": log.message,
-            "answer": log.answer,
-            "client_id": str(log.client_id),
-            "table_id": log.table_id,
-            "timestamp": log.timestamp
-        }
-        for log in logs
-    ]

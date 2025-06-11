@@ -21,7 +21,14 @@ class RestaurantCreateRequest(BaseModel):
     restaurant_id: str
     data: RestaurantData
     password: str  # ✅ Added for authentication
+    role: Optional[str] = "owner"  # options: 'owner', 'staff'
 
 class RestaurantLoginRequest(BaseModel):
     restaurant_id: str
     password: str
+
+class StaffCreateRequest(BaseModel):
+    restaurant_id: str
+    password: str
+    data: Optional[RestaurantData] = None  # Staff might not need full restaurant data
+

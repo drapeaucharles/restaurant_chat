@@ -1,6 +1,6 @@
 # models.py
 
-from sqlalchemy import Column, String, DateTime, ForeignKey, JSON
+from sqlalchemy import Column, String, DateTime, ForeignKey, JSON, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 import uuid
@@ -11,19 +11,24 @@ class Client(Base):
     __tablename__ = "clients"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    restaurant_id = Column(String, ForeignKey("restaurants.restaurant_id")) # Added to link clients to restaurants
     first_seen = Column(DateTime(timezone=True), server_default=func.now())
     last_seen = Column(DateTime(timezone=True), onupdate=func.now())
     preferences = Column(JSON)
     restaurants_visited = Column(JSON)  # list of restaurant_ids
+    name = Column(String) # Added for client details
+    email = Column(String) # Added for client details
 
 # Restaurant Table
 class Restaurant(Base):
     __tablename__ = "restaurants"
 
-    restaurant_id = Column(String, primary_key=True)
-    data = Column(JSON)  # store menu, FAQ, story etc. as JSON blob
+    restaurant_id = Column(String, primary_key=True, index=True)
+    password = Column(String, nullable=False)
+    role = Column(String, default="owner")  # options: 'owner', 'staff'
+    data = Column(JSON)
 
-# ChatLogs Table
+# ChatLogs Table (existing, for general chat logs)
 class ChatLog(Base):
     __tablename__ = "chat_logs"
 
@@ -34,3 +39,16 @@ class ChatLog(Base):
     message = Column(String)
     answer = Column(String)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+# ChatMessage Table (new, for client-restaurant chat messages)
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    restaurant_id = Column(String, ForeignKey("restaurants.restaurant_id"))
+    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id"))
+    sender_type = Column(String) # 'client' or 'restaurant'
+    message = Column(Text)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+
