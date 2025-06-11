@@ -3,6 +3,7 @@ Main FastAPI application with route registration and middleware setup.
 """
 
 from fastapi import FastAPI
+
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -15,13 +16,14 @@ load_dotenv()
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
-router = APIRouter()
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Restaurant Management API",
     description="API for managing restaurants, clients, and chat interactions",
     version="1.0.0"
 )
+
 
 # CORS middleware
 app.add_middleware(
@@ -46,7 +48,7 @@ def root():
     """Root endpoint."""
     return {"message": "Restaurant Management API", "status": "running"}
 
-@router.get("/healthcheck")
+@app.get("/healthcheck")
 def healthcheck():
     return {"status": "ok"}
     
