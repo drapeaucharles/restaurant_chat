@@ -20,8 +20,7 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     if not client:
         client = models.Client(
             id=req.client_id,
-            restaurant_id=req.restaurant_id,
-            table_id=req.table_id
+            restaurant_id=req.restaurant_id
         )
         db.add(client)
         db.commit()
@@ -31,7 +30,6 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     chat_log = models.ChatLog(
         client_id=req.client_id,
         restaurant_id=req.restaurant_id,
-        table_id=req.table_id,
         message=req.message,
         answer=answer
     )
