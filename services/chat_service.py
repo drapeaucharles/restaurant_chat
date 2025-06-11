@@ -15,6 +15,18 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     else:
         answer = "I'm not sure, let me check with the staff."
 
+    # ✅ Ensure client exists before logging
+    client = db.query(models.Client).filter(models.Client.id == req.client_id).first()
+    if not client:
+        client = models.Client(
+            id=req.client_id,
+            restaurant_id=req.restaurant_id,
+            table_id=req.table_id
+        )
+        db.add(client)
+        db.commit()
+        db.refresh(client)
+
     # Log chat in DB
     chat_log = models.ChatLog(
         client_id=req.client_id,
