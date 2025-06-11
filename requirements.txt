@@ -9,7 +9,5 @@ pydantic
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
-
-
+pydantic[email]
 slowapi
-
