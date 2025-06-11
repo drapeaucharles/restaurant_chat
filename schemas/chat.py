@@ -6,7 +6,6 @@ from datetime import datetime
 class ChatRequest(BaseModel):
     restaurant_id: str
     client_id: uuid.UUID
-    table_id: Optional[str] = None
     message: str
 
 class ChatResponse(BaseModel):
