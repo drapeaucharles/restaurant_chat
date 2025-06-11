@@ -37,8 +37,7 @@ def create_chat_message(
     if not client:
         client = models.Client(
             id=message_data.client_id,
-            restaurant_id=message_data.restaurant_id,
-            table_id=message_data.table_id  # assuming this field exists
+            restaurant_id=message_data.restaurant_id
         )
         db.add(client)
         db.commit()
