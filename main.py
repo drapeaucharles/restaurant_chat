@@ -46,7 +46,10 @@ def root():
     """Root endpoint."""
     return {"message": "Restaurant Management API", "status": "running"}
 
-
+@router.get("/healthcheck")
+def healthcheck():
+    return {"status": "ok"}
+    
 @app.get("/health")
 def health_check():
     """Health check endpoint."""
