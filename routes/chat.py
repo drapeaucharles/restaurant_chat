@@ -51,7 +51,6 @@ def get_chat_logs(
             "message": log.message,
             "answer": log.answer,
             "client_id": str(log.client_id),
-            "table_id": log.table_id,
             "timestamp": log.timestamp
         }
         for log in logs
