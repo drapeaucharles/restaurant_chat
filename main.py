@@ -15,7 +15,7 @@ load_dotenv()
 
 # Create database tables
 models.Base.metadata.create_all(bind=engine)
-
+router = APIRouter()
 # Initialize FastAPI app
 app = FastAPI(
     title="Restaurant Management API",
