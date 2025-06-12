@@ -83,16 +83,16 @@ def login_restaurant(request: RestaurantLoginRequest, req: Request, db: Session 
         token_type="refresh"
     )
     
-return {
-    "access_token": access_token,
-    "refresh_token": refresh_token,
-    "token_type": "bearer",
-    "expires_in": 86400,
-    "refresh_token_expires_in": 604800,
-    "restaurant_id": restaurant.restaurant_id,
-    "role": restaurant.role,
-    "email": restaurant.email  # if available
-}
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": 86400,
+        "refresh_token_expires_in": 604800,
+        "restaurant_id": restaurant.restaurant_id,
+        "role": restaurant.role,
+        "email": restaurant.email  # if available
+    }
 
 
 
