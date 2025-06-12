@@ -3,9 +3,10 @@ from typing import List, Optional
 
 class MenuItem(BaseModel):
     dish: str
-    price: str
-    ingredients: List[str]
-    description: str
+    price: Optional[str] = None
+    ingredients: Optional[List[str]] = None
+    description: Optional[str] = None
+    allergens: Optional[List[str]] = None
 
 class FAQItem(BaseModel):
     question: str
