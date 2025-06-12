@@ -1,4 +1,3 @@
-
 import openai
 from sqlalchemy.orm import Session
 import models
@@ -6,6 +5,9 @@ from pinecone_utils import query_pinecone
 from schemas.chat import ChatRequest, ChatResponse
 from schemas.restaurant import RestaurantData # Corrected import
 from fastapi import HTTPException
+
+# Import the fallback function from restaurant service
+from services.restaurant_service import apply_menu_fallbacks
 
 system_prompt = """
 You are a helpful, friendly, and professional restaurant staff member. You assist customers via chat with questions about food, ingredients, dietary needs, reservations, opening hours, and anything related to the restaurant.
@@ -21,15 +23,51 @@ You must:
 You sound like a real person working at the restaurant, not a robot. Keep answers short, clear, and polite.
 """
 
-def format_menu(menu_items):
-    return "\n\n".join([
-        f"{item['dish']}: {item['description']} Ingredients: {', '.join(item['ingredients'])}. Allergens: {', '.join(item['allergens'])}"
-        for item in menu_items
-    ])
+def validate_menu_item(item):
+    """Validate that a menu item has all required fields."""
+    required_fields = ['name', 'ingredients', 'description', 'price', 'allergens']
+    missing_fields = []
+    
+    for field in required_fields:
+        if field not in item:
+            missing_fields.append(field)
+    
+    if missing_fields:
+        raise ValueError(f"Menu item missing required fields: {missing_fields}. Item: {item}")
+    
+    return True
 
-from fastapi import HTTPException
+def format_menu(menu_items):
+    """Format menu items for OpenAI prompt with defensive checks."""
+    if not menu_items:
+        return "No menu items available."
+    
+    formatted_items = []
+    for item in menu_items:
+        try:
+            # Ensure all required fields exist with fallbacks
+            name = item.get('name') or item.get('dish', 'Unknown Dish')
+            description = item.get('description', 'No description available')
+            ingredients = item.get('ingredients', [])
+            allergens = item.get('allergens', [])
+            price = item.get('price', 'Price not available')
+            
+            # Format ingredients and allergens safely
+            ingredients_str = ', '.join(ingredients) if ingredients else 'Not specified'
+            allergens_str = ', '.join(allergens) if allergens else 'None listed'
+            
+            formatted_item = f"{name}: {description} | Ingredients: {ingredients_str} | Allergens: {allergens_str} | Price: {price}"
+            formatted_items.append(formatted_item)
+            
+        except Exception as e:
+            print(f"Warning: Error formatting menu item {item}: {e}")
+            # Add a fallback item to prevent complete failure
+            formatted_items.append(f"Menu item (details unavailable): {str(item)[:100]}")
+    
+    return "\n\n".join(formatted_items)
 
 def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
+    """Handle chat requests with proper error handling and data validation."""
     restaurant = db.query(models.Restaurant).filter(models.Restaurant.restaurant_id == req.restaurant_id).first()
     if not restaurant:
         return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
@@ -37,17 +75,59 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     data = restaurant.data or {}
 
     try:
+        # Apply menu fallbacks to ensure all required fields exist
+        menu_items = data.get("menu", [])
+        if menu_items:
+            try:
+                menu_items = apply_menu_fallbacks(menu_items)
+                print(f"Applied fallbacks to {len(menu_items)} menu items")
+            except Exception as e:
+                print(f"Warning: Error applying menu fallbacks: {e}")
+                # Continue with original menu items but add defensive handling
+        
+        # Defensive check: Validate menu items before sending to OpenAI
+        validated_menu = []
+        for item in menu_items:
+            try:
+                # Ensure minimum required fields exist
+                if not isinstance(item, dict):
+                    print(f"Warning: Menu item is not a dictionary: {item}")
+                    continue
+                
+                # Add missing fields with defaults
+                validated_item = {
+                    'name': item.get('name') or item.get('dish', 'Unknown Dish'),
+                    'description': item.get('description', 'No description available'),
+                    'ingredients': item.get('ingredients', []),
+                    'allergens': item.get('allergens', []),
+                    'price': item.get('price', 'Price not available')
+                }
+                validated_menu.append(validated_item)
+                
+            except Exception as e:
+                print(f"Warning: Error validating menu item {item}: {e}")
+                # Skip problematic items rather than crash
+                continue
+        
+        # Final defensive check before OpenAI call
+        if not all(isinstance(item, dict) and 'allergens' in item for item in validated_menu):
+            print("Warning: Some menu items still missing allergens field after validation")
+            # Apply final fallback
+            for item in validated_menu:
+                if 'allergens' not in item:
+                    item['allergens'] = []
+        
         user_prompt = f"""
 Customer message: "{req.message}"
 
 Restaurant Info:
-- Name: {data.get("name")}
-- Story: {data.get("restaurant_story")}
-- Opening Hours: {data.get("opening_hours")}
-- Contact Info: {data.get("contact_info")}
+- Name: {data.get("name", "Restaurant name not available")}
+- Story: {data.get("restaurant_story", "No story available")}
+- Opening Hours: {data.get("opening_hours", "Hours not available")}
+- Contact Info: {data.get("contact_info", "Contact info not available")}
 
 Menu:
-{format_menu(data.get("menu", []))}
+{format_menu(validated_menu)}
 """
 
         response = openai.chat.completions.create(
@@ -63,8 +143,14 @@ Menu:
         answer = response.choices[0].message.content
 
     except Exception as e:
-        print("OpenAI API ERROR:", e)
-        raise HTTPException(status_code=500, detail="Failed to process chat. Please try again.")
+        print("OpenAI API ERROR:", str(e))
+        # Provide a more helpful error message to users
+        if "allergens" in str(e).lower():
+            error_msg = "I'm having trouble accessing the menu information. Please contact the restaurant directly for detailed allergen information."
+        else:
+            error_msg = "I'm experiencing technical difficulties. Please try again in a moment or contact the restaurant directly."
+        
+        return ChatResponse(answer=error_msg)
 
     # Ensure client exists
     client = db.query(models.Client).filter(models.Client.id == req.client_id).first()
@@ -85,56 +171,4 @@ Menu:
     db.commit()
 
     return ChatResponse(answer=answer)
-    restaurant = db.query(models.Restaurant).filter(models.Restaurant.restaurant_id == req.restaurant_id).first()
-    if not restaurant:
-        return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
 
-    try:
-        user_prompt = f"""
-Customer message: "{req.message}"
-
-Restaurant Info:
-- Name: {restaurant.name}
-- Story: {restaurant.restaurant_story}
-- Opening Hours: {restaurant.opening_hours}
-- Contact Info: {restaurant.contact_info}
-
-Menu:
-{format_menu(restaurant.menu)}
-"""
-
-        response = openai.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.5,
-            max_tokens=300
-        )
-
-        answer = response.choices[0].message.content
-
-    except Exception as e:
-        print("OpenAI API ERROR:", e)
-        raise HTTPException(status_code=500, detail="Failed to process chat. Please try again.")
-
-    # Ensure client exists
-    client = db.query(models.Client).filter(models.Client.id == req.client_id).first()
-    if not client:
-        client = models.Client(id=req.client_id, restaurant_id=req.restaurant_id)
-        db.add(client)
-        db.commit()
-        db.refresh(client)
-
-    # Log chat
-    chat_log = models.ChatLog(
-        client_id=req.client_id,
-        restaurant_id=req.restaurant_id,
-        message=req.message,
-        answer=answer
-    )
-    db.add(chat_log)
-    db.commit()
-
-    return ChatResponse(answer=answer)

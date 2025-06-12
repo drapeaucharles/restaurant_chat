@@ -7,6 +7,7 @@ class MenuItem(BaseModel):
     ingredients: Optional[List[str]] = None
     description: Optional[str] = None
     allergens: Optional[List[str]] = None
+    name: Optional[str] = None  # Allow both 'dish' and 'name' for flexibility
 
 class FAQItem(BaseModel):
     question: str
@@ -14,9 +15,12 @@ class FAQItem(BaseModel):
 
 class RestaurantData(BaseModel):
     name: str
-    story: str
+    story: Optional[str] = None  # Make optional to handle incomplete data
     menu: List[MenuItem]
-    faq: List[FAQItem]
+    faq: Optional[List[FAQItem]] = None  # Make optional to handle incomplete data
+    opening_hours: Optional[str] = None
+    contact_info: Optional[str] = None
+    restaurant_story: Optional[str] = None  # Alternative field name
 
 class RestaurantCreateRequest(BaseModel):
     restaurant_id: str
