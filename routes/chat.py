@@ -36,6 +36,9 @@ def get_chat_logs(
     current_restaurant: models.Restaurant = Depends(get_current_restaurant),
     db: Session = Depends(get_db)
 ):
+    print("📥 /chat/logs called")
+    print("🔍 Provided restaurant_id:", restaurant_id)
+    print("🔐 Authenticated restaurant_id:", current_restaurant.restaurant_id)
     """Get chat logs for a restaurant (protected endpoint)."""
     # Ensure the requesting restaurant can only access their own logs
     if current_restaurant.restaurant_id != restaurant_id:

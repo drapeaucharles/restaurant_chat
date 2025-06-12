@@ -138,6 +138,8 @@ Menu:
     if not client:
         client = models.Client(id=req.client_id, restaurant_id=req.restaurant_id)
         db.add(client)
+        print("✅ Saving chat log for client:", req.client_id)
+        print("✅ Log content:", chat_log.message, "→", chat_log.answer)
         db.commit()
         db.refresh(client)
 
