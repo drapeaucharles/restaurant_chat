@@ -34,6 +34,61 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     if not restaurant:
         return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
 
+    data = restaurant.data or {}
+
+    try:
+        user_prompt = f"""
+Customer message: "{req.message}"
+
+Restaurant Info:
+- Name: {data.get("name")}
+- Story: {data.get("restaurant_story")}
+- Opening Hours: {data.get("opening_hours")}
+- Contact Info: {data.get("contact_info")}
+
+Menu:
+{format_menu(data.get("menu", []))}
+"""
+
+        response = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.5,
+            max_tokens=300
+        )
+
+        answer = response.choices[0].message.content
+
+    except Exception as e:
+        print("OpenAI API ERROR:", e)
+        raise HTTPException(status_code=500, detail="Failed to process chat. Please try again.")
+
+    # Ensure client exists
+    client = db.query(models.Client).filter(models.Client.id == req.client_id).first()
+    if not client:
+        client = models.Client(id=req.client_id, restaurant_id=req.restaurant_id)
+        db.add(client)
+        db.commit()
+        db.refresh(client)
+
+    # Log chat
+    chat_log = models.ChatLog(
+        client_id=req.client_id,
+        restaurant_id=req.restaurant_id,
+        message=req.message,
+        answer=answer
+    )
+    db.add(chat_log)
+    db.commit()
+
+    return ChatResponse(answer=answer)
+    restaurant = db.query(models.Restaurant).filter(models.Restaurant.restaurant_id == req.restaurant_id).first()
+    if not restaurant:
+        return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
+
     try:
         user_prompt = f"""
 Customer message: "{req.message}"
