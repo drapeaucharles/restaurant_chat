@@ -5,6 +5,7 @@ import models
 from pinecone_utils import query_pinecone
 from schemas.chat import ChatRequest, ChatResponse
 from schemas.restaurant import RestaurantData # Corrected import
+from fastapi import HTTPException
 
 system_prompt = """
 You are a helpful, friendly, and professional restaurant staff member. You assist customers via chat with questions about food, ingredients, dietary needs, reservations, opening hours, and anything related to the restaurant.
@@ -26,13 +27,15 @@ def format_menu(menu_items):
         for item in menu_items
     ])
 
+from fastapi import HTTPException
+
 def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     restaurant = db.query(models.Restaurant).filter(models.Restaurant.restaurant_id == req.restaurant_id).first()
     if not restaurant:
-        # Handle case where restaurant info is not found
         return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
 
-    user_prompt = f"""
+    try:
+        user_prompt = f"""
 Customer message: "{req.message}"
 
 Restaurant Info:
@@ -42,33 +45,34 @@ Restaurant Info:
 - Contact Info: {restaurant.contact_info}
 
 Menu:
-{format_menu(restaurant.menu)} # Corrected to restaurant.menu
+{format_menu(restaurant.menu)}
 """
 
-    response = openai.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.5,
-        max_tokens=300
-    )
+        response = openai.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.5,
+            max_tokens=300
+        )
 
-    answer = response.choices[0].message.content
+        answer = response.choices[0].message.content
 
-    # ✅ Ensure client exists before logging
+    except Exception as e:
+        print("OpenAI API ERROR:", e)
+        raise HTTPException(status_code=500, detail="Failed to process chat. Please try again.")
+
+    # Ensure client exists
     client = db.query(models.Client).filter(models.Client.id == req.client_id).first()
     if not client:
-        client = models.Client(
-            id=req.client_id,
-            restaurant_id=req.restaurant_id
-        )
+        client = models.Client(id=req.client_id, restaurant_id=req.restaurant_id)
         db.add(client)
         db.commit()
         db.refresh(client)
 
-    # Log chat in DB
+    # Log chat
     chat_log = models.ChatLog(
         client_id=req.client_id,
         restaurant_id=req.restaurant_id,
@@ -79,4 +83,3 @@ Menu:
     db.commit()
 
     return ChatResponse(answer=answer)
-
