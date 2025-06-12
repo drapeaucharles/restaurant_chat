@@ -83,14 +83,17 @@ def login_restaurant(request: RestaurantLoginRequest, req: Request, db: Session 
         token_type="refresh"
     )
     
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,  # seconds
-        "refresh_token": refresh_token,
-        "refresh_token_expires_in": REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # seconds
-        "role": restaurant.role
-    }
+return {
+    "access_token": access_token,
+    "refresh_token": refresh_token,
+    "token_type": "bearer",
+    "expires_in": 86400,
+    "refresh_token_expires_in": 604800,
+    "restaurant_id": restaurant.restaurant_id,
+    "role": restaurant.role,
+    "email": restaurant.email  # if available
+}
+
 
 
 @router.post("/token")
