@@ -68,14 +68,17 @@ def format_menu(menu_items):
 
 def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     """Handle chat requests with proper error handling and data validation."""
-    restaurant = db.query(models.Restaurant).filter(models.Restaurant.restaurant_id == req.restaurant_id).first()
+
+    restaurant = db.query(models.Restaurant).filter(
+        models.Restaurant.restaurant_id == req.restaurant_id
+    ).first()
     if not restaurant:
         return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
 
     data = restaurant.data or {}
 
     try:
-        # Apply menu fallbacks to ensure all required fields exist
+        # Prepare menu
         menu_items = data.get("menu", [])
         if menu_items:
             try:
@@ -83,18 +86,10 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
                 print(f"Applied fallbacks to {len(menu_items)} menu items")
             except Exception as e:
                 print(f"Warning: Error applying menu fallbacks: {e}")
-                # Continue with original menu items but add defensive handling
-        
-        # Defensive check: Validate menu items before sending to OpenAI
+
         validated_menu = []
         for item in menu_items:
-            try:
-                # Ensure minimum required fields exist
-                if not isinstance(item, dict):
-                    print(f"Warning: Menu item is not a dictionary: {item}")
-                    continue
-                
-                # Add missing fields with defaults
+            if isinstance(item, dict):
                 validated_item = {
                     'name': item.get('name') or item.get('dish', 'Unknown Dish'),
                     'description': item.get('description', 'No description available'),
@@ -103,20 +98,11 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
                     'price': item.get('price', 'Price not available')
                 }
                 validated_menu.append(validated_item)
-                
-            except Exception as e:
-                print(f"Warning: Error validating menu item {item}: {e}")
-                # Skip problematic items rather than crash
-                continue
-        
-        # Final defensive check before OpenAI call
-        if not all(isinstance(item, dict) and 'allergens' in item for item in validated_menu):
-            print("Warning: Some menu items still missing allergens field after validation")
-            # Apply final fallback
-            for item in validated_menu:
-                if 'allergens' not in item:
-                    item['allergens'] = []
-        
+
+        for item in validated_menu:
+            if 'allergens' not in item:
+                item['allergens'] = []
+
         user_prompt = f"""
 Customer message: "{req.message}"
 
@@ -140,16 +126,11 @@ Menu:
             max_tokens=300
         )
 
-        answer = response.choices[0].message.content
+        answer = response.choices[0].message.content.strip()
 
     except Exception as e:
         print("OpenAI API ERROR:", str(e))
-        # Provide a more helpful error message to users
-        if "allergens" in str(e).lower():
-            error_msg = "I'm having trouble accessing the menu information. Please contact the restaurant directly for detailed allergen information."
-        else:
-            error_msg = "I'm experiencing technical difficulties. Please try again in a moment or contact the restaurant directly."
-        
+        error_msg = "I'm experiencing technical difficulties. Please try again later."
         return ChatResponse(answer=error_msg)
 
     # Ensure client exists
@@ -160,10 +141,11 @@ Menu:
         db.commit()
         db.refresh(client)
 
-    # Log chat
+    # ✅ Log chat (only once, after answer is ready)
     chat_log = models.ChatLog(
         client_id=req.client_id,
         restaurant_id=req.restaurant_id,
+        table_id=getattr(req, "table_id", "T1"),
         message=req.message,
         answer=answer
     )
@@ -171,4 +153,3 @@ Menu:
     db.commit()
 
     return ChatResponse(answer=answer)
-
