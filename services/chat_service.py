@@ -27,7 +27,7 @@ def format_menu(menu_items):
     ])
 
 def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
-    restaurant = db.query(models.Restaurant).filter(models.Restaurant.id == req.restaurant_id).first()
+    restaurant = db.query(models.Restaurant).filter(models.Restaurant.restaurant_id == req.restaurant_id).first()
     if not restaurant:
         # Handle case where restaurant info is not found
         return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
