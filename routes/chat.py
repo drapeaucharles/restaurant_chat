@@ -30,7 +30,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     return result
 
 
-@router.post("/chat/logs")
+@router.get("/chat/logs")
 def get_chat_logs(
     restaurant_id: str,
     current_restaurant: models.Restaurant = Depends(get_current_restaurant),
@@ -39,8 +39,7 @@ def get_chat_logs(
     print("📥 /chat/logs called")
     print("🔍 Provided restaurant_id:", restaurant_id)
     print("🔐 Authenticated restaurant_id:", current_restaurant.restaurant_id)
-    """Get chat logs for a restaurant (protected endpoint)."""
-    # Ensure the requesting restaurant can only access their own logs
+
     if current_restaurant.restaurant_id != restaurant_id:
         from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Access denied")
@@ -58,4 +57,3 @@ def get_chat_logs(
         }
         for log in logs
     ]
-
