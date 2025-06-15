@@ -11,6 +11,7 @@ from database import get_db
 import models
 from schemas.chat import ChatMessageCreate, ChatMessageResponse
 from auth import get_current_restaurant
+from schemas.chat import ToggleAIRequest
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
