@@ -141,17 +141,30 @@ Menu:
         db.commit()
         db.refresh(client)
 
-    # ✅ Log chat (only once, after answer is ready)
+    # ✅ Get the latest ai_enabled state for this client to carry forward
+    latest_log = db.query(models.ChatLog).filter(
+        models.ChatLog.client_id == req.client_id,
+        models.ChatLog.restaurant_id == req.restaurant_id
+    ).order_by(models.ChatLog.timestamp.desc()).first()
+    
+    # Inherit ai_enabled state from previous conversation, default to True if none exists
+    ai_enabled_state = latest_log.ai_enabled if latest_log else True
+    
+    print(f"🔄 Inheriting AI state for client {req.client_id}: ai_enabled = {ai_enabled_state}")
+
+    # ✅ Log chat with inherited ai_enabled state
     chat_log = models.ChatLog(
         client_id=req.client_id,
         restaurant_id=req.restaurant_id,
         table_id=getattr(req, "table_id", "T1"),
         message=req.message,
-        answer=answer
+        answer=answer,
+        ai_enabled=ai_enabled_state  # ✅ Carry forward the previous state
     )
     db.add(chat_log)
     db.commit()
     print("✅ Saving chat log for client:", req.client_id)
     print("✅ Log content:", chat_log.message, "→", chat_log.answer)
+    print(f"✅ AI enabled state: {chat_log.ai_enabled}")
 
     return ChatResponse(answer=answer)
