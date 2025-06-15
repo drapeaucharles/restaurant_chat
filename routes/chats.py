@@ -186,18 +186,16 @@ def get_full_chat_history_for_client(
 
 @router.post("/logs/toggle-ai")
 def toggle_ai_for_conversation(
-    restaurant_id: str,
-    client_id: str,
-    enabled: bool,
+    payload: ToggleAIRequest,
     db: Session = Depends(get_db),
     current_restaurant: models.Restaurant = Depends(get_current_restaurant)
 ):
-    if current_restaurant.restaurant_id != restaurant_id:
+    if current_restaurant.restaurant_id != payload.restaurant_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     db.query(models.ChatLog).filter(
-        models.ChatLog.restaurant_id == restaurant_id,
-        models.ChatLog.client_id == client_id
-    ).update({"ai_enabled": enabled})
+        models.ChatLog.restaurant_id == payload.restaurant_id,
+        models.ChatLog.client_id == payload.client_id
+    ).update({"ai_enabled": payload.enabled})
     db.commit()
-    return {"status": "ok", "enabled": enabled}
+    return {"status": "ok", "enabled": payload.enabled}

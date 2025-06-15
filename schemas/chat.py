@@ -2,6 +2,8 @@ from pydantic import BaseModel
 from typing import Optional
 import uuid
 from datetime import datetime
+from pydantic import BaseModel
+
 
 class ChatRequest(BaseModel):
     restaurant_id: str
@@ -29,3 +31,8 @@ class ChatMessageResponse(BaseModel):
     class Config:
         orm_mode = True
 
+
+class ToggleAIRequest(BaseModel):
+    restaurant_id: str
+    client_id: str
+    enabled: bool
