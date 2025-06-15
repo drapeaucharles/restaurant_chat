@@ -6,7 +6,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 import uuid
-
+from sqlalchemy.sql import func, desc
 from database import get_db
 import models
 from schemas.chat import ChatMessageCreate, ChatMessageResponse
@@ -121,26 +121,28 @@ def get_latest_logs_grouped_by_client(
     current_restaurant: models.Restaurant = Depends(get_current_restaurant),
     db: Session = Depends(get_db)
 ):
-    from sqlalchemy.sql import func
-    from sqlalchemy import desc
-
     if current_restaurant.restaurant_id != restaurant_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    subquery = (
+    # First, get subquery of latest message timestamps per client
+    latest_subquery = (
         db.query(
             models.ChatLog.client_id,
-            func.max(models.ChatLog.timestamp).label("latest")
+            func.max(models.ChatLog.timestamp).label("latest_ts")
         )
         .filter(models.ChatLog.restaurant_id == restaurant_id)
         .group_by(models.ChatLog.client_id)
         .subquery()
     )
 
+    # Join to the actual ChatLog table on both client_id and timestamp
     logs = (
         db.query(models.ChatLog)
-        .join(subquery, (models.ChatLog.client_id == subquery.c.client_id) & (models.ChatLog.timestamp == subquery.c.latest))
-        .filter(models.ChatLog.restaurant_id == restaurant_id)
+        .join(
+            latest_subquery,
+            (models.ChatLog.client_id == latest_subquery.c.client_id) &
+            (models.ChatLog.timestamp == latest_subquery.c.latest_ts)
+        )
         .order_by(desc(models.ChatLog.timestamp))
         .all()
     )
@@ -151,7 +153,8 @@ def get_latest_logs_grouped_by_client(
             "table_id": log.table_id,
             "message": log.message,
             "answer": log.answer,
-            "timestamp": log.timestamp
+            "timestamp": log.timestamp,
+            "ai_enabled": getattr(log, "ai_enabled", True)  # Safe fallback
         }
         for log in logs
     ]
