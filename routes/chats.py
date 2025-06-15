@@ -154,7 +154,7 @@ def get_latest_logs_grouped_by_client(
             "message": log.message,
             "answer": log.answer,
             "timestamp": log.timestamp,
-            "ai_enabled": getattr(log, "ai_enabled", True)  # Safe fallback
+            "ai_enabled": log.ai_enabled  # ✅ Direct access to ai_enabled field
         }
         for log in logs
     ]
