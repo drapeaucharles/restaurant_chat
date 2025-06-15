@@ -24,6 +24,7 @@ class ChatMessageResponse(BaseModel):
     sender_type: str
     message: str
     timestamp: datetime
+    ai_enabled: Optional[bool] = True  # ✅ Added to support stop/start logic
 
     class Config:
         orm_mode = True
