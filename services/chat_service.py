@@ -75,6 +75,44 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     if not restaurant:
         return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
 
+    # ✅ Check AI state BEFORE processing - get the latest ai_enabled state for this client
+    latest_log = db.query(models.ChatLog).filter(
+        models.ChatLog.client_id == req.client_id,
+        models.ChatLog.restaurant_id == req.restaurant_id
+    ).order_by(models.ChatLog.timestamp.desc()).first()
+    
+    # Inherit ai_enabled state from previous conversation, default to True if none exists
+    ai_enabled_state = latest_log.ai_enabled if latest_log else True
+    
+    print(f"🔍 AI state check for client {req.client_id}: ai_enabled = {ai_enabled_state}")
+    
+    # ✅ If AI is disabled, skip processing and return empty response
+    if not ai_enabled_state:
+        print("🚫 AI is disabled for this conversation - skipping AI processing")
+        
+        # Ensure client exists
+        client = db.query(models.Client).filter(models.Client.id == req.client_id).first()
+        if not client:
+            client = models.Client(id=req.client_id, restaurant_id=req.restaurant_id)
+            db.add(client)
+            db.commit()
+            db.refresh(client)
+
+        # ✅ Log the message with NO answer and ai_enabled=False
+        chat_log = models.ChatLog(
+            client_id=req.client_id,
+            restaurant_id=req.restaurant_id,
+            table_id=getattr(req, "table_id", "T1"),
+            message=req.message,
+            answer="",  # ✅ Empty answer when AI is disabled
+            ai_enabled=False  # ✅ Keep AI disabled
+        )
+        db.add(chat_log)
+        db.commit()
+        print("✅ Logged message with empty answer (AI disabled)")
+        
+        return ChatResponse(answer="")  # ✅ Return empty response
+
     data = restaurant.data or {}
 
     try:
@@ -141,25 +179,14 @@ Menu:
         db.commit()
         db.refresh(client)
 
-    # ✅ Get the latest ai_enabled state for this client to carry forward
-    latest_log = db.query(models.ChatLog).filter(
-        models.ChatLog.client_id == req.client_id,
-        models.ChatLog.restaurant_id == req.restaurant_id
-    ).order_by(models.ChatLog.timestamp.desc()).first()
-    
-    # Inherit ai_enabled state from previous conversation, default to True if none exists
-    ai_enabled_state = latest_log.ai_enabled if latest_log else True
-    
-    print(f"🔄 Inheriting AI state for client {req.client_id}: ai_enabled = {ai_enabled_state}")
-
-    # ✅ Log chat with inherited ai_enabled state
+    # ✅ Log chat with inherited ai_enabled state (AI was enabled, so we have an answer)
     chat_log = models.ChatLog(
         client_id=req.client_id,
         restaurant_id=req.restaurant_id,
         table_id=getattr(req, "table_id", "T1"),
         message=req.message,
         answer=answer,
-        ai_enabled=ai_enabled_state  # ✅ Carry forward the previous state
+        ai_enabled=True  # ✅ AI was enabled for this response
     )
     db.add(chat_log)
     db.commit()
