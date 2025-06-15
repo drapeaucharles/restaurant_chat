@@ -39,6 +39,7 @@ class ChatLog(Base):
     message = Column(String)
     answer = Column(String)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    ai_enabled = Column(Boolean, default=True)
 
 # ChatMessage Table (new, for client-restaurant chat messages)
 class ChatMessage(Base):
