@@ -110,3 +110,73 @@ def get_chat_messages(
         )
         for message in messages
     ]
+
+
+@router.get("/chat/logs/latest")
+def get_latest_logs_grouped_by_client(
+    restaurant_id: str,
+    current_restaurant: models.Restaurant = Depends(get_current_restaurant),
+    db: Session = Depends(get_db)
+):
+    from sqlalchemy.sql import func
+    from sqlalchemy import desc
+
+    if current_restaurant.restaurant_id != restaurant_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    subquery = (
+        db.query(
+            models.ChatLog.client_id,
+            func.max(models.ChatLog.timestamp).label("latest")
+        )
+        .filter(models.ChatLog.restaurant_id == restaurant_id)
+        .group_by(models.ChatLog.client_id)
+        .subquery()
+    )
+
+    logs = (
+        db.query(models.ChatLog)
+        .join(subquery, (models.ChatLog.client_id == subquery.c.client_id) & (models.ChatLog.timestamp == subquery.c.latest))
+        .filter(models.ChatLog.restaurant_id == restaurant_id)
+        .order_by(desc(models.ChatLog.timestamp))
+        .all()
+    )
+
+    return [
+        {
+            "client_id": str(log.client_id),
+            "table_id": log.table_id,
+            "message": log.message,
+            "answer": log.answer,
+            "timestamp": log.timestamp
+        }
+        for log in logs
+    ]
+
+
+@router.get("/chat/logs/client")
+def get_full_chat_history_for_client(
+    restaurant_id: str,
+    client_id: str,
+    current_restaurant: models.Restaurant = Depends(get_current_restaurant),
+    db: Session = Depends(get_db)
+):
+    if current_restaurant.restaurant_id != restaurant_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    logs = db.query(models.ChatLog).filter(
+        models.ChatLog.restaurant_id == restaurant_id,
+        models.ChatLog.client_id == client_id
+    ).order_by(models.ChatLog.timestamp).all()
+
+    return [
+        {
+            "client_id": str(log.client_id),
+            "table_id": log.table_id,
+            "message": log.message,
+            "answer": log.answer,
+            "timestamp": log.timestamp
+        }
+        for log in logs
+    ]
