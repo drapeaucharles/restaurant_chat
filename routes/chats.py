@@ -114,7 +114,7 @@ def get_chat_messages(
     ]
 
 
-@router.get("/chat/logs/latest")
+@router.get("/logs/latest")
 def get_latest_logs_grouped_by_client(
     restaurant_id: str,
     current_restaurant: models.Restaurant = Depends(get_current_restaurant),
@@ -156,7 +156,7 @@ def get_latest_logs_grouped_by_client(
     ]
 
 
-@router.get("/chat/logs/client")
+@router.get("/logs/client")
 def get_full_chat_history_for_client(
     restaurant_id: str,
     client_id: str,
