@@ -139,49 +139,44 @@ def get_latest_logs_grouped_by_client(
     if current_restaurant.restaurant_id != restaurant_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    print(f"🔍 /logs/latest called for restaurant: {restaurant_id}")
+    print(f"🔍 /logs/latest (chat_logs version) called for restaurant: {restaurant_id}")
 
-    # ✅ FIXED: Get latest messages from ChatMessage table instead of ChatLog
-    # First, get subquery of latest message timestamps per client
     latest_subquery = (
         db.query(
-            models.ChatMessage.client_id,
-            func.max(models.ChatMessage.timestamp).label("latest_ts")
+            models.ChatLog.client_id,
+            func.max(models.ChatLog.timestamp).label("latest_ts")
         )
-        .filter(models.ChatMessage.restaurant_id == restaurant_id)
-        .group_by(models.ChatMessage.client_id)
+        .filter(models.ChatLog.restaurant_id == restaurant_id)
+        .group_by(models.ChatLog.client_id)
         .subquery()
     )
 
-    # Join to the actual ChatMessage table on both client_id and timestamp
     messages = (
-        db.query(models.ChatMessage)
+        db.query(models.ChatLog)
         .join(
             latest_subquery,
-            (models.ChatMessage.client_id == latest_subquery.c.client_id) &
-            (models.ChatMessage.timestamp == latest_subquery.c.latest_ts)
+            (models.ChatLog.client_id == latest_subquery.c.client_id) &
+            (models.ChatLog.timestamp == latest_subquery.c.latest_ts)
         )
-        .order_by(desc(models.ChatMessage.timestamp))
+        .order_by(desc(models.ChatLog.timestamp))
         .all()
     )
 
-    print(f"📋 Found {len(messages)} latest messages from ChatMessage table")
-
     result = []
-    for message in messages:
-        print(f"📨 Latest message: client_id={message.client_id}, sender_type={message.sender_type}, message='{message.message[:50]}...'")
+    for log in messages:
         result.append({
-            "client_id": str(message.client_id),
-            "table_id": getattr(message, 'table_id', ''),  # ChatMessage may not have table_id
-            "message": message.message,
-            "answer": "",  # ChatMessage doesn't have separate answer field
-            "timestamp": message.timestamp,
-            "ai_enabled": True,  # Default to True for ChatMessage entries
-            "sender_type": message.sender_type  # ✅ Use actual sender_type from database
+            "client_id": str(log.client_id),
+            "table_id": getattr(log, 'table_id', ''),
+            "message": log.message,
+            "answer": log.answer,
+            "timestamp": log.timestamp,
+            "ai_enabled": log.ai_enabled,
+            "sender_type": "ai" if log.answer else "client"
         })
 
-    print(f"📋 Returning {len(result)} latest messages with preserved sender_type")
+    print(f"📋 Returning {len(result)} chat_logs entries grouped by client")
     return result
+
 
 
 @router.get("/logs/client")
