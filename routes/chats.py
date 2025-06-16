@@ -72,6 +72,30 @@ def create_chat_message(
     print(f"   - message: '{new_message.message[:50]}...'")
     print(f"   - timestamp: {new_message.timestamp}")
 
+    # 🔧 FIX: If this is a client message, trigger AI response via chat_service
+    ai_response = ""
+    if message_data.sender_type == "client":
+        print(f"🤖 Client message detected - checking if AI should respond...")
+        
+        # Create ChatRequest for AI processing
+        from schemas.chat import ChatRequest
+        chat_request = ChatRequest(
+            restaurant_id=message_data.restaurant_id,
+            client_id=message_data.client_id,
+            message=message_data.message,
+            sender_type=message_data.sender_type
+        )
+        
+        # Import and call chat_service for AI response
+        from services.chat_service import chat_service
+        ai_result = chat_service(chat_request, db)
+        ai_response = ai_result.answer
+        
+        if ai_response:
+            print(f"✅ AI responded with: '{ai_response[:50]}...'")
+        else:
+            print(f"ℹ️ AI did not respond (disabled or blocked)")
+
     response = ChatMessageResponse(
         id=new_message.id,
         restaurant_id=new_message.restaurant_id,

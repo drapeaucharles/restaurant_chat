@@ -41,7 +41,27 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     
     print(f"📋 Final sender_type for processing: '{req.sender_type}'")
     
-    # Call chat service and log result
+    # 🔧 FIX: Save client message to ChatMessage table BEFORE AI processing
+    from services.chat_service import get_or_create_client
+    
+    # Ensure client exists
+    client = get_or_create_client(db, req.client_id, req.restaurant_id)
+    print(f"✅ Client ensured: {client.id}")
+    
+    # Save the incoming message to ChatMessage table
+    print(f"💾 Saving client message to ChatMessage table...")
+    client_message = models.ChatMessage(
+        restaurant_id=req.restaurant_id,
+        client_id=req.client_id,
+        sender_type=req.sender_type,
+        message=req.message
+    )
+    db.add(client_message)
+    db.commit()
+    db.refresh(client_message)
+    print(f"✅ Client message saved: ID={client_message.id}, sender_type='{client_message.sender_type}'")
+    
+    # Call chat service for AI response (if appropriate)
     result = chat_service(req, db)
     
     print(f"🤖 AI Response: '{result.answer[:100]}...' (length: {len(result.answer)})")
