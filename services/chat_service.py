@@ -5,7 +5,7 @@ from pinecone_utils import query_pinecone
 from schemas.chat import ChatRequest, ChatResponse
 from schemas.restaurant import RestaurantData # Corrected import
 from fastapi import HTTPException
-
+from sqlalchemy.exc import IntegrityError
 # Import the fallback function from restaurant service
 from services.restaurant_service import apply_menu_fallbacks
 
@@ -141,13 +141,18 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         print("🚫 AI is disabled for this conversation - skipping AI processing")
         
         # Ensure client exists
-        client = db.query(models.Client).filter_by(id=req.client_id, restaurant_id=req.restaurant_id).first()
+        client = db.query(models.Client).filter_by(id=req.client_id).first()
 
         if not client:
-            client = models.Client(id=req.client_id, restaurant_id=req.restaurant_id)
-            db.add(client)
-            db.commit()
-            db.refresh(client)
+            try:
+                client = models.Client(id=req.client_id, restaurant_id=req.restaurant_id)
+                db.add(client)
+                db.commit()
+                db.refresh(client)
+            except IntegrityError:
+                db.rollback()
+                client = db.query(models.Client).filter_by(id=req.client_id).first()
+
 
 
         # ✅ Log the message with NO answer and ai_enabled=False
