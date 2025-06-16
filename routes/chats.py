@@ -15,7 +15,7 @@ from schemas.chat import ToggleAIRequest
 from services.chat_service import get_or_create_client
 
 
-router = APIRouter(prefix="/chat", tags=["chat"])
+router = APIRouter(tags=["chat-management"])
 
 
 @router.post("/", response_model=ChatMessageResponse)
@@ -165,47 +165,51 @@ def get_latest_logs_grouped_by_client(
 
     print(f"🔍 /logs/latest (ChatMessage version) called for restaurant: {restaurant_id}")
 
-    # ✅ MIGRATED: Use ChatMessage instead of ChatLog
-    latest_subquery = (
-        db.query(
-            models.ChatMessage.client_id,
-            func.max(models.ChatMessage.timestamp).label("latest_ts")
-        )
-        .filter(models.ChatMessage.restaurant_id == restaurant_id)
-        .group_by(models.ChatMessage.client_id)
-        .subquery()
-    )
-
-    messages = (
-        db.query(models.ChatMessage)
-        .join(
-            latest_subquery,
-            (models.ChatMessage.client_id == latest_subquery.c.client_id) &
-            (models.ChatMessage.timestamp == latest_subquery.c.latest_ts)
-        )
-        .order_by(desc(models.ChatMessage.timestamp))
-        .all()
-    )
-
+    # 🔧 FIX: Get last 2 messages per client instead of just 1
+    # First, get all clients for this restaurant
+    clients = db.query(models.Client).filter(
+        models.Client.restaurant_id == restaurant_id
+    ).all()
+    
     result = []
-    for message in messages:
+    
+    for client in clients:
+        print(f"📋 Processing client: {client.id}")
+        
+        # Get last 2 messages for this client, ordered by timestamp DESC
+        last_messages = db.query(models.ChatMessage).filter(
+            models.ChatMessage.client_id == client.id,
+            models.ChatMessage.restaurant_id == restaurant_id
+        ).order_by(desc(models.ChatMessage.timestamp)).limit(2).all()
+        
+        print(f"   Found {len(last_messages)} recent messages")
+        
+        if not last_messages:
+            continue  # Skip clients with no messages
+        
         # Get AI enabled state from client preferences
-        client = db.query(models.Client).filter(models.Client.id == message.client_id).first()
         ai_enabled = True  # Default
-        if client and client.preferences:
+        if client.preferences:
             ai_enabled = client.preferences.get("ai_enabled", True)
         
-        result.append({
-            "client_id": str(message.client_id),
-            "table_id": "",  # ChatMessage doesn't have table_id
-            "message": message.message,
-            "answer": "",  # Will need to find corresponding AI response
-            "timestamp": message.timestamp,
-            "ai_enabled": ai_enabled,
-            "sender_type": message.sender_type
-        })
-
-    print(f"📋 Returning {len(result)} ChatMessage entries grouped by client")
+        # Process each of the last 2 messages
+        for i, message in enumerate(last_messages):
+            print(f"   Message {i+1}: [{message.sender_type}] {message.message[:30]}...")
+            
+            result.append({
+                "client_id": str(message.client_id),
+                "table_id": "",  # ChatMessage doesn't have table_id
+                "message": message.message,
+                "answer": "",  # Legacy field for compatibility
+                "timestamp": message.timestamp,
+                "ai_enabled": ai_enabled,
+                "sender_type": message.sender_type
+            })
+    
+    # Sort result by timestamp DESC to show most recent conversations first
+    result.sort(key=lambda x: x["timestamp"], reverse=True)
+    
+    print(f"📋 Returning {len(result)} messages from {len(clients)} clients (up to 2 per client)")
     return result
 
 
@@ -291,8 +295,14 @@ def toggle_ai_for_conversation(
         raise HTTPException(status_code=403, detail="Access denied")
 
     # ✅ MIGRATED: Store ai_enabled in Client.preferences instead of ChatLog
+    # Convert string client_id to UUID for database query
+    try:
+        client_uuid = uuid.UUID(payload.client_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid client_id format")
+    
     client = db.query(models.Client).filter(
-        models.Client.id == payload.client_id,
+        models.Client.id == client_uuid,
         models.Client.restaurant_id == payload.restaurant_id
     ).first()
     

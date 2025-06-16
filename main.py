@@ -34,12 +34,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Include routers with proper prefixes to avoid conflicts
 app.include_router(auth.router)
 app.include_router(restaurant.router)
-app.include_router(chat.router)  # Keep existing chat router for backward compatibility
+app.include_router(chat.router)  # No prefix - handles /chat, /client/create-or-update
 app.include_router(clients.router)  # New client management router
-app.include_router(chats.router)  # New chat management router
+app.include_router(chats.router, prefix="/chat")  # Prefix for chat management - handles /chat/logs/*, /chat/
 
 
 # Health check endpoints
