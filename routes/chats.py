@@ -154,7 +154,8 @@ def get_latest_logs_grouped_by_client(
             "message": log.message,
             "answer": log.answer,
             "timestamp": log.timestamp,
-            "ai_enabled": log.ai_enabled  # ✅ Direct access to ai_enabled field
+            "ai_enabled": log.ai_enabled,  # ✅ Include AI status
+            "sender_type": "client"  # ✅ Messages are always from client
         }
         for log in logs
     ]
@@ -182,7 +183,10 @@ def get_full_chat_history_for_client(
             "table_id": log.table_id,
             "message": log.message,
             "answer": log.answer,
-            "timestamp": log.timestamp
+            "timestamp": log.timestamp,
+            "ai_enabled": getattr(log, "ai_enabled", True),  # ✅ Include AI status with fallback
+            "sender_type": "client",  # ✅ Messages are always from client
+            "sender_type_answer": "ai" if getattr(log, "ai_enabled", True) else "restaurant"  # ✅ Answer type based on AI status
         }
         for log in logs
     ]
