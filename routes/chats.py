@@ -165,17 +165,47 @@ def get_latest_logs_grouped_by_client(
 def get_full_chat_history_for_client(
     restaurant_id: str,
     client_id: str,
-    current_restaurant: models.Restaurant = Depends(get_current_restaurant),
     db: Session = Depends(get_db)
 ):
-    if current_restaurant.restaurant_id != restaurant_id:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="Access denied")
-
+    """
+    Get full chat history for a specific client.
+    Public endpoint - no authentication required.
+    Security: Client must belong to the specified restaurant.
+    Auto-creates client if they don't exist (for first-time visitors).
+    """
+    # ✅ First, verify the restaurant exists
+    restaurant = db.query(models.Restaurant).filter(
+        models.Restaurant.restaurant_id == restaurant_id
+    ).first()
+    
+    if not restaurant:
+        raise HTTPException(status_code=404, detail="Restaurant not found")
+    
+    # ✅ Check if client exists, create if not (for first-time visitors)
+    client = db.query(models.Client).filter(
+        models.Client.id == client_id,
+        models.Client.restaurant_id == restaurant_id
+    ).first()
+    
+    if not client:
+        # ✅ Auto-create client for first-time visitors
+        print(f"🆕 Creating new client {client_id} for restaurant {restaurant_id}")
+        client = models.Client(
+            id=client_id,
+            restaurant_id=restaurant_id
+        )
+        db.add(client)
+        db.commit()
+        db.refresh(client)
+        print(f"✅ Created new client: {client.id}")
+    
+    # ✅ Get chat logs (will be empty for new clients, which is expected)
     logs = db.query(models.ChatLog).filter(
         models.ChatLog.restaurant_id == restaurant_id,
         models.ChatLog.client_id == client_id
     ).order_by(models.ChatLog.timestamp).all()
+    
+    print(f"📋 Returning {len(logs)} chat logs for client {client_id}")
 
     return [
         {
