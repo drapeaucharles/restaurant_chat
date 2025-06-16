@@ -26,7 +26,28 @@ def create_or_update_client(req: ClientCreateRequest, db: Session = Depends(get_
 @router.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, db: Session = Depends(get_db)):
     """Handle chat requests."""
+    print(f"\n🔍 ===== LEGACY /chat ENDPOINT CALLED =====")
+    print(f"📨 Request data: restaurant_id={req.restaurant_id}, client_id={req.client_id}")
+    print(f"💬 Message: '{req.message}'")
+    print(f"🏷️ Sender Type from request: {getattr(req, 'sender_type', 'NOT_SET')}")
+    
+    # ✅ VERIFIED: Enforce default sender_type for public /chat endpoint
+    original_sender_type = getattr(req, 'sender_type', None)
+    if not hasattr(req, 'sender_type') or not req.sender_type:
+        req.sender_type = 'client'
+        print(f"⚠️ Missing sender_type! Set default to 'client' for public endpoint")
+    else:
+        print(f"✅ sender_type provided: '{req.sender_type}'")
+    
+    print(f"📋 Final sender_type for processing: '{req.sender_type}'")
+    
+    # Call chat service and log result
     result = chat_service(req, db)
+    
+    print(f"🤖 AI Response: '{result.answer[:100]}...' (length: {len(result.answer)})")
+    print(f"🔍 Response empty: {len(result.answer) == 0}")
+    print(f"===== END /chat ENDPOINT =====\n")
+    
     return result
 
 

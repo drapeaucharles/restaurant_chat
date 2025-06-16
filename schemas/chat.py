@@ -9,6 +9,7 @@ class ChatRequest(BaseModel):
     restaurant_id: str
     client_id: uuid.UUID
     message: str
+    sender_type: Optional[str] = 'client'  # ✅ FIXED: Add sender_type with default
 
 class ChatResponse(BaseModel):
     answer: str

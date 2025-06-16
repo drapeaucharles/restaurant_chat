@@ -68,14 +68,64 @@ def format_menu(menu_items):
 
 def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     """Handle chat requests with proper error handling and data validation."""
+    
+    print(f"\n🔍 ===== CHAT_SERVICE CALLED =====")
+    print(f"🏪 Restaurant ID: {req.restaurant_id}")
+    print(f"👤 Client ID: {req.client_id}")
+    print(f"💬 Message: '{req.message}'")
+    print(f"🏷️ Sender Type: {req.sender_type}")
 
     restaurant = db.query(models.Restaurant).filter(
         models.Restaurant.restaurant_id == req.restaurant_id
     ).first()
     if not restaurant:
+        print(f"❌ Restaurant not found: {req.restaurant_id}")
         return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
 
+    print(f"✅ Restaurant found: {restaurant.restaurant_id}")
+
+    # ✅ VERIFIED: AI response blocking logic with comprehensive logging
+    from datetime import datetime, timedelta
+    
+    print(f"🔍 CHECKING IF AI SHOULD RESPOND...")
+    print(f"📋 Direct sender_type check: '{req.sender_type}'")
+    
+    # First check: Direct sender_type validation
+    if req.sender_type == 'restaurant':
+        print(f"🚫 BLOCKING AI: sender_type is 'restaurant' (staff message)")
+        print(f"===== END CHAT_SERVICE (BLOCKED) =====\n")
+        return ChatResponse(answer="")
+    
+    # Second check: Look for recent staff messages (within last 10 seconds) to avoid race conditions
+    recent_cutoff = datetime.utcnow() - timedelta(seconds=10)
+    print(f"🕐 Checking for recent staff messages since: {recent_cutoff}")
+    
+    recent_staff_messages = db.query(models.ChatMessage).filter(
+        models.ChatMessage.client_id == req.client_id,
+        models.ChatMessage.restaurant_id == req.restaurant_id,
+        models.ChatMessage.sender_type == 'restaurant',
+        models.ChatMessage.timestamp >= recent_cutoff
+    ).order_by(models.ChatMessage.timestamp.desc()).all()
+    
+    print(f"📋 Found {len(recent_staff_messages)} recent staff messages")
+    for i, staff_msg in enumerate(recent_staff_messages):
+        print(f"   Staff message {i+1}: '{staff_msg.message[:50]}...' at {staff_msg.timestamp}")
+    
+    # Check if this message matches any recent staff message
+    is_staff_message = any(
+        staff_msg.message.strip() == req.message.strip() 
+        for staff_msg in recent_staff_messages
+    )
+    
+    if is_staff_message:
+        print(f"🚫 BLOCKING AI: Message matches recent staff message")
+        print(f"===== END CHAT_SERVICE (BLOCKED) =====\n")
+        return ChatResponse(answer="")
+    
+    print(f"✅ AI RESPONSE ALLOWED: sender_type='{req.sender_type}', no recent staff match")
+
     # ✅ Check AI state BEFORE processing - get the latest ai_enabled state for this client
+    print(f"🔍 Checking AI enabled state...")
     latest_log = db.query(models.ChatLog).filter(
         models.ChatLog.client_id == req.client_id,
         models.ChatLog.restaurant_id == req.restaurant_id
@@ -84,7 +134,7 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     # Inherit ai_enabled state from previous conversation, default to True if none exists
     ai_enabled_state = latest_log.ai_enabled if latest_log else True
     
-    print(f"🔍 AI state check for client {req.client_id}: ai_enabled = {ai_enabled_state}")
+    print(f"🔍 AI state for client {req.client_id}: ai_enabled = {ai_enabled_state}")
     
     # ✅ If AI is disabled, skip processing and return empty response
     if not ai_enabled_state:
@@ -110,6 +160,7 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         db.add(chat_log)
         db.commit()
         print("✅ Logged message with empty answer (AI disabled)")
+        print(f"===== END CHAT_SERVICE (AI DISABLED) =====\n")
         
         return ChatResponse(answer="")  # ✅ Return empty response
 

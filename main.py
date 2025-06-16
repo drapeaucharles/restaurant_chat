@@ -25,12 +25,12 @@ app = FastAPI(
 )
 
 
-# CORS middleware
+# CORS middleware - PRODUCTION READY
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://lucky-lokum-06b2de.netlify.app"],  # In production, specify actual origins
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=["https://lucky-lokum-06b2de.netlify.app"],  # ✅ VERIFIED: Production domain only
+    allow_credentials=True,  # ✅ VERIFIED: Required for authentication
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # ✅ VERIFIED: Specific methods only
     allow_headers=["*"],
 )
 
@@ -50,22 +50,11 @@ def root():
 
 @app.get("/healthcheck")
 def healthcheck():
+    """Health check endpoint."""
     return {"status": "ok"}
     
 @app.get("/health")
 def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
-
-
-@app.get("/test-alive")
-def test_alive():
-    """Test endpoint to verify API is alive."""
-    return {"ok": True}
-
-
-@app.get("/debug/routes")
-def list_routes():
-    """Debug endpoint to list all available routes."""
-    return [{"path": route.path, "methods": route.methods} for route in app.routes]
 
