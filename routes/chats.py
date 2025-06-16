@@ -44,23 +44,9 @@ def create_chat_message(
     print(f"✅ Restaurant found: {restaurant.restaurant_id}")
 
     # Check if client exists
-    client = db.query(models.Client).filter(
-        models.Client.id == message_data.client_id
-    ).first()
+    client = get_or_create_client(db, message_data.client_id, message_data.restaurant_id)
+    print(f"✅ Ensured client exists: {client.id}")
 
-    # ✅ Auto-create the client if not found
-    if not client:
-        print(f"🆕 Creating new client: {message_data.client_id}")
-        client = models.Client(
-            id=message_data.client_id,
-            restaurant_id=message_data.restaurant_id
-        )
-        db.add(client)
-        db.commit()
-        db.refresh(client)
-        print(f"✅ Created new client: {client.id}")
-    else:
-        print(f"✅ Existing client found: {client.id}")
 
     # Verify client belongs to the restaurant
     if client.restaurant_id != message_data.restaurant_id:
@@ -226,15 +212,9 @@ def get_full_chat_history_for_client(
     print(f"✅ Restaurant found: {restaurant.restaurant_id}")
     
     # ✅ Check if client exists, create if not (for first-time visitors)
-    client = db.query(models.Client).filter(
-        models.Client.id == client_id,
-        models.Client.restaurant_id == restaurant_id
-    ).first()
-    
     client = get_or_create_client(db, client_id, restaurant_id)
-        print(f"✅ Created new client: {client.id}")
-    else:
-        print(f"✅ Existing client found: {client.id}")
+    print(f"✅ Ensured client exists: {client.id}")
+
     
     # ✅ VERIFIED: Get messages from ChatMessage table (new) instead of ChatLog (legacy)
     print(f"📋 Querying ChatMessage table for messages...")
