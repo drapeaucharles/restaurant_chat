@@ -141,12 +141,14 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         print("🚫 AI is disabled for this conversation - skipping AI processing")
         
         # Ensure client exists
-        client = db.query(models.Client).filter(models.Client.id == req.client_id).first()
+        client = db.query(models.Client).filter_by(id=req.client_id, restaurant_id=req.restaurant_id).first()
+
         if not client:
             client = models.Client(id=req.client_id, restaurant_id=req.restaurant_id)
             db.add(client)
             db.commit()
             db.refresh(client)
+
 
         # ✅ Log the message with NO answer and ai_enabled=False
         chat_log = models.ChatLog(
@@ -222,27 +224,31 @@ Menu:
         error_msg = "I'm experiencing technical difficulties. Please try again later."
         return ChatResponse(answer=error_msg)
 
-    # Ensure client exists
-    client = db.query(models.Client).filter(models.Client.id == req.client_id).first()
-    if not client:
-        client = models.Client(id=req.client_id, restaurant_id=req.restaurant_id)
-        db.add(client)
-        db.commit()
-        db.refresh(client)
 
-    # ✅ Log chat with inherited ai_enabled state (AI was enabled, so we have an answer)
+    # ✅ Log AI message to ChatMessage table (this is what the frontend reads)
+    new_message = models.ChatMessage(
+        restaurant_id=req.restaurant_id,
+        client_id=req.client_id,
+        sender_type="ai",
+        message=answer
+    )
+    db.add(new_message)
+    db.commit()
+    db.refresh(new_message)
+
     chat_log = models.ChatLog(
         client_id=req.client_id,
         restaurant_id=req.restaurant_id,
         table_id=getattr(req, "table_id", "T1"),
         message=req.message,
         answer=answer,
-        ai_enabled=True  # ✅ AI was enabled for this response
+        ai_enabled=True
     )
     db.add(chat_log)
     db.commit()
     print("✅ Saving chat log for client:", req.client_id)
     print("✅ Log content:", chat_log.message, "→", chat_log.answer)
     print(f"✅ AI enabled state: {chat_log.ai_enabled}")
+
 
     return ChatResponse(answer=answer)

@@ -23,6 +23,7 @@ def create_chat_message(
     db: Session = Depends(get_db)
 ):
     """Store a new chat message."""
+    
     print(f"\n🔍 ===== NEW /chat/ POST ENDPOINT CALLED =====")
     print(f"📨 Message data received: {message_data}")
     print(f"🏷️ Sender Type: {message_data.sender_type}")
