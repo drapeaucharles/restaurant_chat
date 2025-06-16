@@ -12,6 +12,7 @@ import models
 from schemas.chat import ChatMessageCreate, ChatMessageResponse
 from auth import get_current_restaurant
 from schemas.chat import ToggleAIRequest
+from services.chat_service import get_or_create_client
 
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -230,16 +231,7 @@ def get_full_chat_history_for_client(
         models.Client.restaurant_id == restaurant_id
     ).first()
     
-    if not client:
-        # ✅ Auto-create client for first-time visitors
-        print(f"🆕 Creating new client {client_id} for restaurant {restaurant_id}")
-        client = models.Client(
-            id=client_id,
-            restaurant_id=restaurant_id
-        )
-        db.add(client)
-        db.commit()
-        db.refresh(client)
+    client = get_or_create_client(db, client_id, restaurant_id)
         print(f"✅ Created new client: {client.id}")
     else:
         print(f"✅ Existing client found: {client.id}")
