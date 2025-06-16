@@ -23,6 +23,19 @@ You must:
 You sound like a real person working at the restaurant, not a robot. Keep answers short, clear, and polite.
 """
 
+def get_or_create_client(db: Session, client_id: str, restaurant_id: str):
+    client = db.query(models.Client).filter_by(id=client_id).first()
+    if not client:
+        try:
+            client = models.Client(id=client_id, restaurant_id=restaurant_id)
+            db.add(client)
+            db.commit()
+            db.refresh(client)
+        except IntegrityError:
+            db.rollback()
+            client = db.query(models.Client).filter_by(id=client_id).first()
+    return client
+
 def validate_menu_item(item):
     """Validate that a menu item has all required fields."""
     required_fields = ['name', 'ingredients', 'description', 'price', 'allergens']
@@ -141,17 +154,8 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         print("🚫 AI is disabled for this conversation - skipping AI processing")
         
         # Ensure client exists
-        client = db.query(models.Client).filter_by(id=req.client_id).first()
+        client = get_or_create_client(db, req.client_id, req.restaurant_id)
 
-        if not client:
-            try:
-                client = models.Client(id=req.client_id, restaurant_id=req.restaurant_id)
-                db.add(client)
-                db.commit()
-                db.refresh(client)
-            except IntegrityError:
-                db.rollback()
-                client = db.query(models.Client).filter_by(id=req.client_id).first()
 
 
 
