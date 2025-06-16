@@ -137,42 +137,21 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     
     print(f"✅ AI RESPONSE ALLOWED: sender_type='{req.sender_type}', no recent staff match")
 
-    # ✅ Check AI state BEFORE processing - get the latest ai_enabled state for this client
+    # ✅ Check AI state BEFORE processing - get ai_enabled from Client.preferences
     print(f"🔍 Checking AI enabled state...")
-    latest_log = db.query(models.ChatLog).filter(
-        models.ChatLog.client_id == req.client_id,
-        models.ChatLog.restaurant_id == req.restaurant_id
-    ).order_by(models.ChatLog.timestamp.desc()).first()
+    client = get_or_create_client(db, req.client_id, req.restaurant_id)
     
-    # Inherit ai_enabled state from previous conversation, default to True if none exists
-    ai_enabled_state = latest_log.ai_enabled if latest_log else True
+    # Get ai_enabled from client preferences, default to True if not set
+    ai_enabled_state = True  # Default
+    if client.preferences:
+        ai_enabled_state = client.preferences.get("ai_enabled", True)
     
     print(f"🔍 AI state for client {req.client_id}: ai_enabled = {ai_enabled_state}")
     
     # ✅ If AI is disabled, skip processing and return empty response
     if not ai_enabled_state:
         print("🚫 AI is disabled for this conversation - skipping AI processing")
-        
-        # Ensure client exists
-        client = get_or_create_client(db, req.client_id, req.restaurant_id)
-
-
-
-
-        # ✅ Log the message with NO answer and ai_enabled=False
-        chat_log = models.ChatLog(
-            client_id=req.client_id,
-            restaurant_id=req.restaurant_id,
-            table_id=getattr(req, "table_id", "T1"),
-            message=req.message,
-            answer="",  # ✅ Empty answer when AI is disabled
-            ai_enabled=False  # ✅ Keep AI disabled
-        )
-        db.add(chat_log)
-        db.commit()
-        print("✅ Logged message with empty answer (AI disabled)")
         print(f"===== END CHAT_SERVICE (AI DISABLED) =====\n")
-        
         return ChatResponse(answer="")  # ✅ Return empty response
 
     data = restaurant.data or {}
@@ -244,20 +223,10 @@ Menu:
     db.add(new_message)
     db.commit()
     db.refresh(new_message)
+    print("✅ Logged AI response to ChatMessage table")
 
-    chat_log = models.ChatLog(
-        client_id=req.client_id,
-        restaurant_id=req.restaurant_id,
-        table_id=getattr(req, "table_id", "T1"),
-        message=req.message,
-        answer=answer,
-        ai_enabled=True
-    )
-    db.add(chat_log)
-    db.commit()
-    print("✅ Saving chat log for client:", req.client_id)
-    print("✅ Log content:", chat_log.message, "→", chat_log.answer)
-    print(f"✅ AI enabled state: {chat_log.ai_enabled}")
-
+    # ✅ REMOVED: No longer logging to ChatLog table - using ChatMessage only
+    print("✅ AI response processing complete")
+    print(f"===== END CHAT_SERVICE =====\n")
 
     return ChatResponse(answer=answer)

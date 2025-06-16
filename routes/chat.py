@@ -65,16 +65,34 @@ def get_chat_logs(
         from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Access denied")
     
-    logs = db.query(models.ChatLog).filter(
-        models.ChatLog.restaurant_id == restaurant_id
-    ).all()
+    # ✅ MIGRATED: Use ChatMessage instead of ChatLog
+    messages = db.query(models.ChatMessage).filter(
+        models.ChatMessage.restaurant_id == restaurant_id
+    ).order_by(models.ChatMessage.timestamp).all()
     
-    return [
-        {
-            "message": log.message,
-            "answer": log.answer,
-            "client_id": str(log.client_id),
-            "timestamp": log.timestamp
-        }
-        for log in logs
-    ]
+    # Group messages by client and format for compatibility
+    result = []
+    for message in messages:
+        # For client messages, include the message
+        # For AI messages, treat as "answer" to previous client message
+        if message.sender_type == "client":
+            result.append({
+                "message": message.message,
+                "answer": "",  # Will be filled by next AI message if exists
+                "client_id": str(message.client_id),
+                "timestamp": message.timestamp
+            })
+        elif message.sender_type == "ai":
+            # Find the most recent client message for this client and add the AI answer
+            if result and result[-1]["client_id"] == str(message.client_id) and not result[-1]["answer"]:
+                result[-1]["answer"] = message.message
+            else:
+                # AI message without preceding client message - create entry
+                result.append({
+                    "message": "",
+                    "answer": message.message,
+                    "client_id": str(message.client_id),
+                    "timestamp": message.timestamp
+                })
+    
+    return result

@@ -139,42 +139,49 @@ def get_latest_logs_grouped_by_client(
     if current_restaurant.restaurant_id != restaurant_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    print(f"🔍 /logs/latest (chat_logs version) called for restaurant: {restaurant_id}")
+    print(f"🔍 /logs/latest (ChatMessage version) called for restaurant: {restaurant_id}")
 
+    # ✅ MIGRATED: Use ChatMessage instead of ChatLog
     latest_subquery = (
         db.query(
-            models.ChatLog.client_id,
-            func.max(models.ChatLog.timestamp).label("latest_ts")
+            models.ChatMessage.client_id,
+            func.max(models.ChatMessage.timestamp).label("latest_ts")
         )
-        .filter(models.ChatLog.restaurant_id == restaurant_id)
-        .group_by(models.ChatLog.client_id)
+        .filter(models.ChatMessage.restaurant_id == restaurant_id)
+        .group_by(models.ChatMessage.client_id)
         .subquery()
     )
 
     messages = (
-        db.query(models.ChatLog)
+        db.query(models.ChatMessage)
         .join(
             latest_subquery,
-            (models.ChatLog.client_id == latest_subquery.c.client_id) &
-            (models.ChatLog.timestamp == latest_subquery.c.latest_ts)
+            (models.ChatMessage.client_id == latest_subquery.c.client_id) &
+            (models.ChatMessage.timestamp == latest_subquery.c.latest_ts)
         )
-        .order_by(desc(models.ChatLog.timestamp))
+        .order_by(desc(models.ChatMessage.timestamp))
         .all()
     )
 
     result = []
-    for log in messages:
+    for message in messages:
+        # Get AI enabled state from client preferences
+        client = db.query(models.Client).filter(models.Client.id == message.client_id).first()
+        ai_enabled = True  # Default
+        if client and client.preferences:
+            ai_enabled = client.preferences.get("ai_enabled", True)
+        
         result.append({
-            "client_id": str(log.client_id),
-            "table_id": getattr(log, 'table_id', ''),
-            "message": log.message,
-            "answer": log.answer,
-            "timestamp": log.timestamp,
-            "ai_enabled": log.ai_enabled,
-            "sender_type": "ai" if log.answer else "client"
+            "client_id": str(message.client_id),
+            "table_id": "",  # ChatMessage doesn't have table_id
+            "message": message.message,
+            "answer": "",  # Will need to find corresponding AI response
+            "timestamp": message.timestamp,
+            "ai_enabled": ai_enabled,
+            "sender_type": message.sender_type
         })
 
-    print(f"📋 Returning {len(result)} chat_logs entries grouped by client")
+    print(f"📋 Returning {len(result)} ChatMessage entries grouped by client")
     return result
 
 
@@ -259,9 +266,26 @@ def toggle_ai_for_conversation(
     if current_restaurant.restaurant_id != payload.restaurant_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    db.query(models.ChatLog).filter(
-        models.ChatLog.restaurant_id == payload.restaurant_id,
-        models.ChatLog.client_id == payload.client_id
-    ).update({"ai_enabled": payload.enabled})
+    # ✅ MIGRATED: Store ai_enabled in Client.preferences instead of ChatLog
+    client = db.query(models.Client).filter(
+        models.Client.id == payload.client_id,
+        models.Client.restaurant_id == payload.restaurant_id
+    ).first()
+    
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Initialize preferences if None
+    if client.preferences is None:
+        client.preferences = {}
+    
+    # Update ai_enabled in preferences
+    client.preferences["ai_enabled"] = payload.enabled
+    
+    # Mark the field as modified for SQLAlchemy to detect the change
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(client, "preferences")
+    
     db.commit()
+    
     return {"status": "ok", "enabled": payload.enabled}

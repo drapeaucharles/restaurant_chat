@@ -29,18 +29,8 @@ class Restaurant(Base):
     role = Column(String, default="owner")  # options: 'owner', 'staff'
     data = Column(JSON)
 
-# ChatLogs Table (existing, for general chat logs)
-class ChatLog(Base):
-    __tablename__ = "chat_logs"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id"))
-    restaurant_id = Column(String, ForeignKey("restaurants.restaurant_id"))
-    table_id = Column(String)
-    message = Column(String)
-    answer = Column(String)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
-    ai_enabled = Column(Boolean, default=True)
+# ✅ REMOVED: ChatLog model - migrated to ChatMessage only
+# ChatLog table preserved in database for rollback safety but removed from Python code
 
 # ChatMessage Table (new, for client-restaurant chat messages)
 class ChatMessage(Base):
