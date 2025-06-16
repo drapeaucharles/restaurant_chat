@@ -205,21 +205,40 @@ def get_full_chat_history_for_client(
         models.ChatLog.client_id == client_id
     ).order_by(models.ChatLog.timestamp).all()
     
-    print(f"📋 Returning {len(logs)} chat logs for client {client_id}")
+    print(f"📋 Processing {len(logs)} chat logs for client {client_id}")
 
-    return [
+    # ✅ Split each log into separate message and answer entries
+    full_log = []
+    
+    # Add client messages
+    full_log.extend([
         {
             "client_id": str(log.client_id),
             "table_id": log.table_id,
             "message": log.message,
-            "answer": log.answer,
             "timestamp": log.timestamp,
-            "ai_enabled": getattr(log, "ai_enabled", True),  # ✅ Include AI status with fallback
-            "sender_type": "client",  # ✅ Messages are always from client
-            "sender_type_answer": "ai" if getattr(log, "ai_enabled", True) else "restaurant"  # ✅ Answer type based on AI status
+            "sender_type": "client",
         }
-        for log in logs
-    ]
+        for log in logs if log.message
+    ])
+    
+    # Add restaurant/AI answers
+    full_log.extend([
+        {
+            "client_id": str(log.client_id),
+            "table_id": log.table_id,
+            "message": log.answer,
+            "timestamp": log.timestamp,
+            "sender_type": "ai" if getattr(log, "ai_enabled", True) else "restaurant",
+        }
+        for log in logs if log.answer
+    ])
+    
+    # ✅ Sort by timestamp to maintain conversation order
+    full_log.sort(key=lambda x: x["timestamp"])
+    
+    print(f"📋 Returning {len(full_log)} individual messages for client {client_id}")
+    return full_log
 
 
 @router.post("/logs/toggle-ai")
