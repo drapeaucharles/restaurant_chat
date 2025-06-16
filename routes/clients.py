@@ -10,6 +10,7 @@ from auth import get_current_restaurant
 from database import get_db
 import models
 from schemas.client import ClientCreateRequest, ClientResponse
+from services.chat_service import get_or_create_client  # Add this import
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
@@ -19,7 +20,7 @@ def create_client(
     client_data: ClientCreateRequest,
     db: Session = Depends(get_db)
 ):
-    """Create a new client."""
+    """Create or get existing client."""
     # Check if restaurant exists
     restaurant = db.query(models.Restaurant).filter(
         models.Restaurant.restaurant_id == client_data.restaurant_id
@@ -28,26 +29,28 @@ def create_client(
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     
-    # Create new client
-    new_client = models.Client(
-        restaurant_id=client_data.restaurant_id,
-        name=client_data.name,
-        email=client_data.email,
-        preferences=client_data.preferences or {}
-    )
+    # Use shared logic to avoid duplication
+    client = get_or_create_client(db, client_data.id, client_data.restaurant_id)
     
-    db.add(new_client)
+    # Update optional fields if provided
+    if client_data.name:
+        client.name = client_data.name
+    if client_data.email:
+        client.email = client_data.email
+    if client_data.preferences:
+        client.preferences = client_data.preferences
+    
     db.commit()
-    db.refresh(new_client)
-    
+    db.refresh(client)
+
     return ClientResponse(
-        id=new_client.id,
-        restaurant_id=new_client.restaurant_id,
-        name=new_client.name,
-        email=new_client.email,
-        first_seen=new_client.first_seen.isoformat(),
-        last_seen=new_client.last_seen.isoformat() if new_client.last_seen else new_client.first_seen.isoformat(),
-        preferences=new_client.preferences
+        id=client.id,
+        restaurant_id=client.restaurant_id,
+        name=client.name,
+        email=client.email,
+        first_seen=client.first_seen.isoformat(),
+        last_seen=client.last_seen.isoformat() if client.last_seen else client.first_seen.isoformat(),
+        preferences=client.preferences
     )
 
 
