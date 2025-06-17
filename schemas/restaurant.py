@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import List, Optional
-from .restaurant import RestaurantData 
 
 class MenuItem(BaseModel):
     dish: str
