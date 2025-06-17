@@ -136,7 +136,6 @@ async function createWhatsAppSession(restaurantId) {
             folderNameToken: SESSIONS_DIR, // Store tokens in sessions directory
             mkdirFolderToken: sessionDir, // Create restaurant-specific folder
             headless: true,
-            useChrome: false, // ✅ NO CHROME/PUPPETEER!
             devtools: false,
             debug: false,
             logQR: false, // We handle QR display ourselves
@@ -145,27 +144,6 @@ async function createWhatsAppSession(restaurantId) {
             autoClose: 60000,
             createPathFileToken: true,
             waitForLogin: true,
-            // Railway-compatible Puppeteer configuration - NO executablePath!
-            puppeteerOptions: {
-                headless: 'new',
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--disable-gpu',
-                    '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-field-trial-config',
-                    '--disable-ipc-flooding-protection'
-                ]
-                // NO executablePath - let Puppeteer find Chrome automatically
-            },
             // QR Code callback
             catchQR: (base64Qr, asciiQR, attempts, urlCode) => {
                 logWithTimestamp('info', restaurantId, `📱 QR Code generated (attempt ${attempts})`);

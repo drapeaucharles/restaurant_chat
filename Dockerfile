@@ -21,7 +21,7 @@ COPY . .
 # ✅ Clean install in whatsapp-service, remove lock + node_modules
 RUN cd whatsapp-service && \
     rm -rf node_modules package-lock.json && \
-    npm install
+    npm install --production
 
 # Expose FastAPI port
 EXPOSE 8000
