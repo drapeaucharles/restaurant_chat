@@ -1,5 +1,0 @@
-[build.nixpacksPlan]
-enabled = true
-
-[build.nixpacksOverrides]
-packages = ["nodejs", "npm"]
