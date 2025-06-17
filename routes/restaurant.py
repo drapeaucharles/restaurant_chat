@@ -53,13 +53,16 @@ def list_restaurants(db: Session = Depends(get_db)):
 
 @router.post("/update")
 def update_restaurant(
-    restaurant_data: RestaurantCreateRequest,
+    restaurant_data: RestaurantUpdateRequest,
     current_owner: models.Restaurant = Depends(get_current_owner),
     db: Session = Depends(get_db)
 ):
-    """Update restaurant information (protected endpoint - owner only)."""
-    # Update the restaurant data
-    current_owner.data = restaurant_data.data.dict()
+    existing_data = current_owner.data or {}
+
+    # Merge old + new (shallow merge)
+    updated_data = {**existing_data, **restaurant_data.data.dict(exclude_unset=True)}
+    current_owner.data = updated_data
+
     db.commit()
     db.refresh(current_owner)
     
@@ -67,6 +70,7 @@ def update_restaurant(
         "message": "Restaurant updated successfully",
         "restaurant_id": current_owner.restaurant_id
     }
+
 
 
 @router.get("/profile")
