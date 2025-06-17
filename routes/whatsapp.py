@@ -159,6 +159,7 @@ async def connect_restaurant_whatsapp(
         
         # Verify the authenticated restaurant matches the requested one
         if current_restaurant.restaurant_id != restaurant_id:
+            print(f"❌ Authentication mismatch: {current_restaurant.restaurant_id} != {restaurant_id}")
             raise HTTPException(
                 status_code=403,
                 detail="You can only connect WhatsApp for your own restaurant"
@@ -172,6 +173,7 @@ async def connect_restaurant_whatsapp(
             status = await whatsapp_service.get_session_status(current_restaurant.whatsapp_session_id)
             
             if status.get("status") == "connected":
+                print(f"✅ Session already connected")
                 return WhatsAppSessionResponse(
                     session_id=current_restaurant.whatsapp_session_id,
                     status="already_connected",
@@ -179,17 +181,26 @@ async def connect_restaurant_whatsapp(
                 )
         
         # Create new session
+        print(f"🔄 Creating new WhatsApp session...")
         result = await whatsapp_service.create_session(restaurant_id, db)
         
         print(f"✅ Session creation result: {result.status}")
+        if result.status == "error":
+            print(f"❌ Session creation failed: {result.message}")
+        
         print(f"===== END WHATSAPP CONNECTION =====\n")
         
         return result
         
-    except HTTPException:
+    except HTTPException as e:
+        print(f"❌ HTTP Exception in connect_restaurant_whatsapp: {e.detail}")
+        import traceback
+        traceback.print_exc()
         raise
     except Exception as e:
-        print(f"❌ Error connecting WhatsApp: {str(e)}")
+        print(f"❌ Unexpected error connecting WhatsApp: {str(e)}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Failed to connect WhatsApp: {str(e)}"

@@ -50,8 +50,11 @@ function authenticateRequest(req, res, next) {
     const apiKey = req.headers['x-api-key'];
     const providedSecret = req.body.secret || req.query.secret;
     
-    // Check for valid authentication
-    if (authHeader === `Bearer ${SHARED_SECRET}` || 
+    // Check for valid authentication - use WHATSAPP_API_KEY instead of SHARED_SECRET
+    if (authHeader === `Bearer ${WHATSAPP_API_KEY}` || 
+        apiKey === WHATSAPP_API_KEY || 
+        providedSecret === WHATSAPP_API_KEY ||
+        authHeader === `Bearer ${SHARED_SECRET}` || 
         apiKey === SHARED_SECRET || 
         providedSecret === SHARED_SECRET) {
         next();
