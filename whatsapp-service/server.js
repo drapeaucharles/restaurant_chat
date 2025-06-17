@@ -688,6 +688,7 @@ app.listen(PORT, () => {
     console.log(`🚀 WhatsApp Service v2.0 running on port ${PORT}`);
     console.log(`📡 FastAPI URL: ${FASTAPI_URL}`);
     console.log(`📁 Sessions directory: ${SESSIONS_DIR}`);
+	console.log("CHROME_PATH:", process.env.CHROME_PATH);
     console.log(`📱 QR codes directory: ${QR_DIR}`);
     console.log(`🔐 Authentication: ${SHARED_SECRET === 'default-secret-change-in-production' ? '⚠️ DEFAULT SECRET' : '✅ CONFIGURED'}`);
     console.log(`🔗 Health check: http://localhost:${PORT}/health`);
