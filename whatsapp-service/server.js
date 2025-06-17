@@ -15,6 +15,7 @@ const cors = require('cors');
 const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
+const puppeteer = require('puppeteer');
 
 // Configuration
 const PORT = process.env.WHATSAPP_PORT || 8002;
@@ -158,11 +159,14 @@ async function createWhatsAppSession(restaurantId) {
     const qrPath = path.join(QR_DIR, `${restaurantId}.png`);
     
     try {
+        // Get Puppeteer's bundled Chromium path for Railway deployment
+        const executablePath = puppeteer.executablePath();
+        logWithTimestamp('info', restaurantId, `🌐 Using Chromium at: ${executablePath}`);
+        
         // Configuration for this session
         const config = {
             sessionId: sessionId,
             multiDevice: true,
-			executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
             authTimeout: 60,
             blockCrashLogs: true,
             disableSpins: true,
@@ -178,6 +182,17 @@ async function createWhatsAppSession(restaurantId) {
             killProcessOnBrowserClose: true,
             safeMode: false,
             qrRefreshS: 15, // Refresh QR every 15 seconds
+            executablePath: executablePath, // ✅ Use Puppeteer's bundled Chromium
+            chromiumArgs: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process', // ← This may help on Railway
+                '--disable-gpu'
+            ],
             onLoadingScreen: (percent, message) => {
                 logWithTimestamp('info', restaurantId, `Loading: ${percent}% - ${message}`);
             },
@@ -689,7 +704,6 @@ app.listen(PORT, () => {
     console.log(`🚀 WhatsApp Service v2.0 running on port ${PORT}`);
     console.log(`📡 FastAPI URL: ${FASTAPI_URL}`);
     console.log(`📁 Sessions directory: ${SESSIONS_DIR}`);
-	console.log("CHROME_PATH:", process.env.CHROME_PATH);
     console.log(`📱 QR codes directory: ${QR_DIR}`);
     console.log(`🔐 Authentication: ${SHARED_SECRET === 'default-secret-change-in-production' ? '⚠️ DEFAULT SECRET' : '✅ CONFIGURED'}`);
     console.log(`🔗 Health check: http://localhost:${PORT}/health`);
