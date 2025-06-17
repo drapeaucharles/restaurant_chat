@@ -130,7 +130,7 @@ async function createWhatsAppSession(restaurantId) {
         logWithTimestamp('info', restaurantId, `📁 Session directory: ${sessionDir}`);
         logWithTimestamp('info', restaurantId, `🔑 Has existing token: ${hasSessionToken(restaurantId)}`);
         
-        // Create new WhatsApp client with @wppconnect-team/wppconnect (pure WebSocket)
+        // Create new WhatsApp client with @wppconnect-team/wppconnect (Railway-compatible)
         const client = await wppconnect.create({
             session: sessionName,
             folderNameToken: SESSIONS_DIR, // Store tokens in sessions directory
@@ -145,6 +145,27 @@ async function createWhatsAppSession(restaurantId) {
             autoClose: 60000,
             createPathFileToken: true,
             waitForLogin: true,
+            // Railway-compatible Puppeteer configuration
+            puppeteerOptions: {
+                headless: 'new',
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding',
+                    '--disable-field-trial-config',
+                    '--disable-ipc-flooding-protection'
+                ],
+                executablePath: process.env.CHROME_PATH || undefined
+            },
             // QR Code callback
             catchQR: (base64Qr, asciiQR, attempts, urlCode) => {
                 logWithTimestamp('info', restaurantId, `📱 QR Code generated (attempt ${attempts})`);

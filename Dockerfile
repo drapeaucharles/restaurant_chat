@@ -1,8 +1,9 @@
-# Use Python as base
+# Base image with Python + Node.js
 FROM python:3.12-slim
 
-# Install Node.js and npm
-RUN apt-get update && apt-get install -y curl gnupg && \
+# Install required tools & Node.js
+RUN apt-get update && \
+    apt-get install -y curl gnupg build-essential git && \
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
     apt-get clean
@@ -10,17 +11,20 @@ RUN apt-get update && apt-get install -y curl gnupg && \
 # Set working directory
 WORKDIR /app
 
-# Copy all project files into the container
-COPY . .
-
-# Install Python dependencies
+# Copy Python files first to cache Python dependencies
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Node.js dependencies for the WhatsApp service
-RUN cd whatsapp-service && npm install
+# Copy the rest of the backend (including whatsapp-service)
+COPY . .
+
+# ✅ Clean install in whatsapp-service, remove lock + node_modules
+RUN cd whatsapp-service && \
+    rm -rf node_modules package-lock.json && \
+    npm install
 
 # Expose FastAPI port
 EXPOSE 8000
 
-# Start your main.py — it handles FastAPI + WhatsApp subprocess
+# Run FastAPI + WhatsApp in one script
 CMD ["python", "main.py"]
