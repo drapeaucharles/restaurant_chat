@@ -1,24 +1,28 @@
 #!/bin/bash
 
-# WhatsApp Service Startup Script for Railway using WPPConnect
-# No Puppeteer/Chrome needed
+# WhatsApp Service Startup Script for Railway
+# This script starts the Node.js WhatsApp service with Railway-compatible settings
 
-echo "🚀 Starting WhatsApp Service for Railway (WPPConnect - WebSocket Only)..."
+echo "🚀 Starting WhatsApp Service for Railway..."
 
-# Set environment variables (with fallback)
+# Set Railway-compatible environment variables
 export WHATSAPP_PORT=${PORT:-8002}
 export FASTAPI_URL=${FASTAPI_URL:-http://localhost:8000}
-export WHATSAPP_API_KEY=${WHATSAPP_API_KEY:-supersecretkey123}
+
+# DO NOT SET CHROME_PATH - let wppconnect handle browser internally
+# export CHROME_PATH=${CHROME_PATH:-/usr/bin/google-chrome}
 
 # Change to service directory
 cd "$(dirname "$0")"
 
-# Ensure necessary folders exist
+# Create sessions directory if it doesn't exist
 mkdir -p sessions
+mkdir -p qr-codes
 
 # Start the service
 echo "📡 Starting on port $WHATSAPP_PORT"
 echo "🔗 FastAPI URL: $FASTAPI_URL"
-echo "🔐 API Key (first 5 chars): ${WHATSAPP_API_KEY:0:5}..."
+echo "🚫 NO Chrome path set - using internal browser handling"
 
 node server.js
+

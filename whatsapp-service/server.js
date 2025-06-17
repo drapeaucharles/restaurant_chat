@@ -145,7 +145,7 @@ async function createWhatsAppSession(restaurantId) {
             autoClose: 60000,
             createPathFileToken: true,
             waitForLogin: true,
-            // Railway-compatible Puppeteer configuration
+            // Railway-compatible Puppeteer configuration - NO executablePath!
             puppeteerOptions: {
                 headless: 'new',
                 args: [
@@ -163,8 +163,8 @@ async function createWhatsAppSession(restaurantId) {
                     '--disable-renderer-backgrounding',
                     '--disable-field-trial-config',
                     '--disable-ipc-flooding-protection'
-                ],
-                executablePath: process.env.CHROME_PATH || undefined
+                ]
+                // NO executablePath - let Puppeteer find Chrome automatically
             },
             // QR Code callback
             catchQR: (base64Qr, asciiQR, attempts, urlCode) => {

@@ -54,7 +54,8 @@ def start_whatsapp_service():
         env.update({
             "WHATSAPP_PORT": "8002",
             "FASTAPI_URL": os.getenv("PUBLIC_API_URL", "http://localhost:8000"),
-            "WHATSAPP_API_KEY": os.environ.get("WHATSAPP_API_KEY", "")
+            # DO NOT SET CHROME_PATH - let wppconnect handle browser internally
+            # "CHROME_PATH": "/usr/bin/google-chrome"
         })
         
         # Start the Node.js service with absolute path
