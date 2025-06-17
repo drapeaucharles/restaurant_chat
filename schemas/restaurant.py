@@ -39,4 +39,15 @@ class StaffCreateRequest(BaseModel):
 
 
 class RestaurantUpdateRequest(BaseModel):
-    data: RestaurantData
+    data: RestaurantDataPartial
+    
+class RestaurantDataPartial(BaseModel):
+    name: Optional[str] = None
+    story: Optional[str] = None
+    menu: Optional[List[MenuItem]] = None
+    faq: Optional[List[FAQItem]] = None
+    opening_hours: Optional[str] = None
+    contact_info: Optional[str] = None
+    restaurant_story: Optional[str] = None
+    whatsapp_number: Optional[str] = None  # ✅ Must be here
+    
