@@ -162,6 +162,7 @@ async function createWhatsAppSession(restaurantId) {
         const config = {
             sessionId: sessionId,
             multiDevice: true,
+			executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
             authTimeout: 60,
             blockCrashLogs: true,
             disableSpins: true,
