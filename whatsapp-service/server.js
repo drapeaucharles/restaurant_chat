@@ -1,16 +1,16 @@
 /**
- * WhatsApp Service using @wppconnect-team/wa-js for Restaurant Chatbot Integration
+ * WhatsApp Service using @wppconnect-team/wppconnect for Restaurant Chatbot Integration
  * 
  * This service handles:
- * - WhatsApp session management per restaurant using WebSocket (no browser!)
+ * - WhatsApp session management per restaurant using pure WebSocket (NO BROWSER!)
  * - Session token persistence for Railway deployment resilience
  * - QR code generation for initial session connection
  * - Incoming message forwarding to FastAPI
  * - Outgoing message sending via WhatsApp
- * - Browser-free deployment compatible with Railway/serverless
+ * - 100% browser-free deployment compatible with Railway/serverless
  */
 
-const { create, Client } = require('@wppconnect-team/wa-js');
+const wppconnect = require('@wppconnect-team/wppconnect');
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -77,28 +77,28 @@ function logWithTimestamp(level, restaurantId, message, data = null) {
 }
 
 /**
- * Get session token file path for a restaurant
+ * Get session token directory for a restaurant
  */
-function getSessionTokenPath(restaurantId) {
-    return path.join(SESSIONS_DIR, `${restaurantId}.json`);
+function getSessionDir(restaurantId) {
+    return path.join(SESSIONS_DIR, restaurantId);
 }
 
 /**
  * Check if session token exists for a restaurant
  */
 function hasSessionToken(restaurantId) {
-    const tokenPath = getSessionTokenPath(restaurantId);
-    return fs.existsSync(tokenPath);
+    const sessionDir = getSessionDir(restaurantId);
+    return fs.existsSync(sessionDir) && fs.readdirSync(sessionDir).length > 0;
 }
 
 /**
- * Create a new WhatsApp session for a restaurant using @wppconnect-team/wa-js
+ * Create a new WhatsApp session for a restaurant using @wppconnect-team/wppconnect
  */
 async function createWhatsAppSession(restaurantId) {
-    logWithTimestamp('info', restaurantId, '🔄 Creating WhatsApp session with @wppconnect-team/wa-js...');
+    logWithTimestamp('info', restaurantId, '🔄 Creating WhatsApp session with @wppconnect-team/wppconnect...');
     
-    const sessionId = `restaurant_${restaurantId}`;
-    const sessionTokenPath = getSessionTokenPath(restaurantId);
+    const sessionName = `restaurant_${restaurantId}`;
+    const sessionDir = getSessionDir(restaurantId);
     
     try {
         // Check if client already exists and is connected
@@ -110,7 +110,7 @@ async function createWhatsAppSession(restaurantId) {
                     logWithTimestamp('info', restaurantId, '✅ Session already connected');
                     return {
                         success: true,
-                        sessionId: sessionId,
+                        sessionId: sessionName,
                         message: 'Session already connected'
                     };
                 }
@@ -127,38 +127,70 @@ async function createWhatsAppSession(restaurantId) {
             activeClients.delete(restaurantId);
         }
         
-        logWithTimestamp('info', restaurantId, `📁 Session token path: ${sessionTokenPath}`);
+        logWithTimestamp('info', restaurantId, `📁 Session directory: ${sessionDir}`);
         logWithTimestamp('info', restaurantId, `🔑 Has existing token: ${hasSessionToken(restaurantId)}`);
         
-        // Create new WhatsApp client with @wppconnect-team/wa-js
-        const client = await create({
-            session: sessionId,
-            catchQR: (base64Qrimg, asciiQR) => {
-                logWithTimestamp('info', restaurantId, '📱 QR Code generated');
+        // Create new WhatsApp client with @wppconnect-team/wppconnect (pure WebSocket)
+        const client = await wppconnect.create({
+            session: sessionName,
+            folderNameToken: SESSIONS_DIR, // Store tokens in sessions directory
+            mkdirFolderToken: sessionDir, // Create restaurant-specific folder
+            headless: true,
+            devtools: false,
+            useChrome: false, // ✅ NO CHROME/PUPPETEER!
+            debug: false,
+            logQR: false, // We handle QR display ourselves
+            browserWS: '', // No browser WebSocket needed
+            browserArgs: [], // No browser args needed
+            puppeteerOptions: {}, // No Puppeteer options needed
+            disableWelcome: true,
+            updatesLog: false,
+            autoClose: 60000,
+            createPathFileToken: true,
+            waitForLogin: true,
+            // QR Code callback
+            catchQR: (base64Qr, asciiQR, attempts, urlCode) => {
+                logWithTimestamp('info', restaurantId, `📱 QR Code generated (attempt ${attempts})`);
                 
                 // Store QR code data
                 qrCodes.set(restaurantId, {
-                    data: base64Qrimg,
+                    data: base64Qr,
                     ascii: asciiQR,
+                    url: urlCode,
+                    attempts: attempts,
                     timestamp: new Date().toISOString()
                 });
                 
                 // Display QR in terminal for debugging
-                console.log(`\n📱 QR Code for restaurant ${restaurantId}:`);
+                console.log(`\n📱 QR Code for restaurant ${restaurantId} (attempt ${attempts}):`);
                 console.log(asciiQR);
+                console.log(`🔗 QR URL: ${urlCode}\n`);
                 
                 logWithTimestamp('info', restaurantId, '📁 QR code stored in memory for API access');
             },
-            sessionTokenPath: sessionTokenPath,
-            headless: true,
-            disableWelcome: true,
-            logQR: false, // We handle QR display ourselves
-            browserArgs: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-web-security'
-            ]
+            // Status callback
+            statusFind: (statusSession, session) => {
+                logWithTimestamp('info', restaurantId, `🔄 Status: ${statusSession} for session ${session}`);
+                sessionStates.set(restaurantId, statusSession);
+                
+                if (statusSession === 'qrReadSuccess') {
+                    logWithTimestamp('success', restaurantId, '✅ QR Code scanned successfully!');
+                    // Clear QR code once scanned
+                    qrCodes.delete(restaurantId);
+                } else if (statusSession === 'isLogged') {
+                    logWithTimestamp('success', restaurantId, '✅ WhatsApp client is logged in and ready!');
+                    sessionStates.set(restaurantId, 'connected');
+                } else if (statusSession === 'notLogged') {
+                    logWithTimestamp('warning', restaurantId, '⚠️ Session not logged in');
+                    sessionStates.set(restaurantId, 'not_logged');
+                } else if (statusSession === 'browserClose') {
+                    logWithTimestamp('warning', restaurantId, '⚠️ Browser closed');
+                    sessionStates.set(restaurantId, 'disconnected');
+                } else if (statusSession === 'qrReadError') {
+                    logWithTimestamp('error', restaurantId, '❌ QR Code read error');
+                    sessionStates.set(restaurantId, 'qr_error');
+                }
+            }
         });
         
         // Store client
@@ -171,7 +203,7 @@ async function createWhatsAppSession(restaurantId) {
                 logWithTimestamp('info', restaurantId, `📨 Received message from ${message.from}: ${message.body}`);
                 
                 // Forward message to FastAPI
-                await forwardMessageToFastAPI(message, sessionId);
+                await forwardMessageToFastAPI(message, sessionName);
                 
             } catch (error) {
                 logWithTimestamp('error', restaurantId, `❌ Error handling message: ${error.message}`);
@@ -182,32 +214,28 @@ async function createWhatsAppSession(restaurantId) {
         client.onStateChange((state) => {
             logWithTimestamp('info', restaurantId, `🔄 State changed: ${state}`);
             sessionStates.set(restaurantId, state);
-            
-            if (state === 'CONNECTED') {
-                logWithTimestamp('success', restaurantId, '✅ WhatsApp client is ready!');
-                // Clear QR code once connected
-                qrCodes.delete(restaurantId);
-            }
-        });
-        
-        // Set up logout handler
-        client.onLogout(() => {
-            logWithTimestamp('warning', restaurantId, '⚠️ Session logged out');
-            sessionStates.set(restaurantId, 'logged_out');
-            cleanupSession(restaurantId);
         });
         
         // Set up disconnection handler
-        client.onDisconnected((reason) => {
-            logWithTimestamp('warning', restaurantId, `⚠️ Client disconnected: ${reason}`);
-            sessionStates.set(restaurantId, 'disconnected');
+        client.onStreamChange((state) => {
+            logWithTimestamp('info', restaurantId, `🌊 Stream state: ${state}`);
+            if (state === 'DISCONNECTED') {
+                sessionStates.set(restaurantId, 'disconnected');
+            }
+        });
+        
+        // Set up incoming call handler
+        client.onIncomingCall(async (call) => {
+            logWithTimestamp('info', restaurantId, `📞 Incoming call from ${call.peerJid}`);
+            // Auto-reject calls to avoid interruption
+            await client.rejectCall(call.id);
         });
         
         logWithTimestamp('success', restaurantId, '✅ WhatsApp session created successfully');
         
         return {
             success: true,
-            sessionId: sessionId,
+            sessionId: sessionName,
             message: 'Session created successfully'
         };
         
@@ -242,7 +270,10 @@ async function forwardMessageToFastAPI(message, sessionId) {
             message: message.body,
             session_id: sessionId,
             timestamp: new Date().toISOString(),
-            message_id: message.id
+            message_id: message.id,
+            message_type: message.type || 'chat',
+            is_group: message.isGroupMsg || false,
+            sender: message.sender || null
         };
         
         logWithTimestamp('info', sessionId, `📤 Forwarding message to FastAPI: ${FASTAPI_URL}/whatsapp/incoming`);
@@ -323,13 +354,19 @@ async function getSessionStatus(restaurantId) {
         const currentState = sessionStates.get(restaurantId) || 'unknown';
         
         let phoneNumber = null;
+        let deviceInfo = null;
         try {
             if (isConnected) {
                 const hostDevice = await client.getHostDevice();
                 phoneNumber = hostDevice.wid.user;
+                deviceInfo = {
+                    platform: hostDevice.platform,
+                    battery: hostDevice.battery,
+                    plugged: hostDevice.plugged
+                };
             }
         } catch (error) {
-            logWithTimestamp('warning', restaurantId, `⚠️ Could not get phone number: ${error.message}`);
+            logWithTimestamp('warning', restaurantId, `⚠️ Could not get device info: ${error.message}`);
         }
         
         return {
@@ -337,6 +374,7 @@ async function getSessionStatus(restaurantId) {
             connected: isConnected,
             session_id: `restaurant_${restaurantId}`,
             phone_number: phoneNumber,
+            device_info: deviceInfo,
             has_token: hasSessionToken(restaurantId),
             last_seen: new Date().toISOString()
         };
@@ -523,6 +561,8 @@ app.get('/session/:sessionId/qr', async (req, res) => {
         res.json({
             success: true,
             qr_code: qrData.data,
+            qr_url: qrData.url,
+            attempts: qrData.attempts,
             timestamp: qrData.timestamp
         });
         
@@ -549,11 +589,11 @@ app.delete('/session/:sessionId', authenticateRequest, async (req, res) => {
         // Clean up active session
         await cleanupSession(restaurantId);
         
-        // Delete session token file
-        const tokenPath = getSessionTokenPath(restaurantId);
-        if (fs.existsSync(tokenPath)) {
-            fs.unlinkSync(tokenPath);
-            logWithTimestamp('info', restaurantId, '🗑️ Session token file deleted');
+        // Delete session token directory
+        const sessionDir = getSessionDir(restaurantId);
+        if (fs.existsSync(sessionDir)) {
+            fs.removeSync(sessionDir);
+            logWithTimestamp('info', restaurantId, '🗑️ Session token directory deleted');
         }
         
         res.json({
@@ -575,12 +615,19 @@ app.delete('/session/:sessionId', authenticateRequest, async (req, res) => {
  * GET /health
  */
 app.get('/health', (req, res) => {
+    const sessionDirs = fs.readdirSync(SESSIONS_DIR).filter(f => 
+        fs.statSync(path.join(SESSIONS_DIR, f)).isDirectory()
+    );
+    
     res.json({
         status: 'healthy',
-        service: '@wppconnect-team/wa-js',
+        service: '@wppconnect-team/wppconnect',
+        version: '1.37.x',
+        browser_free: true,
         timestamp: new Date().toISOString(),
         active_sessions: activeClients.size,
-        sessions_with_tokens: fs.readdirSync(SESSIONS_DIR).filter(f => f.endsWith('.json')).length
+        sessions_with_tokens: sessionDirs.length,
+        session_directories: sessionDirs
     });
 });
 
@@ -603,18 +650,20 @@ process.on('SIGINT', async () => {
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`\n🚀 WhatsApp Service (@wppconnect-team/wa-js) running on port ${PORT}`);
-    console.log(`📱 Browser-free WhatsApp automation ready!`);
+    console.log(`\n🚀 WhatsApp Service (@wppconnect-team/wppconnect) running on port ${PORT}`);
+    console.log(`📱 100% Browser-free WhatsApp automation ready!`);
     console.log(`🔗 FastAPI URL: ${FASTAPI_URL}`);
     console.log(`📁 Sessions directory: ${SESSIONS_DIR}`);
     console.log(`🔑 Using API key: ${WHATSAPP_API_KEY.substring(0, 10)}...`);
+    console.log(`🚫 NO Puppeteer, NO Chromium, NO browser dependencies!`);
     
     // Log existing session tokens
-    const tokenFiles = fs.readdirSync(SESSIONS_DIR).filter(f => f.endsWith('.json'));
-    console.log(`💾 Found ${tokenFiles.length} existing session tokens`);
-    tokenFiles.forEach(file => {
-        const restaurantId = file.replace('.json', '');
-        console.log(`   - ${restaurantId}`);
+    const sessionDirs = fs.readdirSync(SESSIONS_DIR).filter(f => 
+        fs.statSync(path.join(SESSIONS_DIR, f)).isDirectory()
+    );
+    console.log(`💾 Found ${sessionDirs.length} existing session directories`);
+    sessionDirs.forEach(dir => {
+        console.log(`   - ${dir}`);
     });
 });
 
