@@ -28,6 +28,9 @@ class Restaurant(Base):
     password = Column(String, nullable=False)
     role = Column(String, default="owner")  # options: 'owner', 'staff'
     data = Column(JSON)
+    # WhatsApp integration fields
+    whatsapp_number = Column(String, nullable=True)  # WhatsApp phone number for this restaurant
+    whatsapp_session_id = Column(String, nullable=True)  # Session ID for open-wa
 
 # ✅ REMOVED: ChatLog model - migrated to ChatMessage only
 # ChatLog table preserved in database for rollback safety but removed from Python code
