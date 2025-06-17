@@ -17,6 +17,15 @@ const axios = require('axios');
 const fs = require('fs-extra');
 const path = require('path');
 const QRCode = require('qrcode');
+const crypto = require('crypto');
+
+// Ensure crypto is available globally for Baileys
+if (typeof global !== 'undefined') {
+    global.crypto = crypto;
+}
+if (typeof window !== 'undefined') {
+    window.crypto = crypto;
+}
 
 // Configuration
 const PORT = process.env.WHATSAPP_PORT || 8002;
