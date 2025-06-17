@@ -37,7 +37,7 @@ app.use(express.json());
 const activeSockets = new Map();
 const qrCodes = new Map(); // Store QR codes for each session
 const sessionStates = new Map(); // Track session connection states
-const qrPromises = new Map(); // Store promises for QR generation - FIX ADDED
+const connectionPromises = new Map(); // Track connection promises
 
 /**
  * Authentication middleware
@@ -93,8 +93,6 @@ function hasSessionAuth(restaurantId) {
     return fs.existsSync(sessionDir) && fs.readdirSync(sessionDir).length > 0;
 }
 
-
-
 /**
  * Create a new WhatsApp session for a restaurant using Baileys
  */
@@ -130,91 +128,29 @@ async function createBaileysSession(restaurantId) {
             activeSockets.delete(restaurantId);
         }
         
+        // Check if there's already a connection in progress
+        if (connectionPromises.has(restaurantId)) {
+            logWithTimestamp('info', restaurantId, '⏳ Connection already in progress, waiting...');
+            return await connectionPromises.get(restaurantId);
+        }
+        
         logWithTimestamp('info', restaurantId, `📁 Session directory: ${sessionDir}`);
         logWithTimestamp('info', restaurantId, `🔑 Has existing auth: ${hasSessionAuth(restaurantId)}`);
         
-        // Ensure session directory exists
-        fs.ensureDirSync(sessionDir);
+        // Create connection promise
+        const connectionPromise = createSocketConnection(restaurantId, sessionDir, sessionName);
+        connectionPromises.set(restaurantId, connectionPromise);
         
-        // Create auth state
-        const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
-        
-        // FIX: Create QR promise before creating socket
-        let qrResolve, qrReject;
-        const qrPromise = new Promise((resolve, reject) => {
-            qrResolve = resolve;
-            qrReject = reject;
-        });
-        
-        // Store the promise and resolvers
-        qrPromises.set(restaurantId, { promise: qrPromise, resolve: qrResolve, reject: qrReject });
-        
-        // Create new WhatsApp socket with Baileys
-        const sock = makeWASocket({
-            auth: state,
-            printQRInTerminal: false, // We handle QR display ourselves
-            logger: {
-                level: 'silent',
-                child: () => ({ 
-                    level: 'silent',
-                    trace: () => {},
-                    debug: () => {},
-                    info: () => {},
-                    warn: () => {},
-                    error: () => {},
-                    fatal: () => {}
-                }),
-                trace: () => {},
-                debug: () => {},
-                info: () => {},
-                warn: () => {},
-                error: () => {},
-                fatal: () => {}
-            },
-            browser: ['Restaurant Bot', 'Chrome', '1.0.0'],
-            markOnlineOnConnect: false,
-            syncFullHistory: false,
-            getMessage: async (key) => {
-                // Return empty message for missing messages
-                return { conversation: '' };
-            }
-        });
-        
-        // Store socket
-        activeSockets.set(restaurantId, sock);
-        sessionStates.set(restaurantId, 'creating');
-        
-        // Handle connection updates (including QR code)
-        sock.ev.on('connection.update', async (update) => {
-            await handleConnectionUpdate(update, restaurantId, sessionName);
-        });
-        
-        // Handle credential updates
-        sock.ev.on('creds.update', saveCreds);
-        
-        // Handle incoming messages
-        sock.ev.on('messages.upsert', async (messageUpdate) => {
-            await handleMessages(messageUpdate, restaurantId, sessionName);
-        });
-        
-        logWithTimestamp('success', restaurantId, '✅ Baileys session created successfully');
-        
-        return {
-            success: true,
-            sessionId: sessionName,
-            message: 'Session created successfully'
-        };
+        try {
+            const result = await connectionPromise;
+            return result;
+        } finally {
+            connectionPromises.delete(restaurantId);
+        }
         
     } catch (error) {
         logWithTimestamp('error', restaurantId, `❌ Failed to create session: ${error.message}`);
         sessionStates.set(restaurantId, 'error');
-        
-        // FIX: Reject QR promise on error
-        const qrPromiseData = qrPromises.get(restaurantId);
-        if (qrPromiseData) {
-            qrPromiseData.reject(new Error(`Session creation failed: ${error.message}`));
-            qrPromises.delete(restaurantId);
-        }
         
         // Clean up on error
         if (activeSockets.has(restaurantId)) {
@@ -226,6 +162,8 @@ async function createBaileysSession(restaurantId) {
             activeSockets.delete(restaurantId);
         }
         
+        connectionPromises.delete(restaurantId);
+        
         return {
             success: false,
             error: error.message
@@ -233,14 +171,122 @@ async function createBaileysSession(restaurantId) {
     }
 }
 
+/**
+ * Create socket connection with improved error handling
+ */
+async function createSocketConnection(restaurantId, sessionDir, sessionName) {
+    return new Promise(async (resolve, reject) => {
+        let connectionTimeout;
+        let qrTimeout;
+        let isResolved = false;
+        
+        const resolveOnce = (result) => {
+            if (!isResolved) {
+                isResolved = true;
+                if (connectionTimeout) clearTimeout(connectionTimeout);
+                if (qrTimeout) clearTimeout(qrTimeout);
+                resolve(result);
+            }
+        };
+        
+        const rejectOnce = (error) => {
+            if (!isResolved) {
+                isResolved = true;
+                if (connectionTimeout) clearTimeout(connectionTimeout);
+                if (qrTimeout) clearTimeout(qrTimeout);
+                reject(error);
+            }
+        };
+        
+        try {
+            // Ensure session directory exists
+            fs.ensureDirSync(sessionDir);
+            
+            // Create auth state
+            const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
+            
+            // Set connection timeout
+            connectionTimeout = setTimeout(() => {
+                rejectOnce(new Error('Connection timeout after 30 seconds'));
+            }, 30000);
+            
+            // Create new WhatsApp socket with Baileys
+            const sock = makeWASocket({
+                auth: state,
+                printQRInTerminal: false,
+                logger: {
+                    level: 'silent',
+                    child: () => ({ 
+                        level: 'silent',
+                        trace: () => {},
+                        debug: () => {},
+                        info: () => {},
+                        warn: () => {},
+                        error: () => {},
+                        fatal: () => {}
+                    }),
+                    trace: () => {},
+                    debug: () => {},
+                    info: () => {},
+                    warn: () => {},
+                    error: () => {},
+                    fatal: () => {}
+                },
+                browser: ['Restaurant Bot', 'Chrome', '1.0.0'],
+                markOnlineOnConnect: false,
+                syncFullHistory: false,
+                defaultQueryTimeoutMs: 60000,
+                connectTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000,
+                getMessage: async (key) => {
+                    return { conversation: '' };
+                }
+            });
+            
+            // Store socket immediately
+            activeSockets.set(restaurantId, sock);
+            sessionStates.set(restaurantId, 'creating');
+            
+            // Handle connection updates (including QR code)
+            sock.ev.on('connection.update', async (update) => {
+                try {
+                    await handleConnectionUpdate(update, restaurantId, sessionName, resolveOnce, rejectOnce);
+                } catch (error) {
+                    logWithTimestamp('error', restaurantId, `❌ Error in connection update: ${error.message}`);
+                    rejectOnce(error);
+                }
+            });
+            
+            // Handle credential updates
+            sock.ev.on('creds.update', saveCreds);
+            
+            // Handle incoming messages
+            sock.ev.on('messages.upsert', async (messageUpdate) => {
+                await handleMessages(messageUpdate, restaurantId, sessionName);
+            });
+            
+            // Handle socket errors
+            sock.ev.on('connection.error', (error) => {
+                logWithTimestamp('error', restaurantId, `❌ Socket error: ${error.message}`);
+                rejectOnce(error);
+            });
+            
+            logWithTimestamp('success', restaurantId, '✅ Baileys socket initialized, waiting for connection...');
+            
+        } catch (error) {
+            logWithTimestamp('error', restaurantId, `❌ Error creating socket: ${error.message}`);
+            rejectOnce(error);
+        }
+    });
+}
 
 /**
- * Handle connection updates from Baileys
+ * Handle connection updates from Baileys with improved QR handling
  */
-async function handleConnectionUpdate(update, restaurantId, sessionName) {
+async function handleConnectionUpdate(update, restaurantId, sessionName, resolveOnce, rejectOnce) {
     const { connection, lastDisconnect, qr } = update;
     
-    logWithTimestamp('info', restaurantId, `🔄 Connection update: ${connection}`);
+    logWithTimestamp('info', restaurantId, `🔄 Connection update: ${connection || 'undefined'}`);
     
     if (qr) {
         logWithTimestamp('info', restaurantId, '📱 QR Code generated');
@@ -250,21 +296,13 @@ async function handleConnectionUpdate(update, restaurantId, sessionName) {
             const qrImage = await QRCode.toDataURL(qr);
             
             // Store QR code data
-            const qrData = {
+            qrCodes.set(restaurantId, {
                 data: qrImage,
                 raw: qr,
                 timestamp: new Date().toISOString()
-            };
-            qrCodes.set(restaurantId, qrData);
+            });
             
             sessionStates.set(restaurantId, 'qr_ready');
-            
-            // FIX: Resolve QR promise when QR is generated
-            const qrPromiseData = qrPromises.get(restaurantId);
-            if (qrPromiseData) {
-                qrPromiseData.resolve(qrData);
-                qrPromises.delete(restaurantId);
-            }
             
             // Display QR in terminal for debugging
             console.log(`\n📱 QR Code for restaurant ${restaurantId}:`);
@@ -273,54 +311,47 @@ async function handleConnectionUpdate(update, restaurantId, sessionName) {
             
             logWithTimestamp('info', restaurantId, '📁 QR code stored in memory for API access');
             
+            // Resolve with QR ready status
+            resolveOnce({
+                success: true,
+                sessionId: sessionName,
+                message: 'Session created successfully. QR code ready for scanning.',
+                qr_ready: true
+            });
+            
         } catch (error) {
             logWithTimestamp('error', restaurantId, `❌ Error generating QR code: ${error.message}`);
-            
-            // FIX: Reject QR promise on QR generation error
-            const qrPromiseData = qrPromises.get(restaurantId);
-            if (qrPromiseData) {
-                qrPromiseData.reject(new Error(`QR generation failed: ${error.message}`));
-                qrPromises.delete(restaurantId);
-            }
+            rejectOnce(new Error(`QR generation failed: ${error.message}`));
         }
     }
     
     if (connection === 'close') {
         const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+        const errorMessage = lastDisconnect?.error?.message || 'Unknown error';
         
-        logWithTimestamp('warning', restaurantId, `⚠️ Connection closed: ${lastDisconnect?.error?.message}`);
-        
-        // FIX: Reject QR promise on connection close if still pending
-        const qrPromiseData = qrPromises.get(restaurantId);
-        if (qrPromiseData) {
-            qrPromiseData.reject(new Error('Connection closed before QR generation'));
-            qrPromises.delete(restaurantId);
-        }
+        logWithTimestamp('warning', restaurantId, `⚠️ Connection closed: ${errorMessage}`);
         
         if (shouldReconnect) {
-            logWithTimestamp('info', restaurantId, '🔄 Attempting to reconnect...');
+            logWithTimestamp('info', restaurantId, '🔄 Will attempt to reconnect...');
             sessionStates.set(restaurantId, 'reconnecting');
             
-            // Reconnect after a delay
-            setTimeout(() => {
-                createBaileysSession(restaurantId);
-            }, 5000);
+            // Don't reject here if QR was already generated
+            if (!qrCodes.has(restaurantId)) {
+                rejectOnce(new Error(`Connection closed before QR generation: ${errorMessage}`));
+            }
         } else {
             logWithTimestamp('warning', restaurantId, '🚪 Logged out, cleaning up session');
             sessionStates.set(restaurantId, 'logged_out');
             activeSockets.delete(restaurantId);
             qrCodes.delete(restaurantId);
+            
+            if (!qrCodes.has(restaurantId)) {
+                rejectOnce(new Error('Session logged out'));
+            }
         }
     } else if (connection === 'open') {
         logWithTimestamp('success', restaurantId, '✅ WhatsApp connection opened successfully!');
         sessionStates.set(restaurantId, 'connected');
-        
-        // FIX: Resolve QR promise with success when connected (in case of existing auth)
-        const qrPromiseData = qrPromises.get(restaurantId);
-        if (qrPromiseData) {
-            qrPromiseData.resolve({ connected: true, message: 'Connected without QR' });
-            qrPromises.delete(restaurantId);
-        }
         
         // Clear QR code once connected
         qrCodes.delete(restaurantId);
@@ -330,12 +361,20 @@ async function handleConnectionUpdate(update, restaurantId, sessionName) {
         if (sock && sock.user) {
             logWithTimestamp('info', restaurantId, `📱 Connected as: ${sock.user.id}`);
         }
+        
+        // If not already resolved with QR, resolve with connected status
+        resolveOnce({
+            success: true,
+            sessionId: sessionName,
+            message: 'Session connected successfully',
+            connected: true
+        });
+        
     } else if (connection === 'connecting') {
         logWithTimestamp('info', restaurantId, '🔄 Connecting to WhatsApp...');
         sessionStates.set(restaurantId, 'connecting');
     }
 }
-
 
 /**
  * Handle incoming messages from Baileys
@@ -457,7 +496,8 @@ async function getSessionStatus(restaurantId) {
                 status: 'not_found',
                 connected: false,
                 message: 'No session found for this restaurant',
-                has_auth: hasSessionAuth(restaurantId)
+                has_auth: hasSessionAuth(restaurantId),
+                qr_available: qrCodes.has(restaurantId)
             };
         }
         
@@ -486,6 +526,7 @@ async function getSessionStatus(restaurantId) {
             phone_number: phoneNumber,
             device_info: deviceInfo,
             has_auth: hasSessionAuth(restaurantId),
+            qr_available: qrCodes.has(restaurantId),
             last_seen: new Date().toISOString()
         };
         
@@ -495,7 +536,8 @@ async function getSessionStatus(restaurantId) {
             status: 'error',
             connected: false,
             message: error.message,
-            has_auth: hasSessionAuth(restaurantId)
+            has_auth: hasSessionAuth(restaurantId),
+            qr_available: false
         };
     }
 }
@@ -519,13 +561,7 @@ async function cleanupSession(restaurantId) {
         
         sessionStates.delete(restaurantId);
         qrCodes.delete(restaurantId);
-        
-        // FIX: Clean up QR promise if still pending
-        const qrPromiseData = qrPromises.get(restaurantId);
-        if (qrPromiseData) {
-            qrPromiseData.reject(new Error('Session cleanup requested'));
-            qrPromises.delete(restaurantId);
-        }
+        connectionPromises.delete(restaurantId);
         
         logWithTimestamp('success', restaurantId, '✅ Session cleaned up successfully');
         
@@ -533,7 +569,6 @@ async function cleanupSession(restaurantId) {
         logWithTimestamp('error', restaurantId, `❌ Error cleaning up session: ${error.message}`);
     }
 }
-
 
 // API Routes
 
@@ -566,9 +601,7 @@ app.post('/session/create', authenticateRequest, async (req, res) => {
                     success: true,
                     session_id: session_id,
                     status: 'already_connected',
-                    message: 'Session already exists and is connected',
-                    qr_available: false,
-                    has_auth: hasSessionAuth(restaurantId)
+                    message: 'Session already exists and is connected'
                 });
             }
         }
@@ -576,86 +609,20 @@ app.post('/session/create', authenticateRequest, async (req, res) => {
         // Create new session
         const result = await createBaileysSession(restaurantId);
         
-        if (!result.success) {
-            return res.status(500).json({
+        if (result.success) {
+            res.json({
+                success: true,
+                session_id: session_id,
+                status: result.qr_ready ? 'qr_ready' : (result.connected ? 'connected' : 'created'),
+                message: result.message,
+                qr_available: qrCodes.has(restaurantId),
+                has_auth: hasSessionAuth(restaurantId)
+            });
+        } else {
+            res.status(500).json({
                 success: false,
                 error: result.error
             });
-        }
-        
-        // FIX: Wait for QR generation or connection with timeout
-        try {
-            const qrPromiseData = qrPromises.get(restaurantId);
-            
-            if (qrPromiseData) {
-                logWithTimestamp('info', restaurantId, '⏳ Waiting for QR generation...');
-                
-                // Wait for QR generation with 10 second timeout
-                const qrResult = await Promise.race([
-                    qrPromiseData.promise,
-                    new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('QR generation timeout')), 10000)
-                    )
-                ]);
-                
-                if (qrResult.connected) {
-                    // Connected without QR (existing auth)
-                    logWithTimestamp('success', restaurantId, '✅ Connected without QR (existing auth)');
-                    return res.json({
-                        success: true,
-                        session_id: session_id,
-                        status: 'connected',
-                        message: 'Session connected successfully using existing authentication',
-                        qr_available: false,
-                        has_auth: true
-                    });
-                } else {
-                    // QR generated successfully
-                    logWithTimestamp('success', restaurantId, '✅ QR code generated and ready');
-                    return res.json({
-                        success: true,
-                        session_id: session_id,
-                        status: 'created',
-                        message: 'Session created successfully. Please scan QR code to connect.',
-                        qr_available: true,
-                        has_auth: hasSessionAuth(restaurantId)
-                    });
-                }
-            } else {
-                // No QR promise (shouldn't happen, but handle gracefully)
-                logWithTimestamp('warning', restaurantId, '⚠️ No QR promise found, checking QR availability');
-                return res.json({
-                    success: true,
-                    session_id: session_id,
-                    status: 'created',
-                    message: 'Session created successfully. Please check QR code availability.',
-                    qr_available: qrCodes.has(restaurantId),
-                    has_auth: hasSessionAuth(restaurantId)
-                });
-            }
-            
-        } catch (qrError) {
-            // QR generation failed or timed out
-            logWithTimestamp('warning', restaurantId, `⚠️ QR generation issue: ${qrError.message}`);
-            
-            // Clean up failed QR promise
-            qrPromises.delete(restaurantId);
-            
-            if (qrError.message.includes('timeout')) {
-                return res.json({
-                    success: true,
-                    session_id: session_id,
-                    status: 'created',
-                    message: 'Session created successfully. QR generation is in progress, please check the QR endpoint.',
-                    qr_available: qrCodes.has(restaurantId),
-                    has_auth: hasSessionAuth(restaurantId)
-                });
-            } else {
-                return res.status(500).json({
-                    success: false,
-                    error: `QR generation failed: ${qrError.message}`
-                });
-            }
         }
         
     } catch (error) {
@@ -760,7 +727,6 @@ app.get('/session/:sessionId/qr', async (req, res) => {
     }
 });
 
-
 /**
  * Delete session and auth state
  * DELETE /session/:sessionId
@@ -779,12 +745,12 @@ app.delete('/session/:sessionId', authenticateRequest, async (req, res) => {
         const sessionDir = getSessionDir(restaurantId);
         if (fs.existsSync(sessionDir)) {
             fs.removeSync(sessionDir);
-            logWithTimestamp('info', restaurantId, '📁 Session auth directory deleted');
+            logWithTimestamp('info', restaurantId, '🗑️ Session auth directory deleted');
         }
         
         res.json({
             success: true,
-            message: 'Session deleted successfully'
+            message: 'Session and auth state deleted successfully'
         });
         
     } catch (error) {
@@ -801,87 +767,59 @@ app.delete('/session/:sessionId', authenticateRequest, async (req, res) => {
  * GET /health
  */
 app.get('/health', (req, res) => {
+    const sessionDirs = fs.readdirSync(SESSIONS_DIR).filter(f => 
+        fs.statSync(path.join(SESSIONS_DIR, f)).isDirectory()
+    );
+    
     res.json({
         status: 'healthy',
-        service: 'whatsapp-baileys',
+        service: 'Baileys WhatsApp Service',
+        version: '6.7.x',
+        browser_free: true,
+        websocket_only: true,
         timestamp: new Date().toISOString(),
         active_sessions: activeSockets.size,
-        pending_qr: qrPromises.size
+        sessions_with_auth: sessionDirs.length,
+        session_directories: sessionDirs,
+        node_version: process.version
     });
-});
-
-/**
- * Get all active sessions
- * GET /sessions
- */
-app.get('/sessions', async (req, res) => {
-    try {
-        const sessions = [];
-        
-        for (const [restaurantId, socket] of activeSockets) {
-            const status = await getSessionStatus(restaurantId);
-            sessions.push({
-                restaurant_id: restaurantId,
-                session_id: `restaurant_${restaurantId}`,
-                ...status
-            });
-        }
-        
-        res.json({
-            success: true,
-            sessions: sessions,
-            total: sessions.length
-        });
-        
-    } catch (error) {
-        logWithTimestamp('error', null, `❌ Error getting sessions: ${error.message}`);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-});
-
-// Error handling middleware
-app.use((error, req, res, next) => {
-    console.error('❌ Unhandled error:', error);
-    res.status(500).json({
-        success: false,
-        error: 'Internal server error'
-    });
-});
-
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 WhatsApp Baileys Service started on port ${PORT}`);
-    console.log(`📡 FastAPI URL: ${FASTAPI_URL}`);
-    console.log(`📁 Sessions directory: ${SESSIONS_DIR}`);
-    console.log(`🔐 Authentication: ${WHATSAPP_API_KEY ? 'Enabled' : 'Disabled'}`);
-    console.log(`⚡ Service ready for WhatsApp session management!`);
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-    console.log('\n🛑 Shutting down WhatsApp service...');
+    console.log('\n🛑 Shutting down Baileys WhatsApp service...');
     
-    // Clean up all active sessions
-    for (const restaurantId of activeSockets.keys()) {
-        await cleanupSession(restaurantId);
+    // Close all active sockets
+    for (const [restaurantId, sock] of activeSockets) {
+        try {
+            sock.end();
+            logWithTimestamp('info', restaurantId, '✅ Socket closed');
+        } catch (error) {
+            logWithTimestamp('error', restaurantId, `❌ Error closing socket: ${error.message}`);
+        }
     }
     
-    console.log('✅ WhatsApp service shutdown complete');
     process.exit(0);
 });
 
-process.on('SIGTERM', async () => {
-    console.log('\n🛑 Received SIGTERM, shutting down WhatsApp service...');
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n🚀 Baileys WhatsApp Service running on port ${PORT}`);
+    console.log(`📱 100% Browser-free WhatsApp automation ready!`);
+    console.log(`🔗 FastAPI URL: ${FASTAPI_URL}`);
+    console.log(`📁 Sessions directory: ${SESSIONS_DIR}`);
+    console.log(`🔑 Using API key: ${WHATSAPP_API_KEY.substring(0, 10)}...`);
+    console.log(`🚫 NO Puppeteer, NO Chromium, NO browser dependencies!`);
+    console.log(`⚡ Powered by Baileys WebSocket protocol`);
+    console.log(`🌐 Node version: ${process.version}`);
     
-    // Clean up all active sessions
-    for (const restaurantId of activeSockets.keys()) {
-        await cleanupSession(restaurantId);
-    }
-    
-    console.log('✅ WhatsApp service shutdown complete');
-    process.exit(0);
+    // Log existing session auth directories
+    const sessionDirs = fs.readdirSync(SESSIONS_DIR).filter(f => 
+        fs.statSync(path.join(SESSIONS_DIR, f)).isDirectory()
+    );
+    console.log(`💾 Found ${sessionDirs.length} existing session directories`);
+    sessionDirs.forEach(dir => {
+        console.log(`   - ${dir}`);
+    });
 });
 
