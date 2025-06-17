@@ -1,14 +1,15 @@
 {
   "name": "restaurant-whatsapp-service",
   "version": "1.0.0",
-  "description": "WhatsApp service using @wppconnect-team/wppconnect for restaurant chatbot integration",
+  "description": "WhatsApp service using Baileys for restaurant chatbot integration - 100% browser-free",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "@wppconnect-team/wppconnect": "^1.37.0",
+    "@whiskeysockets/baileys": "^6.7.18",
+    "qrcode": "^1.5.3",
     "express": "^4.18.2",
     "cors": "^2.8.5",
     "axios": "^1.6.0",
@@ -19,12 +20,16 @@
   },
   "keywords": [
     "whatsapp",
-    "wppconnect",
+    "baileys",
     "websocket",
     "restaurant",
-    "chatbot"
+    "chatbot",
+    "browser-free"
   ],
   "author": "Restaurant Chatbot System",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=17.0.0"
+  }
 }
 
