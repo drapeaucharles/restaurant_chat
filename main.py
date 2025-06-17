@@ -53,7 +53,7 @@ def start_whatsapp_service():
         env = os.environ.copy()
         env.update({
             "WHATSAPP_PORT": "8002",
-            "FASTAPI_URL": "http://localhost:8000"
+            "FASTAPI_URL": os.getenv("PUBLIC_API_URL", "http://localhost:8000")
         })
         
         # Start the Node.js service with absolute path
