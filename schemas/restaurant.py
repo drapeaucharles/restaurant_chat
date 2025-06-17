@@ -37,9 +37,6 @@ class StaffCreateRequest(BaseModel):
     password: str
     data: Optional[RestaurantData] = None  # Staff might not need full restaurant data
 
-
-class RestaurantUpdateRequest(BaseModel):
-    data: RestaurantDataPartial
     
 class RestaurantDataPartial(BaseModel):
     name: Optional[str] = None
@@ -50,4 +47,7 @@ class RestaurantDataPartial(BaseModel):
     contact_info: Optional[str] = None
     restaurant_story: Optional[str] = None
     whatsapp_number: Optional[str] = None  # ✅ Must be here
+    
+class RestaurantUpdateRequest(BaseModel):
+    data: RestaurantDataPartial
     
