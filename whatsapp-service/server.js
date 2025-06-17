@@ -136,13 +136,10 @@ async function createWhatsAppSession(restaurantId) {
             folderNameToken: SESSIONS_DIR, // Store tokens in sessions directory
             mkdirFolderToken: sessionDir, // Create restaurant-specific folder
             headless: true,
-            devtools: false,
             useChrome: false, // ✅ NO CHROME/PUPPETEER!
+            devtools: false,
             debug: false,
             logQR: false, // We handle QR display ourselves
-            browserWS: '', // No browser WebSocket needed
-            browserArgs: [], // No browser args needed
-            puppeteerOptions: {}, // No Puppeteer options needed
             disableWelcome: true,
             updatesLog: false,
             autoClose: 60000,
@@ -183,8 +180,8 @@ async function createWhatsAppSession(restaurantId) {
                 } else if (statusSession === 'notLogged') {
                     logWithTimestamp('warning', restaurantId, '⚠️ Session not logged in');
                     sessionStates.set(restaurantId, 'not_logged');
-                } else if (statusSession === 'browserClose') {
-                    logWithTimestamp('warning', restaurantId, '⚠️ Browser closed');
+                } else if (statusSession === 'sessionClosed') {
+                    logWithTimestamp('warning', restaurantId, '⚠️ Session closed');
                     sessionStates.set(restaurantId, 'disconnected');
                 } else if (statusSession === 'qrReadError') {
                     logWithTimestamp('error', restaurantId, '❌ QR Code read error');
@@ -624,6 +621,7 @@ app.get('/health', (req, res) => {
         service: '@wppconnect-team/wppconnect',
         version: '1.37.x',
         browser_free: true,
+        websocket_only: true,
         timestamp: new Date().toISOString(),
         active_sessions: activeClients.size,
         sessions_with_tokens: sessionDirs.length,
