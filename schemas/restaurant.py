@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional
+from .restaurant import RestaurantData 
 
 class MenuItem(BaseModel):
     dish: str
@@ -37,3 +38,6 @@ class StaffCreateRequest(BaseModel):
     password: str
     data: Optional[RestaurantData] = None  # Staff might not need full restaurant data
 
+
+class RestaurantUpdateRequest(BaseModel):
+    data: RestaurantData

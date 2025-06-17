@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 from auth import get_current_restaurant, get_current_owner, ACCESS_TOKEN_EXPIRE_MINUTES
 from database import get_db
 import models
-from schemas.restaurant import RestaurantCreateRequest, RestaurantData
+from schemas.restaurant import RestaurantCreateRequest, RestaurantData, RestaurantUpdateRequest
+
 
 router = APIRouter(prefix="/restaurant", tags=["restaurant"])
 
