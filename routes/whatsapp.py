@@ -174,8 +174,7 @@ async def start_whatsapp_session(
                     session_id=session_id,
                     status=data.get("status", "qr_ready"),
                     message=data.get("message", "Session started successfully"),
-                    qr_code=data.get("qr_code"),
-                    connected=data.get("connected", False)
+                    qr_code=data.get("qr_code")
                 )
             else:
                 error_text = response.text
