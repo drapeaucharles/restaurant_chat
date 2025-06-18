@@ -4,12 +4,13 @@
  */
 
 const express = require('express');
-const { makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { makeWASocket, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
 const fs = require('fs-extra');
 const path = require('path');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
+const { Pool } = require('pg');
 
 // Ensure crypto is available globally for Baileys
 if (typeof global !== 'undefined') {
@@ -18,6 +19,96 @@ if (typeof global !== 'undefined') {
 
 const app = express();
 app.use(express.json());
+
+// Database connection
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/railway',
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+/**
+ * Database-backed Auth State for Railway persistence
+ * Replaces file-based storage with PostgreSQL storage
+ */
+class DatabaseAuthState {
+    constructor(sessionId) {
+        this.sessionId = sessionId;
+    }
+
+    async loadState() {
+        try {
+            const client = await pool.connect();
+            
+            // Try to load existing session from database
+            const result = await client.query(
+                'SELECT creds, keys FROM whatsapp_sessions WHERE session_id = $1',
+                [this.sessionId]
+            );
+            
+            let creds = {};
+            let keys = {};
+            
+            if (result.rows.length > 0) {
+                creds = result.rows[0].creds || {};
+                keys = result.rows[0].keys || {};
+                console.log(`📁 [${this.sessionId}] Loaded existing session from database`);
+            } else {
+                console.log(`📁 [${this.sessionId}] No existing session found, creating new one`);
+            }
+            
+            client.release();
+            
+            const saveCreds = async () => {
+                try {
+                    const client = await pool.connect();
+                    
+                    // Upsert session data
+                    await client.query(`
+                        INSERT INTO whatsapp_sessions (session_id, creds, keys, updated_at) 
+                        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                        ON CONFLICT (session_id) 
+                        DO UPDATE SET 
+                            creds = EXCLUDED.creds,
+                            keys = EXCLUDED.keys,
+                            updated_at = CURRENT_TIMESTAMP
+                    `, [this.sessionId, JSON.stringify(creds), JSON.stringify(keys)]);
+                    
+                    client.release();
+                    console.log(`💾 [${this.sessionId}] Session saved to database`);
+                } catch (error) {
+                    console.error(`❌ [${this.sessionId}] Error saving session to database:`, error);
+                }
+            };
+            
+            return {
+                state: { creds, keys },
+                saveCreds
+            };
+            
+        } catch (error) {
+            console.error(`❌ [${this.sessionId}] Error loading session from database:`, error);
+            
+            // Fallback to empty state
+            return {
+                state: { creds: {}, keys: {} },
+                saveCreds: async () => {
+                    console.log(`❌ [${this.sessionId}] Fallback saveCreds - database unavailable`);
+                }
+            };
+        }
+    }
+
+    async clearState() {
+        try {
+            const client = await pool.connect();
+            await client.query('DELETE FROM whatsapp_sessions WHERE session_id = $1', [this.sessionId]);
+            client.release();
+            console.log(`🗑️ [${this.sessionId}] Session cleared from database`);
+        } catch (error) {
+            console.error(`❌ [${this.sessionId}] Error clearing session from database:`, error);
+        }
+    }
+}
 
 // CORS middleware
 app.use((req, res, next) => {
@@ -52,13 +143,9 @@ const authenticateApiKey = (req, res, next) => {
 
 // In-memory session storage
 const sessions = new Map();
-const SESSIONS_DIR = path.join(__dirname, 'sessions');
-
-// Ensure sessions directory exists
-fs.ensureDirSync(SESSIONS_DIR);
 
 /**
- * Session Management Class - SIMPLIFIED WORKING VERSION
+ * Session Management Class - DATABASE-BACKED VERSION
  */
 class WhatsAppSession {
     constructor(sessionId) {
@@ -67,7 +154,7 @@ class WhatsAppSession {
         this.qrCode = null;
         this.status = 'disconnected';
         this.connectionPromise = null;
-        this.sessionDir = path.join(SESSIONS_DIR, sessionId);
+        this.authState = new DatabaseAuthState(sessionId);
         this.lastSeen = new Date().toISOString();
         this.retryCount = 0;
         this.maxRetries = 3;
@@ -90,14 +177,11 @@ class WhatsAppSession {
         try {
             console.log(`🔄 [${this.sessionId}] Starting connection...`);
             
-            // Ensure session directory exists
-            fs.ensureDirSync(this.sessionDir);
+            // Load auth state from database
+            const { state, saveCreds } = await this.authState.loadState();
             
-            // Load auth state using the WORKING method
-            const { state, saveCreds } = await useMultiFileAuthState(this.sessionDir);
-            
-            console.log(`📁 [${this.sessionId}] Session directory: ${this.sessionDir}`);
-            console.log(`🔑 [${this.sessionId}] Auth state loaded, has creds: ${!!state.creds?.noiseKey}`);
+            console.log(`📁 [${this.sessionId}] Auth state loaded from database`);
+            console.log(`🔑 [${this.sessionId}] Has existing creds: ${!!state.creds?.noiseKey}`);
             
             // Get latest Baileys version
             const { version, isLatest } = await fetchLatestBaileysVersion();
@@ -377,9 +461,9 @@ class WhatsAppSession {
         this.connectionPromise = null;
         this.retryCount = 0;
         
-        // Clear auth state
+        // Clear auth state from database
         try {
-            await fs.remove(this.sessionDir);
+            await this.authState.clearState();
         } catch (error) {
             console.error(`❌ [${this.sessionId}] Error clearing auth state:`, error);
         }
