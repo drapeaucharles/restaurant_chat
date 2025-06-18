@@ -64,10 +64,11 @@ def start_whatsapp_service():
                 ["node", node_script],
                 cwd=whatsapp_service_path,
                 env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=sys.stdout,   # ✅ log WhatsApp stdout in console
+                stderr=sys.stderr,   # ✅ log WhatsApp stderr in console
                 preexec_fn=os.setsid if os.name != 'nt' else None
             )
+
             
             print(f"✅ WhatsApp service started with PID: {whatsapp_process.pid}")
             
@@ -89,17 +90,6 @@ def start_whatsapp_service():
         # Check if process is still running
         if whatsapp_process.poll() is None:
             print("✅ WhatsApp service is running successfully")
-        else:
-            print("❌ WhatsApp service failed to start")
-            try:
-                stdout, stderr = whatsapp_process.communicate(timeout=5)
-                if stdout:
-                    print(f"STDOUT: {stdout.decode()}")
-                if stderr:
-                    print(f"STDERR: {stderr.decode()}")
-            except subprocess.TimeoutExpired:
-                print("⚠️ Could not retrieve startup logs (timeout)")
-            whatsapp_process = None
         
         return whatsapp_process
         

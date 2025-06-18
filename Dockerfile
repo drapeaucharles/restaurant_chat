@@ -32,4 +32,4 @@ EXPOSE 8000
 EXPOSE 8002
 
 # Start FastAPI + WhatsApp
-CMD ["sh", "-c", "node whatsapp-service/server.js & python main.py"]
+CMD ["sh", "-c", "python main.py"]
