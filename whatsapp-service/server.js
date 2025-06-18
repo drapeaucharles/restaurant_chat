@@ -734,13 +734,62 @@ app.delete('/session/:sessionId', authenticateApiKey, async (req, res) => {
     }
 });
 
+/**
+ * Auto-restore all sessions from database on startup
+ */
+async function autoRestoreAllSessions() {
+    try {
+        console.log('🔄 Auto-restoring all sessions from database...');
+        
+        const client = await pool.connect();
+        const result = await client.query('SELECT session_id FROM whatsapp_sessions');
+        client.release();
+        
+        if (result.rows.length === 0) {
+            console.log('📭 No sessions found in database to restore');
+            return;
+        }
+        
+        console.log(`📦 Found ${result.rows.length} sessions to restore:`);
+        
+        for (const row of result.rows) {
+            const sessionId = row.session_id;
+            console.log(`🔄 Auto-restoring session: ${sessionId}`);
+            
+            try {
+                // Create session instance
+                const session = new WhatsAppSession(sessionId);
+                sessions.set(sessionId, session);
+                
+                // Start connection in background (don't wait)
+                session.connect().then(() => {
+                    console.log(`✅ Auto-restored session: ${sessionId}`);
+                }).catch((error) => {
+                    console.error(`❌ Failed to auto-restore session ${sessionId}:`, error);
+                });
+                
+            } catch (error) {
+                console.error(`❌ Error creating session ${sessionId}:`, error);
+            }
+        }
+        
+        console.log('🚀 Auto-restoration process initiated for all sessions');
+        
+    } catch (error) {
+        console.error('❌ Error during auto-restoration:', error);
+    }
+}
+
 // Start server
 const PORT = process.env.WHATSAPP_PORT || 8002;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
     console.log(`🚀 WhatsApp service running on port ${PORT}`);
     console.log(`📁 Sessions directory: ${SESSIONS_DIR}`);
     console.log(`🔑 API Key: ${API_KEY.substring(0, 8)}...`);
     console.log(`💾 Database backup enabled: ${!!process.env.DATABASE_URL}`);
+    
+    // Auto-restore all sessions from database
+    setTimeout(autoRestoreAllSessions, 2000); // Wait 2 seconds for service to fully start
 });
 
 // Graceful shutdown
