@@ -214,12 +214,12 @@ async function createSocketConnection(restaurantId, sessionDir, sessionName) {
             // Create auth state
             const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
             
-            // Set connection timeout
+            // Set connection timeout - increased for authentication
             connectionTimeout = setTimeout(() => {
-                rejectOnce(new Error('Connection timeout after 30 seconds'));
-            }, 30000);
+                rejectOnce(new Error('Connection timeout after 60 seconds'));
+            }, 60000);
             
-            // Create new WhatsApp socket with Baileys
+            // Create new WhatsApp socket with Baileys - optimized for authentication
             const sock = makeWASocket({
                 auth: state,
                 printQRInTerminal: false,
@@ -241,12 +241,16 @@ async function createSocketConnection(restaurantId, sessionDir, sessionName) {
                     error: () => {},
                     fatal: () => {}
                 },
-                browser: ['Restaurant Bot', 'Chrome', '1.0.0'],
-                markOnlineOnConnect: false,
+                browser: ['Restaurant WhatsApp Bot', 'Desktop', '1.0.0'],
+                markOnlineOnConnect: true,
                 syncFullHistory: false,
-                defaultQueryTimeoutMs: 60000,
-                connectTimeoutMs: 60000,
-                keepAliveIntervalMs: 30000,
+                defaultQueryTimeoutMs: 120000, // Increased for better authentication
+                connectTimeoutMs: 120000, // Increased for better authentication  
+                keepAliveIntervalMs: 25000, // More frequent keepalive
+                qrTimeout: 60000, // Longer QR timeout
+                authTimeout: 120000, // Explicit auth timeout
+                retryRequestDelayMs: 1000,
+                maxMsgRetryCount: 5,
                 getMessage: async (key) => {
                     return { conversation: '' };
                 }
@@ -256,7 +260,7 @@ async function createSocketConnection(restaurantId, sessionDir, sessionName) {
             activeSockets.set(restaurantId, sock);
             sessionStates.set(restaurantId, 'creating');
             
-            // Handle connection updates (including QR code)
+            // Handle connection updates (including QR code and authentication)
             sock.ev.on('connection.update', async (update) => {
                 try {
                     await handleConnectionUpdate(update, restaurantId, sessionName, resolveOnce, rejectOnce);
@@ -266,8 +270,20 @@ async function createSocketConnection(restaurantId, sessionDir, sessionName) {
                 }
             });
             
-            // Handle credential updates
-            sock.ev.on('creds.update', saveCreds);
+            // Handle credential updates - critical for authentication
+            sock.ev.on('creds.update', async () => {
+                try {
+                    await saveCreds();
+                    logWithTimestamp('info', restaurantId, '🔑 Credentials updated and saved');
+                } catch (error) {
+                    logWithTimestamp('error', restaurantId, `❌ Error saving credentials: ${error.message}`);
+                }
+            });
+            
+            // Handle authentication events
+            sock.ev.on('auth.update', (authUpdate) => {
+                logWithTimestamp('info', restaurantId, `🔐 Auth update: ${JSON.stringify(authUpdate)}`);
+            });
             
             // Handle incoming messages
             sock.ev.on('messages.upsert', async (messageUpdate) => {
@@ -278,6 +294,11 @@ async function createSocketConnection(restaurantId, sessionDir, sessionName) {
             sock.ev.on('connection.error', (error) => {
                 logWithTimestamp('error', restaurantId, `❌ Socket error: ${error.message}`);
                 rejectOnce(error);
+            });
+            
+            // Handle WebSocket close events
+            sock.ev.on('ws.close', (event) => {
+                logWithTimestamp('warning', restaurantId, `🔌 WebSocket closed: ${event.code} - ${event.reason}`);
             });
             
             logWithTimestamp('success', restaurantId, '✅ Baileys socket initialized, waiting for connection...');
@@ -375,18 +396,23 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
         // Clear QR code once connected
         qrCodes.delete(restaurantId);
         
-        // Get socket info
+        // Get socket info and log successful authentication
         const sock = activeSockets.get(restaurantId);
         if (sock && sock.user) {
-            logWithTimestamp('info', restaurantId, `📱 Connected as: ${sock.user.id}`);
+            logWithTimestamp('success', restaurantId, `📱 Successfully authenticated as: ${sock.user.id}`);
+            logWithTimestamp('success', restaurantId, `📱 Device name: ${sock.user.name || 'Unknown'}`);
         }
         
-        // Connection is now established - this will be detected by status polling
+        // Mark authentication as complete
+        logWithTimestamp('success', restaurantId, '🎉 Authentication handshake completed successfully!');
         logWithTimestamp('success', restaurantId, '🎉 Connection established - frontend will detect via status polling');
         
     } else if (connection === 'connecting') {
         logWithTimestamp('info', restaurantId, '🔄 Connecting to WhatsApp...');
         sessionStates.set(restaurantId, 'connecting');
+    } else if (connection === 'authenticating') {
+        logWithTimestamp('info', restaurantId, '🔐 Authenticating with WhatsApp servers...');
+        sessionStates.set(restaurantId, 'authenticating');
     }
 }
 
