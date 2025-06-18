@@ -96,6 +96,9 @@ class WhatsAppSession {
             // Load auth state using the WORKING method
             const { state, saveCreds } = await useMultiFileAuthState(this.sessionDir);
             
+            console.log(`📁 [${this.sessionId}] Session directory: ${this.sessionDir}`);
+            console.log(`🔑 [${this.sessionId}] Auth state loaded, has creds: ${!!state.creds?.noiseKey}`);
+            
             // Get latest Baileys version
             const { version, isLatest } = await fetchLatestBaileysVersion();
             console.log(`📱 [${this.sessionId}] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
@@ -195,8 +198,16 @@ class WhatsAppSession {
     }
 
     setupEventHandlers(saveCreds) {
-        // Handle credential updates
-        this.socket.ev.on('creds.update', saveCreds);
+        // Handle credential updates with debugging
+        this.socket.ev.on('creds.update', async () => {
+            try {
+                console.log(`💾 [${this.sessionId}] Saving credentials...`);
+                await saveCreds();
+                console.log(`✅ [${this.sessionId}] Credentials saved successfully`);
+            } catch (error) {
+                console.error(`❌ [${this.sessionId}] Error saving credentials:`, error);
+            }
+        });
 
         // Handle messages (forward to FastAPI)
         this.socket.ev.on('messages.upsert', async (m) => {
