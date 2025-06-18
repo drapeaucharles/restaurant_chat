@@ -26,18 +26,6 @@ if (typeof global !== 'undefined') {
 const app = express();
 app.use(express.json());
 
-// Add global unhandled rejection handler
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
-    // Don't exit the process, just log the error
-});
-
-// Add global uncaught exception handler
-process.on('uncaughtException', (error) => {
-    console.error('🚨 Uncaught Exception:', error);
-    // Don't exit the process for WhatsApp connection issues
-});
-
 // CORS middleware
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -103,17 +91,15 @@ class CustomAuthState {
         try {
             const credsData = await fs.readFile(this.credsPath, 'utf8');
             creds = JSON.parse(credsData);
-            console.log(`📁 [${this.sessionId}] Loaded existing credentials`);
         } catch (error) {
-            console.log(`📁 [${this.sessionId}] No existing credentials found, starting fresh`);
+            // No existing creds
         }
 
         try {
             const keysData = await fs.readFile(this.keysPath, 'utf8');
             keys = JSON.parse(keysData);
-            console.log(`🔑 [${this.sessionId}] Loaded existing keys`);
         } catch (error) {
-            console.log(`🔑 [${this.sessionId}] No existing keys found, starting fresh`);
+            // No existing keys
         }
 
         return {
@@ -123,7 +109,6 @@ class CustomAuthState {
                     await this.ensureDir();
                     await fs.writeFile(this.credsPath, JSON.stringify(creds, null, 2));
                     await fs.writeFile(this.keysPath, JSON.stringify(keys, null, 2));
-                    console.log(`💾 [${this.sessionId}] Credentials saved successfully`);
                 } catch (error) {
                     console.error(`❌ [${this.sessionId}] Error saving credentials:`, error);
                 }
@@ -166,9 +151,7 @@ class WhatsAppSession {
         this.connectionPromise = this._doConnect().catch(error => {
             console.error(`❌ [${this.sessionId}] Connection failed:`, error);
             this.connectionPromise = null;
-            this.status = 'connection_failed';
-            // Don't re-throw the error to prevent unhandled rejection
-            return { success: false, status: 'connection_failed', error: error.message };
+            throw error;
         });
         return this.connectionPromise;
     }
@@ -184,24 +167,18 @@ class WhatsAppSession {
             const { version, isLatest } = await fetchLatestBaileysVersion();
             console.log(`📱 [${this.sessionId}] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
-            // Create socket with improved configuration
+            // Create socket with proper configuration
             this.socket = makeWASocket({
                 version,
                 auth: state,
                 printQRInTerminal: false,
-                browser: ['Chrome (Linux)', '', ''], // Use standard browser identifier
+                browser: ['Restaurant WhatsApp Bot', 'Desktop', '1.0.0'],
                 markOnlineOnConnect: false,
                 generateHighQualityLinkPreview: false,
                 syncFullHistory: false,
-                defaultQueryTimeoutMs: 30000, // Reduced timeout
-                connectTimeoutMs: 30000, // Reduced timeout
-                keepAliveIntervalMs: 10000, // More frequent keepalive
-                retryRequestDelayMs: 250,
-                maxMsgRetryCount: 5,
-                appStateMacVerification: {
-                    patch: false,
-                    snapshot: false
-                },
+                defaultQueryTimeoutMs: 60000,
+                connectTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000,
                 getMessage: async (key) => {
                     return { conversation: 'Hello' };
                 }
@@ -210,12 +187,11 @@ class WhatsAppSession {
             // Set up event handlers
             this.setupEventHandlers(saveCreds);
 
-            // Wait for initial connection or QR with improved timeout handling
+            // Wait for initial connection or QR
             return new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    console.log(`⏰ [${this.sessionId}] Connection timeout after 45 seconds`);
-                    reject(new Error('Connection timeout after 45 seconds'));
-                }, 45000); // Increased timeout
+                    reject(new Error('Connection timeout after 60 seconds'));
+                }, 60000);
 
                 const cleanup = () => {
                     clearTimeout(timeout);
@@ -244,31 +220,18 @@ class WhatsAppSession {
 
                     if (connection === 'close') {
                         const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-                        const reasonCode = lastDisconnect?.error?.output?.statusCode;
-                        console.log(`❌ [${this.sessionId}] Connection closed. Reason: ${reasonCode}, Should reconnect: ${shouldReconnect}`);
+                        console.log(`❌ [${this.sessionId}] Connection closed. Should reconnect: ${shouldReconnect}`);
                         
                         if (shouldReconnect && this.retryCount < this.maxRetries) {
                             this.retryCount++;
                             console.log(`🔄 [${this.sessionId}] Retrying connection (${this.retryCount}/${this.maxRetries})`);
-                            // Use a more robust retry mechanism
-                            this.status = 'retrying';
-                            setTimeout(async () => {
-                                try {
-                                    console.log(`🔄 [${this.sessionId}] Starting retry attempt ${this.retryCount}`);
-                                    await this._doConnect();
-                                } catch (retryError) {
-                                    console.error(`❌ [${this.sessionId}] Retry failed:`, retryError);
-                                    this.status = 'connection_failed';
-                                }
-                            }, 5000 * this.retryCount); // Exponential backoff
+                            setTimeout(() => this._doConnect(), 5000);
                         } else {
                             this.status = 'connection_failed';
                             this.socket = null;
                             this.connectionPromise = null;
-                            console.log(`❌ [${this.sessionId}] Connection failed permanently after ${this.maxRetries} retries`);
                             cleanup();
-                            // Don't reject here, just resolve with failure status
-                            resolve({ success: false, status: 'connection_failed', error: 'Connection failed permanently' });
+                            reject(new Error('Connection failed permanently'));
                         }
                     }
                 });
@@ -299,50 +262,34 @@ class WhatsAppSession {
             }
         });
 
-        // Handle connection updates with detailed logging
+        // Handle connection updates
         this.socket.ev.on('connection.update', (update) => {
             const { connection, lastDisconnect, qr } = update;
-            
-            console.log(`🔄 [${this.sessionId}] Connection update:`, {
-                connection,
-                qr: !!qr,
-                lastDisconnect: lastDisconnect ? {
-                    error: lastDisconnect.error?.message,
-                    statusCode: lastDisconnect.error?.output?.statusCode
-                } : null
-            });
             
             if (qr) {
                 this.qrCode = qr;
                 this.status = 'qr_ready';
                 this.lastSeen = new Date().toISOString();
-                console.log(`📱 [${this.sessionId}] QR code generated and ready`);
             }
 
             if (connection === 'connecting') {
                 this.status = 'connecting';
                 this.lastSeen = new Date().toISOString();
-                console.log(`🔗 [${this.sessionId}] Connecting to WhatsApp...`);
             }
 
             if (connection === 'open') {
                 this.status = 'connected';
                 this.lastSeen = new Date().toISOString();
                 this.retryCount = 0;
-                console.log(`✅ [${this.sessionId}] Successfully connected to WhatsApp`);
             }
 
             if (connection === 'close') {
                 const reason = lastDisconnect?.error?.output?.statusCode;
-                console.log(`❌ [${this.sessionId}] Connection closed. Reason code: ${reason}`);
-                
                 if (reason === DisconnectReason.loggedOut) {
                     this.status = 'logged_out';
-                    console.log(`🚪 [${this.sessionId}] Logged out, clearing session`);
                     this.cleanup();
                 } else {
                     this.status = 'connection_failed';
-                    console.log(`💥 [${this.sessionId}] Connection failed, will retry if possible`);
                 }
                 this.lastSeen = new Date().toISOString();
             }
@@ -407,8 +354,6 @@ class WhatsAppSession {
             connected: this.status === 'connected',
             qr_available: !!this.qrCode && this.status === 'qr_ready',
             last_seen: this.lastSeen,
-            retry_count: this.retryCount,
-            max_retries: this.maxRetries,
             has_auth: false // Will be updated based on auth files
         };
     }
@@ -486,22 +431,12 @@ app.post('/session/create', authenticateApiKey, async (req, res) => {
             sessions.set(session_id, session);
         }
 
-        // Start the connection process in the background with improved error handling
-        session.connect().then(result => {
-            if (result && !result.success) {
-                console.log(`⚠️ [${session_id}] Background connection completed with status: ${result.status}`);
-            }
-        }).catch(error => {
-            console.error(`❌ [${session_id}] Background connection failed:`, error);
-            session.status = 'connection_failed';
-        });
-
-        // Return immediately with current status
+        const result = await session.connect();
         res.json({
             success: true,
             session_id: session_id,
             status: session.status,
-            message: 'Session creation started. Check status endpoint for updates.',
+            message: 'Session created successfully. QR code ready for scanning.',
             qr_available: !!session.qrCode
         });
 
@@ -510,6 +445,58 @@ app.post('/session/create', authenticateApiKey, async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: `Session creation failed: ${error.message}` 
+        });
+    }
+});
+
+/**
+ * Start session and generate QR code (URL parameter version)
+ * This endpoint is expected by FastAPI for session management
+ */
+app.post('/session/:id/start', authenticateApiKey, async (req, res) => {
+    try {
+        const session_id = req.params.id;
+        const { force_new = false } = req.body;
+
+        if (!session_id) {
+            return res.status(400).json({ success: false, error: 'session_id is required in URL' });
+        }
+
+        console.log(`📝 [${session_id}] Starting session via URL parameter (force_new: ${force_new})`);
+
+        let session = sessions.get(session_id);
+
+        if (force_new && session) {
+            await session.cleanup();
+            sessions.delete(session_id);
+            session = null;
+        }
+
+        if (!session) {
+            session = new WhatsAppSession(session_id);
+            sessions.set(session_id, session);
+        }
+
+        const result = await session.connect();
+        
+        // Get QR code if available
+        const qrImage = await session.getQRCode();
+        
+        res.json({
+            success: true,
+            session_id: session_id,
+            status: session.status,
+            message: 'Session started successfully. QR code ready for scanning.',
+            qr_available: !!session.qrCode,
+            qr_code: qrImage, // Include base64 QR code in response
+            connected: session.status === 'connected'
+        });
+
+    } catch (error) {
+        console.error('❌ Session start error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: `Session start failed: ${error.message}` 
         });
     }
 });
