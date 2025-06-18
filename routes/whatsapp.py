@@ -6,6 +6,7 @@ Handles incoming messages, outgoing messages, and session management.
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 import uuid
+import httpx
 
 from auth import get_current_restaurant
 from database import get_db
@@ -228,6 +229,62 @@ async def send_whatsapp_reply(to_number: str, message: str, session_id: str):
             
     except Exception as e:
         print(f"❌ Error in background WhatsApp reply: {str(e)}")
+
+
+@router.get("/restaurant/{restaurant_id}/qr")
+async def get_whatsapp_qr(
+    restaurant_id: str,
+    current_restaurant: models.Restaurant = Depends(get_current_restaurant),
+    db: Session = Depends(get_db)
+):
+    """
+    Get QR code for WhatsApp session.
+    """
+    try:
+        # Verify the authenticated restaurant matches the requested one
+        if current_restaurant.restaurant_id != restaurant_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only get QR code for your own restaurant"
+            )
+        
+        if not current_restaurant.whatsapp_session_id:
+            raise HTTPException(
+                status_code=404,
+                detail="No WhatsApp session found. Please connect first."
+            )
+        
+        # Get QR code from WhatsApp service
+        session_id = current_restaurant.whatsapp_session_id
+        
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(
+                f"{whatsapp_service.open_wa_url}/session/{session_id}/qr",
+                headers={"x-api-key": whatsapp_service.whatsapp_api_key}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    "success": True,
+                    "qr_code": data.get("qr_code"),
+                    "session_id": session_id,
+                    "status": data.get("status", "qr_ready")
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": f"Failed to get QR code: {response.text}",
+                    "session_id": session_id
+                }
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get QR code: {str(e)}"
+        )
 
 
 @router.get("/restaurant/{restaurant_id}/status")
