@@ -319,14 +319,10 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
             console.log(`🔗 QR Raw: ${qr}\n`);
             
             logWithTimestamp('info', restaurantId, '📁 QR code stored in memory for API access');
+            logWithTimestamp('info', restaurantId, '⏳ Waiting for QR code scan...');
             
-            // Resolve with QR ready status
-            resolveOnce({
-                success: true,
-                sessionId: sessionName,
-                message: 'Session created successfully. QR code ready for scanning.',
-                qr_ready: true
-            });
+            // Only resolve with QR ready status, don't resolve the main promise yet
+            // The main promise should only resolve when actually connected
             
         } catch (error) {
             logWithTimestamp('error', restaurantId, `❌ Error generating QR code: ${error.message}`);
@@ -344,7 +340,7 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
             logWithTimestamp('info', restaurantId, '🔄 Will attempt to reconnect...');
             sessionStates.set(restaurantId, 'reconnecting');
             
-            // Don't reject here if QR was already generated
+            // Only reject if we haven't generated a QR code yet
             if (!qrCodes.has(restaurantId)) {
                 rejectOnce(new Error(`Connection closed before QR generation: ${errorMessage}`));
             }
@@ -354,9 +350,7 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
             activeSockets.delete(restaurantId);
             qrCodes.delete(restaurantId);
             
-            if (!qrCodes.has(restaurantId)) {
-                rejectOnce(new Error('Session logged out'));
-            }
+            rejectOnce(new Error('Session logged out'));
         }
     } else if (connection === 'open') {
         logWithTimestamp('success', restaurantId, '✅ WhatsApp connection opened successfully!');
@@ -371,7 +365,7 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
             logWithTimestamp('info', restaurantId, `📱 Connected as: ${sock.user.id}`);
         }
         
-        // If not already resolved with QR, resolve with connected status
+        // Now resolve the main promise with connected status
         resolveOnce({
             success: true,
             sessionId: sessionName,
@@ -619,11 +613,13 @@ app.post('/session/create', authenticateRequest, async (req, res) => {
         const result = await createBaileysSession(restaurantId);
         
         if (result.success) {
+            // Always return qr_ready status when QR is available
+            // The actual connection will be handled by the connection monitoring
             res.json({
                 success: true,
                 session_id: session_id,
-                status: result.qr_ready ? 'qr_ready' : (result.connected ? 'connected' : 'created'),
-                message: result.message,
+                status: 'qr_ready',
+                message: 'Session created successfully. QR code ready for scanning.',
                 qr_available: qrCodes.has(restaurantId),
                 has_auth: hasSessionAuth(restaurantId)
             });
