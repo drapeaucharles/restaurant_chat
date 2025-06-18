@@ -307,7 +307,27 @@ class WhatsAppSession {
         }
 
         try {
-            const result = await this.socket.sendMessage(to, { text: message });
+            // Format phone number as WhatsApp JID
+            let jid = to;
+            
+            // If it's just a phone number, convert to WhatsApp JID format
+            if (!to.includes('@')) {
+                // Remove any non-digit characters
+                const cleanNumber = to.replace(/\D/g, '');
+                
+                // Add country code if missing (assuming US +1 if 10 digits)
+                let formattedNumber = cleanNumber;
+                if (cleanNumber.length === 10) {
+                    formattedNumber = '1' + cleanNumber;
+                }
+                
+                // Format as WhatsApp JID
+                jid = formattedNumber + '@s.whatsapp.net';
+            }
+            
+            console.log(`📱 [${this.sessionId}] Sending to JID: ${jid}`);
+            
+            const result = await this.socket.sendMessage(jid, { text: message });
             return result;
         } catch (error) {
             console.error(`❌ [${this.sessionId}] Error sending message:`, error);
