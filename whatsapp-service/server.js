@@ -37,7 +37,10 @@ class DatabaseAuthState {
 
     async loadState() {
         try {
+            console.log(`🔍 [${this.sessionId}] Attempting to load session from database...`);
+            
             const client = await pool.connect();
+            console.log(`✅ [${this.sessionId}] Database connection established`);
             
             // Try to load existing session from database
             const result = await client.query(
@@ -51,7 +54,7 @@ class DatabaseAuthState {
             if (result.rows.length > 0) {
                 creds = result.rows[0].creds || {};
                 keys = result.rows[0].keys || {};
-                console.log(`📁 [${this.sessionId}] Loaded existing session from database`);
+                console.log(`📁 [${this.sessionId}] Loaded existing session from database (${Object.keys(creds).length} creds, ${Object.keys(keys).length} keys)`);
             } else {
                 console.log(`📁 [${this.sessionId}] No existing session found, creating new one`);
             }
@@ -60,6 +63,7 @@ class DatabaseAuthState {
             
             const saveCreds = async () => {
                 try {
+                    console.log(`💾 [${this.sessionId}] Attempting to save credentials to database...`);
                     const client = await pool.connect();
                     
                     // Upsert session data
@@ -74,7 +78,7 @@ class DatabaseAuthState {
                     `, [this.sessionId, JSON.stringify(creds), JSON.stringify(keys)]);
                     
                     client.release();
-                    console.log(`💾 [${this.sessionId}] Session saved to database`);
+                    console.log(`✅ [${this.sessionId}] Session saved to database successfully`);
                 } catch (error) {
                     console.error(`❌ [${this.sessionId}] Error saving session to database:`, error);
                 }
@@ -89,6 +93,7 @@ class DatabaseAuthState {
             console.error(`❌ [${this.sessionId}] Error loading session from database:`, error);
             
             // Fallback to empty state
+            console.log(`🔄 [${this.sessionId}] Using fallback empty state`);
             return {
                 state: { creds: {}, keys: {} },
                 saveCreds: async () => {
@@ -178,16 +183,19 @@ class WhatsAppSession {
             console.log(`🔄 [${this.sessionId}] Starting connection...`);
             
             // Load auth state from database
+            console.log(`📊 [${this.sessionId}] Loading auth state...`);
             const { state, saveCreds } = await this.authState.loadState();
             
             console.log(`📁 [${this.sessionId}] Auth state loaded from database`);
             console.log(`🔑 [${this.sessionId}] Has existing creds: ${!!state.creds?.noiseKey}`);
             
             // Get latest Baileys version
+            console.log(`📱 [${this.sessionId}] Fetching Baileys version...`);
             const { version, isLatest } = await fetchLatestBaileysVersion();
             console.log(`📱 [${this.sessionId}] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
             // Create socket with WORKING configuration
+            console.log(`🔌 [${this.sessionId}] Creating WhatsApp socket...`);
             this.socket = makeWASocket({
                 version,
                 auth: state,
@@ -220,15 +228,19 @@ class WhatsAppSession {
                     return { conversation: 'Hello' };
                 }
             });
+            console.log(`✅ [${this.sessionId}] WhatsApp socket created successfully`);
 
             // Set up event handlers
+            console.log(`🎧 [${this.sessionId}] Setting up event handlers...`);
             this.setupEventHandlers(saveCreds);
 
-            // Wait for initial connection or QR with 30-second timeout
+            // Wait for initial connection or QR with 60-second timeout (increased)
+            console.log(`⏳ [${this.sessionId}] Waiting for connection or QR code...`);
             return new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    reject(new Error('Connection timeout after 30 seconds'));
-                }, 30000);
+                    console.log(`⏰ [${this.sessionId}] Connection timeout reached`);
+                    reject(new Error('Connection timeout after 60 seconds'));
+                }, 60000); // Increased to 60 seconds
 
                 const cleanup = () => {
                     clearTimeout(timeout);
@@ -236,12 +248,13 @@ class WhatsAppSession {
 
                 this.socket.ev.on('connection.update', (update) => {
                     const { connection, lastDisconnect, qr } = update;
+                    console.log(`🔄 [${this.sessionId}] Connection update: connection=${connection}, qr=${!!qr}`);
 
                     if (qr) {
                         this.qrCode = qr;
                         this.status = 'qr_ready';
                         this.lastSeen = new Date().toISOString();
-                        console.log(`📱 [${this.sessionId}] QR code generated`);
+                        console.log(`📱 [${this.sessionId}] QR code generated successfully`);
                         cleanup();
                         resolve({ success: true, status: 'qr_ready', qr_available: true });
                     }
