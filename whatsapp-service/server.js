@@ -604,7 +604,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Start server with proper error handling
-const PORT = process.env.WHATSAPP_PORT || 8002;
+const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, '0.0.0.0', (error) => {
     if (error) {
         console.error('❌ Failed to start WhatsApp service:', error);
