@@ -156,6 +156,22 @@ async def start_whatsapp_session(
         print(f"\n🚀 ===== STARTING WHATSAPP SESSION =====")
         print(f"🔗 Session ID: {session_id}")
         
+        # Extract restaurant_id from session_id (assuming format: restaurant_RestaurantName)
+        restaurant_id = session_id.replace('restaurant_', '') if session_id.startswith('restaurant_') else session_id
+        
+        # Find the restaurant in database
+        restaurant = db.query(models.Restaurant).filter(
+            models.Restaurant.restaurant_id == restaurant_id
+        ).first()
+        
+        if not restaurant:
+            print(f"❌ Restaurant not found: {restaurant_id}")
+            return WhatsAppSessionResponse(
+                session_id=session_id,
+                status="error",
+                message=f"Restaurant {restaurant_id} not found"
+            )
+        
         # Forward request to Node.js WhatsApp service
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(
@@ -170,6 +186,13 @@ async def start_whatsapp_session(
             if response.status_code == 200:
                 data = response.json()
                 print(f"✅ Session started successfully")
+                
+                # Update database with session ID if connection was successful
+                if data.get("status") in ["qr_ready", "connected"]:
+                    restaurant.whatsapp_session_id = session_id
+                    db.commit()
+                    print(f"✅ Updated database: {restaurant_id} -> session_id: {session_id}")
+                
                 return WhatsAppSessionResponse(
                     session_id=session_id,
                     status=data.get("status", "qr_ready"),
