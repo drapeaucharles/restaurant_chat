@@ -12,11 +12,13 @@
  * 5. Correct connection state tracking
  */
 
-const express = require('express');
 const { makeWASocket, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
-const QRCode = require('qrcode');
-const fs = require('fs').promises;
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+const fs = require('fs-extra');
 const path = require('path');
+const QRCode = require('qrcode');
 const crypto = require('crypto');
 
 // Ensure crypto is available globally for Baileys
@@ -24,32 +26,22 @@ if (typeof global !== 'undefined') {
     global.crypto = crypto;
 }
 
+// Configuration
+const PORT = process.env.WHATSAPP_PORT || 8002;
+const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
+const SESSIONS_DIR = path.join(__dirname, 'sessions');
+const SHARED_SECRET = process.env.WHATSAPP_SECRET || 'default-secret-change-in-production';
+const WHATSAPP_API_KEY = process.env.WHATSAPP_API_KEY || 'supersecretkey123';
+
+// Ensure directories exist
+fs.ensureDirSync(SESSIONS_DIR);
+
+// Express app for API endpoints
 const app = express();
+app.use(cors());
 app.use(express.json());
 
-// CORS middleware
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-api-key');
-    if (req.method === 'OPTIONS') {
-        res.sendStatus(200);
-    } else {
-        next();
-    }
-});
-
-// API key middleware
-const API_KEY = process.env.WHATSAPP_API_KEY || 'supersecretkey123';
-const authenticateApiKey = (req, res, next) => {
-    const apiKey = req.headers['x-api-key'];
-    if (!apiKey || apiKey !== API_KEY) {
-        return res.status(401).json({ success: false, error: 'Invalid API key' });
-    }
-    next();
-};
-
-// In-memory session storage
+// Store active sessions
 const sessions = new Map();
 
 /**
@@ -59,7 +51,7 @@ const sessions = new Map();
 class EfficientAuthState {
     constructor(sessionId) {
         this.sessionId = sessionId;
-        this.authDir = path.join(__dirname, 'sessions', sessionId);
+        this.authDir = path.join(SESSIONS_DIR, sessionId, 'auth_info_baileys');
         this.credsPath = path.join(this.authDir, 'creds.json');
         this.keysPath = path.join(this.authDir, 'keys.json');
         
@@ -71,7 +63,7 @@ class EfficientAuthState {
 
     async ensureDir() {
         try {
-            await fs.mkdir(this.authDir, { recursive: true });
+            await fs.ensureDir(this.authDir);
         } catch (error) {
             // Directory already exists
         }
@@ -149,9 +141,7 @@ class EfficientAuthState {
 
     async clearState() {
         try {
-            await fs.unlink(this.credsPath);
-            await fs.unlink(this.keysPath);
-            await fs.rmdir(this.authDir);
+            await fs.remove(this.authDir);
         } catch (error) {
             // Files don't exist
         }
@@ -415,20 +405,13 @@ class WhatsAppSession {
 
     async forwardMessageToFastAPI(message) {
         try {
-            const fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000';
-            const response = await fetch(`${fastApiUrl}/whatsapp/incoming`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    session_id: this.sessionId,
-                    message: message,
-                    timestamp: new Date().toISOString()
-                })
+            const response = await axios.post(`${FASTAPI_URL}/whatsapp/incoming`, {
+                session_id: this.sessionId,
+                message: message,
+                timestamp: new Date().toISOString()
             });
 
-            if (!response.ok) {
+            if (response.status !== 200) {
                 this.log(`Failed to forward message to FastAPI: ${response.status}`);
             }
         } catch (error) {
@@ -514,6 +497,27 @@ class WhatsAppSession {
     }
 }
 
+/**
+ * Authentication middleware
+ */
+function authenticateRequest(req, res, next) {
+    const authHeader = req.headers.authorization;
+    const apiKey = req.headers['x-api-key'];
+    const providedSecret = req.body.secret || req.query.secret;
+    
+    // Check for valid authentication
+    if (apiKey === WHATSAPP_API_KEY || 
+        providedSecret === SHARED_SECRET ||
+        authHeader === `Bearer ${SHARED_SECRET}`) {
+        next();
+    } else {
+        res.status(401).json({ 
+            success: false, 
+            error: 'Unauthorized: Invalid API key or secret' 
+        });
+    }
+}
+
 // API Routes
 
 /**
@@ -524,40 +528,48 @@ app.get('/health', (req, res) => {
         success: true, 
         status: 'healthy', 
         timestamp: new Date().toISOString(),
-        active_sessions: sessions.size
+        active_sessions: sessions.size,
+        service: 'WhatsApp Baileys Service - FIXED VERSION'
     });
 });
 
 /**
- * Create or get session
+ * Create WhatsApp session for a restaurant
+ * Supports both session_id and restaurant_id for backward compatibility
  */
-app.post('/session/create', authenticateApiKey, async (req, res) => {
+app.post('/session/create', authenticateRequest, async (req, res) => {
     try {
-        const { session_id, force_new = false } = req.body;
+        // Support both session_id and restaurant_id for backward compatibility
+        const sessionId = req.body.session_id || req.body.restaurant_id;
+        const { force_new = false } = req.body;
 
-        if (!session_id) {
-            return res.status(400).json({ success: false, error: 'session_id is required' });
+        if (!sessionId) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'session_id or restaurant_id is required' 
+            });
         }
 
-        console.log(`📝 [${session_id}] Creating session (force_new: ${force_new})`);
+        console.log(`📝 [${sessionId}] Creating session (force_new: ${force_new})`);
 
-        let session = sessions.get(session_id);
+        let session = sessions.get(sessionId);
 
         if (force_new && session) {
             await session.cleanup();
-            sessions.delete(session_id);
+            sessions.delete(sessionId);
             session = null;
         }
 
         if (!session) {
-            session = new WhatsAppSession(session_id);
-            sessions.set(session_id, session);
+            session = new WhatsAppSession(sessionId);
+            sessions.set(sessionId, session);
         }
 
         const result = await session.connect();
         res.json({
             success: true,
-            session_id: session_id,
+            session_id: sessionId,
+            restaurant_id: sessionId, // For backward compatibility
             status: session.status,
             message: 'Session created successfully. QR code ready for scanning.',
             qr_available: !!session.qrCode
@@ -573,7 +585,8 @@ app.post('/session/create', authenticateApiKey, async (req, res) => {
 });
 
 /**
- * Get QR code for session
+ * Get QR code for a restaurant session
+ * Supports both :sessionId and :restaurant_id URL parameters
  */
 app.get('/session/:sessionId/qr', async (req, res) => {
     try {
@@ -609,7 +622,8 @@ app.get('/session/:sessionId/qr', async (req, res) => {
             success: true,
             qr_code: qrImage,
             status: session.status,
-            session_id: sessionId
+            session_id: sessionId,
+            restaurant_id: sessionId // For backward compatibility
         });
 
     } catch (error) {
@@ -622,7 +636,8 @@ app.get('/session/:sessionId/qr', async (req, res) => {
 });
 
 /**
- * Get session status
+ * Get session status for a restaurant
+ * Supports both :sessionId and :restaurant_id URL parameters
  */
 app.get('/session/:sessionId/status', (req, res) => {
     try {
@@ -651,20 +666,23 @@ app.get('/session/:sessionId/status', (req, res) => {
 });
 
 /**
- * Send message
+ * Send message via WhatsApp
+ * Supports both session_id and restaurant_id for backward compatibility
  */
-app.post('/message/send', authenticateApiKey, async (req, res) => {
+app.post('/message/send', authenticateRequest, async (req, res) => {
     try {
-        const { session_id, to, message } = req.body;
+        // Support both session_id and restaurant_id for backward compatibility
+        const sessionId = req.body.session_id || req.body.restaurant_id;
+        const { to, message } = req.body;
 
-        if (!session_id || !to || !message) {
+        if (!sessionId || !to || !message) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'session_id, to, and message are required' 
+                error: 'session_id (or restaurant_id), to, and message are required' 
             });
         }
 
-        const session = sessions.get(session_id);
+        const session = sessions.get(sessionId);
         if (!session) {
             return res.status(404).json({ 
                 success: false, 
@@ -689,9 +707,10 @@ app.post('/message/send', authenticateApiKey, async (req, res) => {
 });
 
 /**
- * Delete session
+ * Delete session for a restaurant
+ * Supports both :sessionId and :restaurant_id URL parameters
  */
-app.delete('/session/:sessionId', authenticateApiKey, async (req, res) => {
+app.delete('/session/:sessionId', authenticateRequest, async (req, res) => {
     try {
         const { sessionId } = req.params;
         const session = sessions.get(sessionId);
@@ -715,11 +734,38 @@ app.delete('/session/:sessionId', authenticateApiKey, async (req, res) => {
     }
 });
 
+// Legacy endpoints for backward compatibility
+app.post('/restaurant/:restaurant_id/connect', authenticateRequest, async (req, res) => {
+    req.body.restaurant_id = req.params.restaurant_id;
+    return app._router.handle(Object.assign(req, { method: 'POST', url: '/session/create' }), res);
+});
+
+app.get('/restaurant/:restaurant_id/qr', async (req, res) => {
+    req.params.restaurant_id = req.params.restaurant_id;
+    return app._router.handle(Object.assign(req, { method: 'GET', url: `/session/${req.params.restaurant_id}/qr` }), res);
+});
+
+app.get('/restaurant/:restaurant_id/status', async (req, res) => {
+    req.params.restaurant_id = req.params.restaurant_id;
+    return app._router.handle(Object.assign(req, { method: 'GET', url: `/session/${req.params.restaurant_id}/status` }), res);
+});
+
 // Start server
-const PORT = process.env.PORT || 8002;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 WhatsApp Baileys Service running on port ${PORT}`);
     console.log(`📱 Service ready to handle WhatsApp connections`);
+    console.log(`🔗 FastAPI URL: ${FASTAPI_URL}`);
+    console.log(`📁 Sessions directory: ${SESSIONS_DIR}`);
+    console.log(`🔑 Using API key: ${WHATSAPP_API_KEY.substring(0, 10)}...`);
+    console.log(`🚫 NO Puppeteer, NO Chromium, NO browser dependencies!`);
+    console.log(`⚡ Powered by Baileys WebSocket protocol`);
+    console.log(`🌐 Node version: ${process.version}`);
+    
+    // Log existing sessions
+    const existingSessions = fs.readdirSync(SESSIONS_DIR).filter(dir => 
+        fs.statSync(path.join(SESSIONS_DIR, dir)).isDirectory()
+    );
+    console.log(`💾 Found ${existingSessions.length} existing session directories`);
 });
 
 // Graceful shutdown
@@ -734,4 +780,6 @@ process.on('SIGINT', async () => {
     
     process.exit(0);
 });
+
+module.exports = app;
 
