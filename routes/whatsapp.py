@@ -57,6 +57,19 @@ async def receive_whatsapp_message(
         client_id = whatsapp_service.generate_client_id_from_phone(message.from_number)
         print(f"👤 Generated client ID: {client_id}")
         
+        # ✅ SAVE CUSTOMER MESSAGE TO DATABASE FIRST
+        print(f"💾 Saving customer WhatsApp message to database...")
+        customer_message = models.ChatMessage(
+            restaurant_id=restaurant.restaurant_id,
+            client_id=uuid.UUID(client_id),
+            sender_type="client",
+            message=message.message
+        )
+        db.add(customer_message)
+        db.commit()
+        db.refresh(customer_message)
+        print(f"✅ Customer message saved to ChatMessage table with ID: {customer_message.id}")
+        
         # Create chat request (table_id=None for WhatsApp as specified)
         chat_request = ChatRequest(
             restaurant_id=restaurant.restaurant_id,
