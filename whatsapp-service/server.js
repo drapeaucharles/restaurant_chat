@@ -36,14 +36,25 @@ app.use((req, res, next) => {
     }
 });
 
-// API key middleware
+// API key middleware - Updated to accept both x-api-key and Authorization Bearer
 const API_KEY = process.env.WHATSAPP_API_KEY || 'supersecretkey123';
 const authenticateApiKey = (req, res, next) => {
+    // Check x-api-key header first
     const apiKey = req.headers['x-api-key'];
-    if (!apiKey || apiKey !== API_KEY) {
-        return res.status(401).json({ success: false, error: 'Invalid API key' });
+    if (apiKey && apiKey === API_KEY) {
+        return next();
     }
-    next();
+    
+    // Check Authorization Bearer header
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const bearerToken = authHeader.substring(7); // Remove 'Bearer ' prefix
+        if (bearerToken === API_KEY) {
+            return next();
+        }
+    }
+    
+    return res.status(401).json({ success: false, error: 'Invalid API key' });
 };
 
 // In-memory session storage (replace with database in production)
