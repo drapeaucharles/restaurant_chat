@@ -1,19 +1,12 @@
 /**
- * WhatsApp Service using Baileys - PROPERLY IMPLEMENTED
- * Following official Baileys documentation and best practices
- * 
- * Key fixes:
- * 1. Proper auth state management (not using deprecated useMultiFileAuthState)
- * 2. Correct connection handling with forced disconnect after QR scan
- * 3. Simplified session management aligned with Baileys architecture
- * 4. Proper cleanup and reconnection logic
- * 5. Added comprehensive error handling and startup logging
+ * WhatsApp Service using Baileys - WORKING VERSION RESTORED
+ * Following the configuration that was actually working on Railway
  */
 
 const express = require('express');
 const { makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
-const fs = require('fs').promises;
+const fs = require('fs-extra');
 const path = require('path');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
@@ -38,19 +31,17 @@ app.use((req, res, next) => {
     }
 });
 
-// API key middleware - Updated to accept both x-api-key and Authorization Bearer
+// API key middleware
 const API_KEY = process.env.WHATSAPP_API_KEY || 'supersecretkey123';
 const authenticateApiKey = (req, res, next) => {
-    // Check x-api-key header first
     const apiKey = req.headers['x-api-key'];
     if (apiKey && apiKey === API_KEY) {
         return next();
     }
     
-    // Check Authorization Bearer header
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
-        const bearerToken = authHeader.substring(7); // Remove 'Bearer ' prefix
+        const bearerToken = authHeader.substring(7);
         if (bearerToken === API_KEY) {
             return next();
         }
@@ -59,76 +50,15 @@ const authenticateApiKey = (req, res, next) => {
     return res.status(401).json({ success: false, error: 'Invalid API key' });
 };
 
-// In-memory session storage (replace with database in production)
+// In-memory session storage
 const sessions = new Map();
+const SESSIONS_DIR = path.join(__dirname, 'sessions');
+
+// Ensure sessions directory exists
+fs.ensureDirSync(SESSIONS_DIR);
 
 /**
- * Custom Auth State Implementation
- * Replaces the deprecated useMultiFileAuthState
- */
-class CustomAuthState {
-    constructor(sessionId) {
-        this.sessionId = sessionId;
-        this.authDir = path.join(__dirname, 'sessions', sessionId);
-        this.credsPath = path.join(this.authDir, 'creds.json');
-        this.keysPath = path.join(this.authDir, 'keys.json');
-    }
-
-    async ensureDir() {
-        try {
-            await fs.mkdir(this.authDir, { recursive: true });
-        } catch (error) {
-            // Directory already exists
-        }
-    }
-
-    async loadState() {
-        await this.ensureDir();
-        
-        let creds = {};
-        let keys = {};
-
-        try {
-            const credsData = await fs.readFile(this.credsPath, 'utf8');
-            creds = JSON.parse(credsData);
-        } catch (error) {
-            // No existing creds
-        }
-
-        try {
-            const keysData = await fs.readFile(this.keysPath, 'utf8');
-            keys = JSON.parse(keysData);
-        } catch (error) {
-            // No existing keys
-        }
-
-        return {
-            state: { creds, keys },
-            saveCreds: async () => {
-                try {
-                    await this.ensureDir();
-                    await fs.writeFile(this.credsPath, JSON.stringify(creds, null, 2));
-                    await fs.writeFile(this.keysPath, JSON.stringify(keys, null, 2));
-                } catch (error) {
-                    console.error(`❌ [${this.sessionId}] Error saving credentials:`, error);
-                }
-            }
-        };
-    }
-
-    async clearState() {
-        try {
-            await fs.unlink(this.credsPath);
-            await fs.unlink(this.keysPath);
-            await fs.rmdir(this.authDir);
-        } catch (error) {
-            // Files don't exist
-        }
-    }
-}
-
-/**
- * Session Management Class
+ * Session Management Class - SIMPLIFIED WORKING VERSION
  */
 class WhatsAppSession {
     constructor(sessionId) {
@@ -137,7 +67,7 @@ class WhatsAppSession {
         this.qrCode = null;
         this.status = 'disconnected';
         this.connectionPromise = null;
-        this.authState = new CustomAuthState(sessionId);
+        this.sessionDir = path.join(SESSIONS_DIR, sessionId);
         this.lastSeen = new Date().toISOString();
         this.retryCount = 0;
         this.maxRetries = 3;
@@ -160,29 +90,45 @@ class WhatsAppSession {
         try {
             console.log(`🔄 [${this.sessionId}] Starting connection...`);
             
-            // Load auth state
-            const { state, saveCreds } = await this.authState.loadState();
+            // Ensure session directory exists
+            fs.ensureDirSync(this.sessionDir);
+            
+            // Load auth state using the WORKING method
+            const { state, saveCreds } = await useMultiFileAuthState(this.sessionDir);
             
             // Get latest Baileys version
             const { version, isLatest } = await fetchLatestBaileysVersion();
             console.log(`📱 [${this.sessionId}] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
-            // Create socket with Railway-optimized configuration
+            // Create socket with WORKING configuration
             this.socket = makeWASocket({
                 version,
                 auth: state,
                 printQRInTerminal: false,
-                browser: ['Railway WhatsApp Bot', 'Chrome', '1.0.0'],
+                logger: {
+                    level: 'silent',
+                    child: () => ({ 
+                        level: 'silent',
+                        trace: () => {},
+                        debug: () => {},
+                        info: () => {},
+                        warn: () => {},
+                        error: () => {},
+                        fatal: () => {}
+                    }),
+                    trace: () => {},
+                    debug: () => {},
+                    info: () => {},
+                    warn: () => {},
+                    error: () => {},
+                    fatal: () => {}
+                },
+                browser: ['Restaurant Bot', 'Chrome', '1.0.0'],
                 markOnlineOnConnect: false,
-                generateHighQualityLinkPreview: false,
                 syncFullHistory: false,
-                defaultQueryTimeoutMs: 120000,  // Increased for Railway
-                connectTimeoutMs: 120000,       // Increased for Railway
-                keepAliveIntervalMs: 60000,     // Increased for Railway
-                retryRequestDelayMs: 10000,     // Added for Railway
-                maxMsgRetryCount: 3,            // Added for Railway
-                shouldSyncHistoryMessage: () => false,  // Disable history sync
-                shouldIgnoreJid: () => false,
+                defaultQueryTimeoutMs: 60000,
+                connectTimeoutMs: 60000,
+                keepAliveIntervalMs: 30000,
                 getMessage: async (key) => {
                     return { conversation: 'Hello' };
                 }
@@ -191,11 +137,11 @@ class WhatsAppSession {
             // Set up event handlers
             this.setupEventHandlers(saveCreds);
 
-            // Wait for initial connection or QR
+            // Wait for initial connection or QR with 30-second timeout
             return new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    reject(new Error('Connection timeout after 60 seconds'));
-                }, 60000);
+                    reject(new Error('Connection timeout after 30 seconds'));
+                }, 30000);
 
                 const cleanup = () => {
                     clearTimeout(timeout);
@@ -358,7 +304,7 @@ class WhatsAppSession {
             connected: this.status === 'connected',
             qr_available: !!this.qrCode && this.status === 'qr_ready',
             last_seen: this.lastSeen,
-            has_auth: false // Will be updated based on auth files
+            has_auth: false
         };
     }
 
@@ -381,7 +327,7 @@ class WhatsAppSession {
         
         // Clear auth state
         try {
-            await this.authState.clearState();
+            await fs.remove(this.sessionDir);
         } catch (error) {
             console.error(`❌ [${this.sessionId}] Error clearing auth state:`, error);
         }
