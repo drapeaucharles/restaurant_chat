@@ -15,6 +15,7 @@ const QRCode = require('qrcode');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
+const fetch = require('node-fetch');
 
 // Ensure crypto is available globally for Baileys
 if (typeof global !== 'undefined') {
