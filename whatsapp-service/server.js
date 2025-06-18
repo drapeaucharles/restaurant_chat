@@ -290,7 +290,7 @@ async function createSocketConnection(restaurantId, sessionDir, sessionName) {
 }
 
 /**
- * Handle connection updates from Baileys with improved QR handling
+ * Handle connection updates from Baileys with immediate QR response
  */
 async function handleConnectionUpdate(update, restaurantId, sessionName, resolveOnce, rejectOnce) {
     const { connection, lastDisconnect, qr } = update;
@@ -319,10 +319,15 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
             console.log(`🔗 QR Raw: ${qr}\n`);
             
             logWithTimestamp('info', restaurantId, '📁 QR code stored in memory for API access');
-            logWithTimestamp('info', restaurantId, '⏳ Waiting for QR code scan...');
+            logWithTimestamp('info', restaurantId, '✅ QR code ready - sending to frontend immediately');
             
-            // Only resolve with QR ready status, don't resolve the main promise yet
-            // The main promise should only resolve when actually connected
+            // Resolve immediately with QR ready status so frontend can display it
+            resolveOnce({
+                success: true,
+                sessionId: sessionName,
+                message: 'Session created successfully. QR code ready for scanning.',
+                qr_ready: true
+            });
             
         } catch (error) {
             logWithTimestamp('error', restaurantId, `❌ Error generating QR code: ${error.message}`);
@@ -340,7 +345,7 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
             logWithTimestamp('info', restaurantId, '🔄 Will attempt to reconnect...');
             sessionStates.set(restaurantId, 'reconnecting');
             
-            // Only reject if we haven't generated a QR code yet
+            // Don't reject if QR was already generated and sent to frontend
             if (!qrCodes.has(restaurantId)) {
                 rejectOnce(new Error(`Connection closed before QR generation: ${errorMessage}`));
             }
@@ -350,7 +355,10 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
             activeSockets.delete(restaurantId);
             qrCodes.delete(restaurantId);
             
-            rejectOnce(new Error('Session logged out'));
+            // Don't reject if QR was already sent to frontend
+            if (!qrCodes.has(restaurantId)) {
+                rejectOnce(new Error('Session logged out'));
+            }
         }
     } else if (connection === 'open') {
         logWithTimestamp('success', restaurantId, '✅ WhatsApp connection opened successfully!');
@@ -365,13 +373,8 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
             logWithTimestamp('info', restaurantId, `📱 Connected as: ${sock.user.id}`);
         }
         
-        // Now resolve the main promise with connected status
-        resolveOnce({
-            success: true,
-            sessionId: sessionName,
-            message: 'Session connected successfully',
-            connected: true
-        });
+        // Connection is now established - this will be detected by status polling
+        logWithTimestamp('success', restaurantId, '🎉 Connection established - frontend will detect via status polling');
         
     } else if (connection === 'connecting') {
         logWithTimestamp('info', restaurantId, '🔄 Connecting to WhatsApp...');
