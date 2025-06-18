@@ -345,6 +345,14 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
             logWithTimestamp('info', restaurantId, '🔄 Will attempt to reconnect...');
             sessionStates.set(restaurantId, 'reconnecting');
             
+            // Check if this is a QR expiration (common with "QR refs attempts ended")
+            if (errorMessage.includes('QR refs attempts ended') || errorMessage.includes('QR')) {
+                logWithTimestamp('info', restaurantId, '📱 QR code expired, will generate new one on reconnect');
+                // Clear old QR code so a new one will be generated
+                qrCodes.delete(restaurantId);
+                sessionStates.set(restaurantId, 'qr_expired');
+            }
+            
             // Don't reject if QR was already generated and sent to frontend
             if (!qrCodes.has(restaurantId)) {
                 rejectOnce(new Error(`Connection closed before QR generation: ${errorMessage}`));
@@ -533,6 +541,7 @@ async function getSessionStatus(restaurantId) {
             device_info: deviceInfo,
             has_auth: hasSessionAuth(restaurantId),
             qr_available: qrCodes.has(restaurantId),
+            qr_expired: currentState === 'qr_expired',
             last_seen: new Date().toISOString()
         };
         
@@ -701,7 +710,7 @@ app.get('/session/:sessionId/status', async (req, res) => {
 });
 
 /**
- * Get QR code for session
+ * Get QR code for session (with auto-refresh for expired QR)
  * GET /session/:sessionId/qr
  */
 app.get('/session/:sessionId/qr', async (req, res) => {
@@ -709,13 +718,29 @@ app.get('/session/:sessionId/qr', async (req, res) => {
         const sessionId = req.params.sessionId;
         const restaurantId = sessionId.replace('restaurant_', '');
         
-        const qrData = qrCodes.get(restaurantId);
+        let qrData = qrCodes.get(restaurantId);
+        const currentState = sessionStates.get(restaurantId);
+        
+        // If QR expired or not available, try to refresh the session
+        if (!qrData || currentState === 'qr_expired') {
+            logWithTimestamp('info', restaurantId, '🔄 QR code expired or not found, attempting to refresh session...');
+            
+            // Check if there's an active socket that can be refreshed
+            const sock = activeSockets.get(restaurantId);
+            if (sock && currentState === 'qr_expired') {
+                // The socket will automatically reconnect and generate a new QR
+                // Wait a moment for the new QR to be generated
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                qrData = qrCodes.get(restaurantId);
+            }
+        }
         
         if (!qrData) {
             return res.status(404).json({
                 success: false,
-                error: 'QR code not found. Session may not be created or already connected.',
-                has_auth: hasSessionAuth(restaurantId)
+                error: 'QR code not found. Session may not be created, already connected, or expired. Try creating a new session.',
+                has_auth: hasSessionAuth(restaurantId),
+                qr_expired: currentState === 'qr_expired'
             });
         }
         
@@ -723,7 +748,8 @@ app.get('/session/:sessionId/qr', async (req, res) => {
             success: true,
             qr_code: qrData.data,
             qr_raw: qrData.raw,
-            timestamp: qrData.timestamp
+            timestamp: qrData.timestamp,
+            status: currentState
         });
         
     } catch (error) {
