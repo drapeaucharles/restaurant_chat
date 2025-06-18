@@ -52,7 +52,7 @@ def start_whatsapp_service():
         # Set environment variables for the WhatsApp service
         env = os.environ.copy()
         env.update({
-            "WHATSAPP_PORT": "8002",
+            "WHATSAPP_PORT": "3000",
             "FASTAPI_URL": os.getenv("PUBLIC_API_URL", "http://localhost:8000"),
             # DO NOT SET CHROME_PATH - let wppconnect handle browser internally
             # "CHROME_PATH": "/usr/bin/google-chrome"
