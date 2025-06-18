@@ -431,12 +431,18 @@ app.post('/session/create', authenticateApiKey, async (req, res) => {
             sessions.set(session_id, session);
         }
 
-        const result = await session.connect();
+        // Start the connection process in the background - DON'T WAIT FOR IT
+        session.connect().catch(error => {
+            console.error(`❌ [${session_id}] Background connection failed:`, error);
+            session.status = 'connection_failed';
+        });
+
+        // Return immediately with current status
         res.json({
             success: true,
             session_id: session_id,
             status: session.status,
-            message: 'Session created successfully. QR code ready for scanning.',
+            message: 'Session creation started. Check status endpoint for updates.',
             qr_available: !!session.qrCode
         });
 
