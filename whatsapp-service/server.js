@@ -167,18 +167,22 @@ class WhatsAppSession {
             const { version, isLatest } = await fetchLatestBaileysVersion();
             console.log(`📱 [${this.sessionId}] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
-            // Create socket with proper configuration
+            // Create socket with Railway-optimized configuration
             this.socket = makeWASocket({
                 version,
                 auth: state,
                 printQRInTerminal: false,
-                browser: ['Restaurant WhatsApp Bot', 'Desktop', '1.0.0'],
+                browser: ['Railway WhatsApp Bot', 'Chrome', '1.0.0'],
                 markOnlineOnConnect: false,
                 generateHighQualityLinkPreview: false,
                 syncFullHistory: false,
-                defaultQueryTimeoutMs: 60000,
-                connectTimeoutMs: 60000,
-                keepAliveIntervalMs: 30000,
+                defaultQueryTimeoutMs: 120000,  // Increased for Railway
+                connectTimeoutMs: 120000,       // Increased for Railway
+                keepAliveIntervalMs: 60000,     // Increased for Railway
+                retryRequestDelayMs: 10000,     // Added for Railway
+                maxMsgRetryCount: 3,            // Added for Railway
+                shouldSyncHistoryMessage: () => false,  // Disable history sync
+                shouldIgnoreJid: () => false,
                 getMessage: async (key) => {
                     return { conversation: 'Hello' };
                 }
