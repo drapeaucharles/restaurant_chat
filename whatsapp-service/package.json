@@ -1,7 +1,7 @@
 {
-  "name": "whatsapp-service-baileys-fixed",
+  "name": "restaurant-whatsapp-service",
   "version": "1.0.0",
-  "description": "WhatsApp service using Baileys with proper forced disconnect handling",
+  "description": "WhatsApp service using Baileys for restaurant chatbot integration - 100% browser-free",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,8 +9,11 @@
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.18",
+    "qrcode": "^1.5.3",
     "express": "^4.18.2",
-    "qrcode": "^1.5.3"
+    "cors": "^2.8.5",
+    "axios": "^1.6.0",
+    "fs-extra": "^11.1.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
@@ -18,11 +21,15 @@
   "keywords": [
     "whatsapp",
     "baileys",
-    "api",
     "websocket",
-    "qr-code"
+    "restaurant",
+    "chatbot",
+    "browser-free"
   ],
-  "author": "Manus AI",
-  "license": "MIT"
+  "author": "Restaurant Chatbot System",
+  "license": "MIT",
+  "engines": {
+    "node": ">=17.0.0"
+  }
 }
 

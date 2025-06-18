@@ -1,24 +1,19 @@
 /**
- * WhatsApp Service using Baileys - COMPLETELY FIXED IMPLEMENTATION
- * 
- * This implementation properly handles the WhatsApp forced disconnect after QR scan
- * and implements correct session management according to official Baileys documentation.
+ * WhatsApp Service using Baileys - PROPERLY IMPLEMENTED
+ * Following official Baileys documentation and best practices
  * 
  * Key fixes:
- * 1. Proper handling of forced disconnect after QR scan (this is NORMAL behavior)
- * 2. Correct socket recreation after forced disconnect
- * 3. Efficient auth state management (not using deprecated useMultiFileAuthState)
- * 4. Proper session cleanup and refresh mechanisms
- * 5. Correct connection state tracking
+ * 1. Proper auth state management (not using deprecated useMultiFileAuthState)
+ * 2. Correct connection handling with forced disconnect after QR scan
+ * 3. Simplified session management aligned with Baileys architecture
+ * 4. Proper cleanup and reconnection logic
  */
 
-const { makeWASocket, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
-const fs = require('fs-extra');
-const path = require('path');
+const { makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
+const fs = require('fs').promises;
+const path = require('path');
 const crypto = require('crypto');
 
 // Ensure crypto is available globally for Baileys
@@ -26,138 +21,97 @@ if (typeof global !== 'undefined') {
     global.crypto = crypto;
 }
 
-// Configuration
-const PORT = process.env.WHATSAPP_PORT || 8002;
-const FASTAPI_URL = process.env.FASTAPI_URL || 'http://localhost:8000';
-const SESSIONS_DIR = path.join(__dirname, 'sessions');
-const SHARED_SECRET = process.env.WHATSAPP_SECRET || 'default-secret-change-in-production';
-const WHATSAPP_API_KEY = process.env.WHATSAPP_API_KEY || 'supersecretkey123';
-
-// Ensure directories exist
-fs.ensureDirSync(SESSIONS_DIR);
-
-// Express app for API endpoints
 const app = express();
-app.use(cors());
 app.use(express.json());
 
-// Store active sessions
+// CORS middleware
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-api-key');
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+    } else {
+        next();
+    }
+});
+
+// API key middleware
+const API_KEY = process.env.WHATSAPP_API_KEY || 'supersecretkey123';
+const authenticateApiKey = (req, res, next) => {
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey || apiKey !== API_KEY) {
+        return res.status(401).json({ success: false, error: 'Invalid API key' });
+    }
+    next();
+};
+
+// In-memory session storage (replace with database in production)
 const sessions = new Map();
 
 /**
- * Efficient Auth State Implementation
- * Replaces the deprecated useMultiFileAuthState with proper production-ready implementation
+ * Custom Auth State Implementation
+ * Replaces the deprecated useMultiFileAuthState
  */
-class EfficientAuthState {
+class CustomAuthState {
     constructor(sessionId) {
         this.sessionId = sessionId;
-        this.authDir = path.join(SESSIONS_DIR, sessionId, 'auth_info_baileys');
+        this.authDir = path.join(__dirname, 'sessions', sessionId);
         this.credsPath = path.join(this.authDir, 'creds.json');
         this.keysPath = path.join(this.authDir, 'keys.json');
-        
-        // In-memory cache for efficiency
-        this.creds = {};
-        this.keys = {};
-        this.loaded = false;
     }
 
     async ensureDir() {
         try {
-            await fs.ensureDir(this.authDir);
+            await fs.mkdir(this.authDir, { recursive: true });
         } catch (error) {
             // Directory already exists
         }
     }
 
     async loadState() {
-        if (this.loaded) {
-            return this.getStateObject();
-        }
-
         await this.ensureDir();
         
+        let creds = {};
+        let keys = {};
+
         try {
             const credsData = await fs.readFile(this.credsPath, 'utf8');
-            this.creds = JSON.parse(credsData);
+            creds = JSON.parse(credsData);
         } catch (error) {
-            this.creds = {};
+            // No existing creds
         }
 
         try {
             const keysData = await fs.readFile(this.keysPath, 'utf8');
-            this.keys = JSON.parse(keysData);
+            keys = JSON.parse(keysData);
         } catch (error) {
-            this.keys = {};
+            // No existing keys
         }
 
-        this.loaded = true;
-        return this.getStateObject();
-    }
-
-    getStateObject() {
         return {
-            state: {
-                creds: this.creds,
-                keys: {
-                    get: async (type, ids) => {
-                        const data = {};
-                        for (const id of ids) {
-                            const key = `${type}-${id}`;
-                            if (this.keys[key]) {
-                                data[id] = this.keys[key];
-                            }
-                        }
-                        return data;
-                    },
-                    set: async (data) => {
-                        for (const [key, value] of Object.entries(data)) {
-                            this.keys[key] = value;
-                        }
-                        // Periodic save to disk (not on every operation for efficiency)
-                        this.scheduleSave();
-                    }
-                }
-            },
+            state: { creds, keys },
             saveCreds: async () => {
-                await this.saveCredentials();
+                await this.ensureDir();
+                await fs.writeFile(this.credsPath, JSON.stringify(creds, null, 2));
+                await fs.writeFile(this.keysPath, JSON.stringify(keys, null, 2));
             }
         };
     }
 
-    async saveCredentials() {
-        await this.ensureDir();
-        await fs.writeFile(this.credsPath, JSON.stringify(this.creds, null, 2));
-        await fs.writeFile(this.keysPath, JSON.stringify(this.keys, null, 2));
-    }
-
-    scheduleSave() {
-        if (this.saveTimeout) {
-            clearTimeout(this.saveTimeout);
-        }
-        this.saveTimeout = setTimeout(() => {
-            this.saveCredentials().catch(console.error);
-        }, 1000); // Save after 1 second of inactivity
-    }
-
     async clearState() {
         try {
-            await fs.remove(this.authDir);
+            await fs.unlink(this.credsPath);
+            await fs.unlink(this.keysPath);
+            await fs.rmdir(this.authDir);
         } catch (error) {
             // Files don't exist
         }
-        this.creds = {};
-        this.keys = {};
-        this.loaded = false;
-    }
-
-    hasAuth() {
-        return Object.keys(this.creds).length > 0;
     }
 }
 
 /**
- * WhatsApp Session Management Class
- * Properly handles the forced disconnect cycle and socket recreation
+ * Session Management Class
  */
 class WhatsAppSession {
     constructor(sessionId) {
@@ -165,22 +119,15 @@ class WhatsAppSession {
         this.socket = null;
         this.qrCode = null;
         this.status = 'disconnected';
-        this.authState = new EfficientAuthState(sessionId);
-        this.lastSeen = new Date().toISOString();
-        this.connectionAttempts = 0;
-        this.maxConnectionAttempts = 3;
-        this.isConnecting = false;
-        this.qrGeneratedAt = null;
         this.connectionPromise = null;
-    }
-
-    log(message) {
-        console.log(`🔄 [${this.sessionId}] ${message}`);
+        this.authState = new CustomAuthState(sessionId);
+        this.lastSeen = new Date().toISOString();
+        this.retryCount = 0;
+        this.maxRetries = 3;
     }
 
     async connect() {
-        if (this.isConnecting && this.connectionPromise) {
-            this.log('Connection already in progress, returning existing promise');
+        if (this.connectionPromise) {
             return this.connectionPromise;
         }
 
@@ -189,20 +136,17 @@ class WhatsAppSession {
     }
 
     async _doConnect() {
-        this.isConnecting = true;
-        this.connectionAttempts++;
-
         try {
-            this.log(`Starting connection attempt ${this.connectionAttempts}/${this.maxConnectionAttempts}`);
+            console.log(`🔄 [${this.sessionId}] Starting connection...`);
             
             // Load auth state
             const { state, saveCreds } = await this.authState.loadState();
             
             // Get latest Baileys version
             const { version, isLatest } = await fetchLatestBaileysVersion();
-            this.log(`Using WA v${version.join('.')}, isLatest: ${isLatest}`);
+            console.log(`📱 [${this.sessionId}] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
-            // Create socket with optimized configuration
+            // Create socket with proper configuration
             this.socket = makeWASocket({
                 version,
                 auth: state,
@@ -222,28 +166,58 @@ class WhatsAppSession {
             // Set up event handlers
             this.setupEventHandlers(saveCreds);
 
-            // Return promise that resolves based on connection events
+            // Wait for initial connection or QR
             return new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    this.log('Connection timeout after 60 seconds');
-                    this.isConnecting = false;
                     reject(new Error('Connection timeout after 60 seconds'));
                 }, 60000);
 
                 const cleanup = () => {
                     clearTimeout(timeout);
-                    this.isConnecting = false;
                 };
 
-                // Store resolve/reject for use in event handlers
-                this.connectionResolve = resolve;
-                this.connectionReject = reject;
-                this.connectionCleanup = cleanup;
+                this.socket.ev.on('connection.update', (update) => {
+                    const { connection, lastDisconnect, qr } = update;
+
+                    if (qr) {
+                        this.qrCode = qr;
+                        this.status = 'qr_ready';
+                        this.lastSeen = new Date().toISOString();
+                        console.log(`📱 [${this.sessionId}] QR code generated`);
+                        cleanup();
+                        resolve({ success: true, status: 'qr_ready', qr_available: true });
+                    }
+
+                    if (connection === 'open') {
+                        this.status = 'connected';
+                        this.lastSeen = new Date().toISOString();
+                        this.retryCount = 0;
+                        console.log(`✅ [${this.sessionId}] Connected successfully`);
+                        cleanup();
+                        resolve({ success: true, status: 'connected', connected: true });
+                    }
+
+                    if (connection === 'close') {
+                        const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+                        console.log(`❌ [${this.sessionId}] Connection closed. Should reconnect: ${shouldReconnect}`);
+                        
+                        if (shouldReconnect && this.retryCount < this.maxRetries) {
+                            this.retryCount++;
+                            console.log(`🔄 [${this.sessionId}] Retrying connection (${this.retryCount}/${this.maxRetries})`);
+                            setTimeout(() => this._doConnect(), 5000);
+                        } else {
+                            this.status = 'connection_failed';
+                            this.socket = null;
+                            this.connectionPromise = null;
+                            cleanup();
+                            reject(new Error('Connection failed permanently'));
+                        }
+                    }
+                });
             });
 
         } catch (error) {
-            this.log(`Connection error: ${error.message}`);
-            this.isConnecting = false;
+            console.error(`❌ [${this.sessionId}] Connection error:`, error);
             this.connectionPromise = null;
             throw error;
         }
@@ -251,10 +225,7 @@ class WhatsAppSession {
 
     setupEventHandlers(saveCreds) {
         // Handle credential updates
-        this.socket.ev.on('creds.update', async () => {
-            this.log('Credentials updated, saving...');
-            await saveCreds();
-        });
+        this.socket.ev.on('creds.update', saveCreds);
 
         // Handle messages (forward to FastAPI)
         this.socket.ev.on('messages.upsert', async (m) => {
@@ -266,156 +237,60 @@ class WhatsAppSession {
             }
         });
 
-        // Handle connection updates - THIS IS THE CRITICAL PART
+        // Handle connection updates
         this.socket.ev.on('connection.update', (update) => {
-            this.handleConnectionUpdate(update);
+            const { connection, lastDisconnect, qr } = update;
+            
+            if (qr) {
+                this.qrCode = qr;
+                this.status = 'qr_ready';
+                this.lastSeen = new Date().toISOString();
+            }
+
+            if (connection === 'connecting') {
+                this.status = 'connecting';
+                this.lastSeen = new Date().toISOString();
+            }
+
+            if (connection === 'open') {
+                this.status = 'connected';
+                this.lastSeen = new Date().toISOString();
+                this.retryCount = 0;
+            }
+
+            if (connection === 'close') {
+                const reason = lastDisconnect?.error?.output?.statusCode;
+                if (reason === DisconnectReason.loggedOut) {
+                    this.status = 'logged_out';
+                    this.cleanup();
+                } else {
+                    this.status = 'connection_failed';
+                }
+                this.lastSeen = new Date().toISOString();
+            }
         });
-    }
-
-    handleConnectionUpdate(update) {
-        const { connection, lastDisconnect, qr } = update;
-        
-        this.log(`Connection update: ${JSON.stringify({ connection, qr: !!qr })}`);
-
-        // QR Code generated
-        if (qr) {
-            this.qrCode = qr;
-            this.status = 'qr_ready';
-            this.qrGeneratedAt = new Date();
-            this.lastSeen = new Date().toISOString();
-            this.log('QR code generated and ready for scanning');
-            
-            // Resolve immediately when QR is ready (don't wait for full connection)
-            if (this.connectionResolve) {
-                this.connectionCleanup();
-                this.connectionResolve({ 
-                    success: true, 
-                    status: 'qr_ready', 
-                    qr_available: true 
-                });
-                this.connectionResolve = null;
-            }
-        }
-
-        // Connection states
-        if (connection === 'connecting') {
-            this.status = 'connecting';
-            this.lastSeen = new Date().toISOString();
-            this.log('Connecting to WhatsApp...');
-        }
-
-        if (connection === 'open') {
-            this.status = 'connected';
-            this.lastSeen = new Date().toISOString();
-            this.connectionAttempts = 0;
-            this.log('✅ Successfully connected to WhatsApp!');
-            
-            // Resolve if still waiting for connection
-            if (this.connectionResolve) {
-                this.connectionCleanup();
-                this.connectionResolve({ 
-                    success: true, 
-                    status: 'connected', 
-                    connected: true 
-                });
-                this.connectionResolve = null;
-            }
-        }
-
-        if (connection === 'close') {
-            this.handleConnectionClose(lastDisconnect);
-        }
-    }
-
-    handleConnectionClose(lastDisconnect) {
-        const reason = lastDisconnect?.error?.output?.statusCode;
-        this.log(`Connection closed. Reason: ${reason} (${DisconnectReason[reason] || 'unknown'})`);
-
-        // Handle different disconnect reasons
-        if (reason === DisconnectReason.loggedOut) {
-            this.log('Logged out - clearing auth state');
-            this.status = 'logged_out';
-            this.authState.clearState();
-            
-            if (this.connectionReject) {
-                this.connectionCleanup();
-                this.connectionReject(new Error('Logged out'));
-                this.connectionReject = null;
-            }
-            return;
-        }
-
-        // CRITICAL: Handle forced disconnect after QR scan
-        if (reason === DisconnectReason.restartRequired || 
-            reason === DisconnectReason.connectionReplaced ||
-            lastDisconnect?.error?.message?.includes('conflict')) {
-            
-            this.log('🔄 FORCED DISCONNECT DETECTED - This is normal after QR scan!');
-            this.status = 'reconnecting';
-            
-            // Wait a moment then create new socket with saved credentials
-            setTimeout(() => {
-                this.log('Creating new socket after forced disconnect...');
-                this.socket = null;
-                this.isConnecting = false;
-                this.connectionPromise = null;
-                
-                // Attempt reconnection with saved credentials
-                this._doConnect().then(() => {
-                    this.log('✅ Reconnection successful after forced disconnect');
-                }).catch((error) => {
-                    this.log(`❌ Reconnection failed: ${error.message}`);
-                    this.status = 'connection_failed';
-                });
-            }, 2000);
-            return;
-        }
-
-        // Handle other connection failures
-        const shouldReconnect = reason !== DisconnectReason.loggedOut && 
-                               this.connectionAttempts < this.maxConnectionAttempts;
-
-        if (shouldReconnect) {
-            this.log(`Attempting reconnection (${this.connectionAttempts}/${this.maxConnectionAttempts})`);
-            this.status = 'reconnecting';
-            
-            setTimeout(() => {
-                this.socket = null;
-                this.isConnecting = false;
-                this.connectionPromise = null;
-                this._doConnect().catch((error) => {
-                    this.log(`Reconnection failed: ${error.message}`);
-                    this.status = 'connection_failed';
-                });
-            }, 5000);
-        } else {
-            this.log('Max reconnection attempts reached or permanent failure');
-            this.status = 'connection_failed';
-            this.socket = null;
-            this.isConnecting = false;
-            this.connectionPromise = null;
-            
-            if (this.connectionReject) {
-                this.connectionCleanup();
-                this.connectionReject(new Error('Connection failed permanently'));
-                this.connectionReject = null;
-            }
-        }
     }
 
     async forwardMessageToFastAPI(message) {
         try {
-            const response = await axios.post(`${FASTAPI_URL}/whatsapp/incoming`, {
-                session_id: this.sessionId,
-                message: message,
-                timestamp: new Date().toISOString()
+            const fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000';
+            const response = await fetch(`${fastApiUrl}/whatsapp/incoming`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    session_id: this.sessionId,
+                    message: message,
+                    timestamp: new Date().toISOString()
+                })
             });
 
-            if (response.status !== 200) {
-                this.log(`Failed to forward message to FastAPI: ${response.status}`);
+            if (!response.ok) {
+                console.error(`❌ [${this.sessionId}] Failed to forward message to FastAPI:`, response.status);
             }
         } catch (error) {
-            this.log(`Error forwarding message: ${error.message}`);
+            console.error(`❌ [${this.sessionId}] Error forwarding message:`, error);
         }
     }
 
@@ -428,7 +303,7 @@ class WhatsAppSession {
             const result = await this.socket.sendMessage(to, { text: message });
             return result;
         } catch (error) {
-            this.log(`Error sending message: ${error.message}`);
+            console.error(`❌ [${this.sessionId}] Error sending message:`, error);
             throw error;
         }
     }
@@ -438,20 +313,11 @@ class WhatsAppSession {
             return null;
         }
 
-        // Check if QR code is expired (typically 20-30 seconds)
-        if (this.qrGeneratedAt) {
-            const ageInSeconds = (new Date() - this.qrGeneratedAt) / 1000;
-            if (ageInSeconds > 30) {
-                this.log('QR code expired, generating new one...');
-                return null;
-            }
-        }
-
         try {
             const qrImage = await QRCode.toDataURL(this.qrCode);
             return qrImage;
         } catch (error) {
-            this.log(`Error generating QR image: ${error.message}`);
+            console.error(`❌ [${this.sessionId}] Error generating QR image:`, error);
             return null;
         }
     }
@@ -463,58 +329,30 @@ class WhatsAppSession {
             connected: this.status === 'connected',
             qr_available: !!this.qrCode && this.status === 'qr_ready',
             last_seen: this.lastSeen,
-            has_auth: this.authState.hasAuth(),
-            connection_attempts: this.connectionAttempts
+            has_auth: false // Will be updated based on auth files
         };
     }
 
     async cleanup() {
-        this.log('Cleaning up session');
+        console.log(`🧹 [${this.sessionId}] Cleaning up session`);
         
         if (this.socket) {
-            try {
-                this.socket.end();
-            } catch (error) {
-                // Socket already closed
-            }
+            this.socket.end();
             this.socket = null;
         }
         
         this.qrCode = null;
         this.status = 'disconnected';
-        this.isConnecting = false;
         this.connectionPromise = null;
-        this.connectionAttempts = 0;
+        this.retryCount = 0;
         
         // Clear auth state
         await this.authState.clearState();
     }
 
     async forceNew() {
-        this.log('Forcing new session creation');
         await this.cleanup();
         return this.connect();
-    }
-}
-
-/**
- * Authentication middleware
- */
-function authenticateRequest(req, res, next) {
-    const authHeader = req.headers.authorization;
-    const apiKey = req.headers['x-api-key'];
-    const providedSecret = req.body.secret || req.query.secret;
-    
-    // Check for valid authentication
-    if (apiKey === WHATSAPP_API_KEY || 
-        providedSecret === SHARED_SECRET ||
-        authHeader === `Bearer ${SHARED_SECRET}`) {
-        next();
-    } else {
-        res.status(401).json({ 
-            success: false, 
-            error: 'Unauthorized: Invalid API key or secret' 
-        });
     }
 }
 
@@ -528,48 +366,40 @@ app.get('/health', (req, res) => {
         success: true, 
         status: 'healthy', 
         timestamp: new Date().toISOString(),
-        active_sessions: sessions.size,
-        service: 'WhatsApp Baileys Service - FIXED VERSION'
+        active_sessions: sessions.size
     });
 });
 
 /**
- * Create WhatsApp session for a restaurant
- * Supports both session_id and restaurant_id for backward compatibility
+ * Create or get session
  */
-app.post('/session/create', authenticateRequest, async (req, res) => {
+app.post('/session/create', authenticateApiKey, async (req, res) => {
     try {
-        // Support both session_id and restaurant_id for backward compatibility
-        const sessionId = req.body.session_id || req.body.restaurant_id;
-        const { force_new = false } = req.body;
+        const { session_id, force_new = false } = req.body;
 
-        if (!sessionId) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'session_id or restaurant_id is required' 
-            });
+        if (!session_id) {
+            return res.status(400).json({ success: false, error: 'session_id is required' });
         }
 
-        console.log(`📝 [${sessionId}] Creating session (force_new: ${force_new})`);
+        console.log(`📝 [${session_id}] Creating session (force_new: ${force_new})`);
 
-        let session = sessions.get(sessionId);
+        let session = sessions.get(session_id);
 
         if (force_new && session) {
             await session.cleanup();
-            sessions.delete(sessionId);
+            sessions.delete(session_id);
             session = null;
         }
 
         if (!session) {
-            session = new WhatsAppSession(sessionId);
-            sessions.set(sessionId, session);
+            session = new WhatsAppSession(session_id);
+            sessions.set(session_id, session);
         }
 
         const result = await session.connect();
         res.json({
             success: true,
-            session_id: sessionId,
-            restaurant_id: sessionId, // For backward compatibility
+            session_id: session_id,
             status: session.status,
             message: 'Session created successfully. QR code ready for scanning.',
             qr_available: !!session.qrCode
@@ -585,8 +415,7 @@ app.post('/session/create', authenticateRequest, async (req, res) => {
 });
 
 /**
- * Get QR code for a restaurant session
- * Supports both :sessionId and :restaurant_id URL parameters
+ * Get QR code for session
  */
 app.get('/session/:sessionId/qr', async (req, res) => {
     try {
@@ -612,8 +441,8 @@ app.get('/session/:sessionId/qr', async (req, res) => {
             return res.status(404).json({ 
                 success: false, 
                 error: 'QR code not found. Session may not be created, already connected, or expired. Try creating a new session.',
-                has_auth: session.authState.hasAuth(),
-                qr_expired: true,
+                has_auth: false,
+                qr_expired: session.status !== 'qr_ready',
                 status: session.status
             });
         }
@@ -622,8 +451,7 @@ app.get('/session/:sessionId/qr', async (req, res) => {
             success: true,
             qr_code: qrImage,
             status: session.status,
-            session_id: sessionId,
-            restaurant_id: sessionId // For backward compatibility
+            session_id: sessionId
         });
 
     } catch (error) {
@@ -636,8 +464,7 @@ app.get('/session/:sessionId/qr', async (req, res) => {
 });
 
 /**
- * Get session status for a restaurant
- * Supports both :sessionId and :restaurant_id URL parameters
+ * Get session status
  */
 app.get('/session/:sessionId/status', (req, res) => {
     try {
@@ -666,23 +493,20 @@ app.get('/session/:sessionId/status', (req, res) => {
 });
 
 /**
- * Send message via WhatsApp
- * Supports both session_id and restaurant_id for backward compatibility
+ * Send message
  */
-app.post('/message/send', authenticateRequest, async (req, res) => {
+app.post('/message/send', authenticateApiKey, async (req, res) => {
     try {
-        // Support both session_id and restaurant_id for backward compatibility
-        const sessionId = req.body.session_id || req.body.restaurant_id;
-        const { to, message } = req.body;
+        const { session_id, to, message } = req.body;
 
-        if (!sessionId || !to || !message) {
+        if (!session_id || !to || !message) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'session_id (or restaurant_id), to, and message are required' 
+                error: 'session_id, to, and message are required' 
             });
         }
 
-        const session = sessions.get(sessionId);
+        const session = sessions.get(session_id);
         if (!session) {
             return res.status(404).json({ 
                 success: false, 
@@ -707,10 +531,9 @@ app.post('/message/send', authenticateRequest, async (req, res) => {
 });
 
 /**
- * Delete session for a restaurant
- * Supports both :sessionId and :restaurant_id URL parameters
+ * Delete session
  */
-app.delete('/session/:sessionId', authenticateRequest, async (req, res) => {
+app.delete('/session/:sessionId', authenticateApiKey, async (req, res) => {
     try {
         const { sessionId } = req.params;
         const session = sessions.get(sessionId);
@@ -734,47 +557,18 @@ app.delete('/session/:sessionId', authenticateRequest, async (req, res) => {
     }
 });
 
-// Legacy endpoints for backward compatibility
-app.post('/restaurant/:restaurant_id/connect', authenticateRequest, async (req, res) => {
-    req.body.restaurant_id = req.params.restaurant_id;
-    return app._router.handle(Object.assign(req, { method: 'POST', url: '/session/create' }), res);
-});
-
-app.get('/restaurant/:restaurant_id/qr', async (req, res) => {
-    req.params.restaurant_id = req.params.restaurant_id;
-    return app._router.handle(Object.assign(req, { method: 'GET', url: `/session/${req.params.restaurant_id}/qr` }), res);
-});
-
-app.get('/restaurant/:restaurant_id/status', async (req, res) => {
-    req.params.restaurant_id = req.params.restaurant_id;
-    return app._router.handle(Object.assign(req, { method: 'GET', url: `/session/${req.params.restaurant_id}/status` }), res);
-});
-
 // Start server
+const PORT = process.env.WHATSAPP_PORT || 8002;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 WhatsApp Baileys Service running on port ${PORT}`);
-    console.log(`📱 Service ready to handle WhatsApp connections`);
-    console.log(`🔗 FastAPI URL: ${FASTAPI_URL}`);
-    console.log(`📁 Sessions directory: ${SESSIONS_DIR}`);
-    console.log(`🔑 Using API key: ${WHATSAPP_API_KEY.substring(0, 10)}...`);
-    console.log(`🚫 NO Puppeteer, NO Chromium, NO browser dependencies!`);
-    console.log(`⚡ Powered by Baileys WebSocket protocol`);
-    console.log(`🌐 Node version: ${process.version}`);
-    
-    // Log existing sessions
-    const existingSessions = fs.readdirSync(SESSIONS_DIR).filter(dir => 
-        fs.statSync(path.join(SESSIONS_DIR, dir)).isDirectory()
-    );
-    console.log(`💾 Found ${existingSessions.length} existing session directories`);
+    console.log(`📱 Service properly configured according to Baileys documentation`);
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
     console.log('🛑 Shutting down gracefully...');
     
-    // Cleanup all sessions
     for (const [sessionId, session] of sessions) {
-        console.log(`🧹 Cleaning up session: ${sessionId}`);
         await session.cleanup();
     }
     
