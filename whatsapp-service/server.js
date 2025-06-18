@@ -103,15 +103,63 @@ function hasSessionAuth(restaurantId) {
 }
 
 /**
+ * Clean up session completely - removes all traces
+ */
+async function cleanupSession(restaurantId, reason = 'cleanup') {
+    logWithTimestamp('warning', restaurantId, `🧹 Cleaning up session: ${reason}`);
+    
+    try {
+        // Close and remove socket
+        if (activeSockets.has(restaurantId)) {
+            const socket = activeSockets.get(restaurantId);
+            try {
+                socket.end();
+                logWithTimestamp('info', restaurantId, '🔌 Socket closed');
+            } catch (error) {
+                logWithTimestamp('warning', restaurantId, `⚠️ Error closing socket: ${error.message}`);
+            }
+            activeSockets.delete(restaurantId);
+        }
+        
+        // Clear session state
+        sessionStates.delete(restaurantId);
+        qrCodes.delete(restaurantId);
+        connectionPromises.delete(restaurantId);
+        
+        // Remove session files completely for fresh start
+        const sessionDir = getSessionDir(restaurantId);
+        if (fs.existsSync(sessionDir)) {
+            try {
+                fs.removeSync(sessionDir);
+                logWithTimestamp('info', restaurantId, '📁 Session files removed');
+            } catch (error) {
+                logWithTimestamp('warning', restaurantId, `⚠️ Error removing session files: ${error.message}`);
+            }
+        }
+        
+        logWithTimestamp('success', restaurantId, '✅ Session cleanup completed');
+        
+    } catch (error) {
+        logWithTimestamp('error', restaurantId, `❌ Error during cleanup: ${error.message}`);
+    }
+}
+
+/**
  * Create a new WhatsApp session for a restaurant using Baileys
  */
-async function createBaileysSession(restaurantId) {
+async function createBaileysSession(restaurantId, forceNew = false) {
     logWithTimestamp('info', restaurantId, '🔄 Creating WhatsApp session with Baileys...');
     
     const sessionName = `restaurant_${restaurantId}`;
     const sessionDir = getSessionDir(restaurantId);
     
     try {
+        // If forceNew is true, clean up everything first
+        if (forceNew) {
+            logWithTimestamp('info', restaurantId, '🔄 Force new session requested - cleaning up existing session');
+            await cleanupSession(restaurantId, 'force new session');
+        }
+        
         // Check if socket already exists and is connected
         if (activeSockets.has(restaurantId)) {
             const existingSocket = activeSockets.get(restaurantId);
@@ -125,20 +173,13 @@ async function createBaileysSession(restaurantId) {
                     };
                 }
             } catch (error) {
-                logWithTimestamp('warning', restaurantId, '⚠️ Existing socket check failed, creating new session');
+                logWithTimestamp('warning', restaurantId, '⚠️ Existing socket check failed, cleaning up');
+                await cleanupSession(restaurantId, 'socket check failed');
             }
-            
-            // Clean up existing socket
-            try {
-                existingSocket.end();
-            } catch (error) {
-                logWithTimestamp('warning', restaurantId, `⚠️ Error closing existing socket: ${error.message}`);
-            }
-            activeSockets.delete(restaurantId);
         }
         
-        // Check if there's already a connection in progress
-        if (connectionPromises.has(restaurantId)) {
+        // Check if there's already a connection in progress (unless force new)
+        if (!forceNew && connectionPromises.has(restaurantId)) {
             logWithTimestamp('info', restaurantId, '⏳ Connection already in progress, waiting...');
             return await connectionPromises.get(restaurantId);
         }
@@ -372,6 +413,11 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
                 // Clear old QR code so a new one will be generated
                 qrCodes.delete(restaurantId);
                 sessionStates.set(restaurantId, 'qr_expired');
+            } else {
+                // For other connection failures, clean up the session to prevent corruption
+                logWithTimestamp('warning', restaurantId, '🧹 Connection failed - cleaning up session for fresh start');
+                await cleanupSession(restaurantId, 'connection failure');
+                sessionStates.set(restaurantId, 'connection_failed');
             }
             
             // Don't reject if QR was already generated and sent to frontend
@@ -379,10 +425,9 @@ async function handleConnectionUpdate(update, restaurantId, sessionName, resolve
                 rejectOnce(new Error(`Connection closed before QR generation: ${errorMessage}`));
             }
         } else {
-            logWithTimestamp('warning', restaurantId, '🚪 Logged out, cleaning up session');
+            logWithTimestamp('warning', restaurantId, '🚪 Logged out, cleaning up session completely');
+            await cleanupSession(restaurantId, 'logged out');
             sessionStates.set(restaurantId, 'logged_out');
-            activeSockets.delete(restaurantId);
-            qrCodes.delete(restaurantId);
             
             // Don't reject if QR was already sent to frontend
             if (!qrCodes.has(restaurantId)) {
@@ -619,7 +664,7 @@ async function cleanupSession(restaurantId) {
  */
 app.post('/session/create', authenticateRequest, async (req, res) => {
     try {
-        const { session_id, webhook_url } = req.body;
+        const { session_id, webhook_url, force_new } = req.body;
         
         if (!session_id) {
             return res.status(400).json({
@@ -631,24 +676,30 @@ app.post('/session/create', authenticateRequest, async (req, res) => {
         // Extract restaurant ID from session_id (format: restaurant_123)
         const restaurantId = session_id.replace('restaurant_', '');
         
-        logWithTimestamp('info', restaurantId, '🔄 Session creation request received');
+        logWithTimestamp('info', restaurantId, `🔄 Session creation request received (force_new: ${force_new || false})`);
         
-        // Check if session already exists and is connected
-        if (activeSockets.has(restaurantId)) {
-            const status = await getSessionStatus(restaurantId);
-            
-            if (status.connected) {
-                return res.json({
-                    success: true,
-                    session_id: session_id,
-                    status: 'already_connected',
-                    message: 'Session already exists and is connected'
-                });
+        // If force_new is true, clean up existing session first
+        if (force_new) {
+            logWithTimestamp('info', restaurantId, '🔄 Force new session requested - cleaning up existing session');
+            await cleanupSession(restaurantId, 'force new requested');
+        } else {
+            // Check if session already exists and is connected
+            if (activeSockets.has(restaurantId)) {
+                const status = await getSessionStatus(restaurantId);
+                
+                if (status.connected) {
+                    return res.json({
+                        success: true,
+                        session_id: session_id,
+                        status: 'already_connected',
+                        message: 'Session already exists and is connected'
+                    });
+                }
             }
         }
         
-        // Create new session
-        const result = await createBaileysSession(restaurantId);
+        // Create new session (with force_new flag)
+        const result = await createBaileysSession(restaurantId, force_new);
         
         if (result.success) {
             // Always return qr_ready status when QR is available
@@ -737,46 +788,54 @@ app.get('/session/:sessionId/status', async (req, res) => {
 
 /**
  * Get QR code for session (with auto-refresh for expired QR)
- * GET /session/:sessionId/qr
+ * GET /session/:sessionId/qr?refresh=true
  */
 app.get('/session/:sessionId/qr', async (req, res) => {
     try {
         const sessionId = req.params.sessionId;
         const restaurantId = sessionId.replace('restaurant_', '');
+        const forceRefresh = req.query.refresh === 'true';
+        
+        logWithTimestamp('info', restaurantId, `📱 QR code request (refresh: ${forceRefresh})`);
         
         let qrData = qrCodes.get(restaurantId);
         const currentState = sessionStates.get(restaurantId);
         
-        // If QR expired or not available, try to refresh the session
-        if (!qrData || currentState === 'qr_expired') {
-            logWithTimestamp('info', restaurantId, '🔄 QR code expired or not found, attempting to refresh session...');
+        // If refresh is requested or QR is expired/failed, create fresh session
+        if (forceRefresh || currentState === 'qr_expired' || currentState === 'connection_failed' || currentState === 'logged_out') {
+            logWithTimestamp('info', restaurantId, '🔄 Creating fresh session for QR refresh');
             
-            // Check if there's an active socket that can be refreshed
-            const sock = activeSockets.get(restaurantId);
-            if (sock && currentState === 'qr_expired') {
-                // The socket will automatically reconnect and generate a new QR
-                // Wait a moment for the new QR to be generated
-                await new Promise(resolve => setTimeout(resolve, 2000));
+            // Clean up and create fresh session
+            await cleanupSession(restaurantId, 'QR refresh requested');
+            
+            // Create completely new session
+            const result = await createBaileysSession(restaurantId, true);
+            
+            if (result.success) {
+                // Wait a moment for QR to be generated
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 qrData = qrCodes.get(restaurantId);
             }
         }
         
-        if (!qrData) {
+        if (qrData) {
+            res.json({
+                success: true,
+                qr_code: qrData.data,
+                qr_raw: qrData.raw,
+                timestamp: qrData.timestamp,
+                session_id: sessionId,
+                status: 'qr_ready'
+            });
+        } else {
             return res.status(404).json({
                 success: false,
                 error: 'QR code not found. Session may not be created, already connected, or expired. Try creating a new session.',
                 has_auth: hasSessionAuth(restaurantId),
-                qr_expired: currentState === 'qr_expired'
+                qr_expired: currentState === 'qr_expired',
+                status: currentState
             });
         }
-        
-        res.json({
-            success: true,
-            qr_code: qrData.data,
-            qr_raw: qrData.raw,
-            timestamp: qrData.timestamp,
-            status: currentState
-        });
         
     } catch (error) {
         logWithTimestamp('error', null, `❌ Error getting QR code: ${error.message}`);
