@@ -1,10 +1,10 @@
 /**
- * WhatsApp Service using Baileys - WORKING VERSION RESTORED
- * Following the configuration that was actually working on Railway
+ * WhatsApp Service using Baileys - HYBRID FILE+DATABASE VERSION
+ * Uses file-based auth (reliable) with database backup (persistent)
  */
 
 const express = require('express');
-const { makeWASocket, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
 const fs = require('fs-extra');
 const path = require('path');
@@ -20,100 +20,11 @@ if (typeof global !== 'undefined') {
 const app = express();
 app.use(express.json());
 
-// Database connection
+// Database connection (for backup/restore only)
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgresql://postgres:password@localhost:5432/railway',
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
-
-/**
- * Database-backed Auth State for Railway persistence
- * Replaces file-based storage with PostgreSQL storage
- */
-class DatabaseAuthState {
-    constructor(sessionId) {
-        this.sessionId = sessionId;
-    }
-
-    async loadState() {
-        try {
-            console.log(`🔍 [${this.sessionId}] Attempting to load session from database...`);
-            
-            const client = await pool.connect();
-            console.log(`✅ [${this.sessionId}] Database connection established`);
-            
-            // Try to load existing session from database
-            const result = await client.query(
-                'SELECT creds, keys FROM whatsapp_sessions WHERE session_id = $1',
-                [this.sessionId]
-            );
-            
-            let creds = {};
-            let keys = {};
-            
-            if (result.rows.length > 0) {
-                creds = result.rows[0].creds || {};
-                keys = result.rows[0].keys || {};
-                console.log(`📁 [${this.sessionId}] Loaded existing session from database (${Object.keys(creds).length} creds, ${Object.keys(keys).length} keys)`);
-            } else {
-                console.log(`📁 [${this.sessionId}] No existing session found, creating new one`);
-            }
-            
-            client.release();
-            
-            const saveCreds = async () => {
-                try {
-                    console.log(`💾 [${this.sessionId}] Attempting to save credentials to database...`);
-                    const client = await pool.connect();
-                    
-                    // Upsert session data
-                    await client.query(`
-                        INSERT INTO whatsapp_sessions (session_id, creds, keys, updated_at) 
-                        VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
-                        ON CONFLICT (session_id) 
-                        DO UPDATE SET 
-                            creds = EXCLUDED.creds,
-                            keys = EXCLUDED.keys,
-                            updated_at = CURRENT_TIMESTAMP
-                    `, [this.sessionId, JSON.stringify(creds), JSON.stringify(keys)]);
-                    
-                    client.release();
-                    console.log(`✅ [${this.sessionId}] Session saved to database successfully`);
-                } catch (error) {
-                    console.error(`❌ [${this.sessionId}] Error saving session to database:`, error);
-                }
-            };
-            
-            return {
-                state: { creds, keys },
-                saveCreds
-            };
-            
-        } catch (error) {
-            console.error(`❌ [${this.sessionId}] Error loading session from database:`, error);
-            
-            // Fallback to empty state
-            console.log(`🔄 [${this.sessionId}] Using fallback empty state`);
-            return {
-                state: { creds: {}, keys: {} },
-                saveCreds: async () => {
-                    console.log(`❌ [${this.sessionId}] Fallback saveCreds - database unavailable`);
-                }
-            };
-        }
-    }
-
-    async clearState() {
-        try {
-            const client = await pool.connect();
-            await client.query('DELETE FROM whatsapp_sessions WHERE session_id = $1', [this.sessionId]);
-            client.release();
-            console.log(`🗑️ [${this.sessionId}] Session cleared from database`);
-        } catch (error) {
-            console.error(`❌ [${this.sessionId}] Error clearing session from database:`, error);
-        }
-    }
-}
 
 // CORS middleware
 app.use((req, res, next) => {
@@ -148,9 +59,97 @@ const authenticateApiKey = (req, res, next) => {
 
 // In-memory session storage
 const sessions = new Map();
+const SESSIONS_DIR = path.join(__dirname, 'sessions');
+
+// Ensure sessions directory exists
+fs.ensureDirSync(SESSIONS_DIR);
 
 /**
- * Session Management Class - DATABASE-BACKED VERSION
+ * Backup session to database
+ */
+async function backupSessionToDatabase(sessionId, sessionDir) {
+    try {
+        const credsPath = path.join(sessionDir, 'creds.json');
+        const keysDir = path.join(sessionDir, 'keys');
+        
+        if (!fs.existsSync(credsPath)) {
+            return;
+        }
+        
+        const creds = await fs.readJson(credsPath);
+        let keys = {};
+        
+        if (fs.existsSync(keysDir)) {
+            const keyFiles = await fs.readdir(keysDir);
+            for (const keyFile of keyFiles) {
+                if (keyFile.endsWith('.json')) {
+                    const keyData = await fs.readJson(path.join(keysDir, keyFile));
+                    keys[keyFile.replace('.json', '')] = keyData;
+                }
+            }
+        }
+        
+        const client = await pool.connect();
+        await client.query(`
+            INSERT INTO whatsapp_sessions (session_id, creds, keys, updated_at) 
+            VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+            ON CONFLICT (session_id) 
+            DO UPDATE SET 
+                creds = EXCLUDED.creds,
+                keys = EXCLUDED.keys,
+                updated_at = CURRENT_TIMESTAMP
+        `, [sessionId, JSON.stringify(creds), JSON.stringify(keys)]);
+        
+        client.release();
+        console.log(`💾 [${sessionId}] Session backed up to database`);
+        
+    } catch (error) {
+        console.error(`❌ [${sessionId}] Error backing up session:`, error);
+    }
+}
+
+/**
+ * Restore session from database
+ */
+async function restoreSessionFromDatabase(sessionId, sessionDir) {
+    try {
+        const client = await pool.connect();
+        const result = await client.query(
+            'SELECT creds, keys FROM whatsapp_sessions WHERE session_id = $1',
+            [sessionId]
+        );
+        
+        if (result.rows.length > 0) {
+            const { creds, keys } = result.rows[0];
+            
+            // Ensure session directory exists
+            await fs.ensureDir(sessionDir);
+            await fs.ensureDir(path.join(sessionDir, 'keys'));
+            
+            // Write creds.json
+            await fs.writeJson(path.join(sessionDir, 'creds.json'), creds);
+            
+            // Write key files
+            for (const [keyName, keyData] of Object.entries(keys)) {
+                await fs.writeJson(path.join(sessionDir, 'keys', `${keyName}.json`), keyData);
+            }
+            
+            console.log(`📁 [${sessionId}] Session restored from database`);
+            client.release();
+            return true;
+        }
+        
+        client.release();
+        return false;
+        
+    } catch (error) {
+        console.error(`❌ [${sessionId}] Error restoring session:`, error);
+        return false;
+    }
+}
+
+/**
+ * Session Management Class - HYBRID FILE+DATABASE VERSION
  */
 class WhatsAppSession {
     constructor(sessionId) {
@@ -159,7 +158,7 @@ class WhatsAppSession {
         this.qrCode = null;
         this.status = 'disconnected';
         this.connectionPromise = null;
-        this.authState = new DatabaseAuthState(sessionId);
+        this.sessionDir = path.join(SESSIONS_DIR, sessionId);
         this.lastSeen = new Date().toISOString();
         this.retryCount = 0;
         this.maxRetries = 3;
@@ -182,20 +181,31 @@ class WhatsAppSession {
         try {
             console.log(`🔄 [${this.sessionId}] Starting connection...`);
             
-            // Load auth state from database
-            console.log(`📊 [${this.sessionId}] Loading auth state...`);
-            const { state, saveCreds } = await this.authState.loadState();
+            // Try to restore session from database first (Railway startup)
+            if (!fs.existsSync(this.sessionDir) || fs.readdirSync(this.sessionDir).length === 0) {
+                console.log(`📥 [${this.sessionId}] Attempting to restore session from database...`);
+                const restored = await restoreSessionFromDatabase(this.sessionId, this.sessionDir);
+                if (restored) {
+                    console.log(`✅ [${this.sessionId}] Session restored from database`);
+                } else {
+                    console.log(`📁 [${this.sessionId}] No session found in database, creating new`);
+                }
+            }
             
-            console.log(`📁 [${this.sessionId}] Auth state loaded from database`);
-            console.log(`🔑 [${this.sessionId}] Has existing creds: ${!!state.creds?.noiseKey}`);
+            // Ensure session directory exists
+            fs.ensureDirSync(this.sessionDir);
+            
+            // Load auth state using the WORKING method
+            const { state, saveCreds } = await useMultiFileAuthState(this.sessionDir);
+            
+            console.log(`📁 [${this.sessionId}] Session directory: ${this.sessionDir}`);
+            console.log(`🔑 [${this.sessionId}] Auth state loaded, has creds: ${!!state.creds?.noiseKey}`);
             
             // Get latest Baileys version
-            console.log(`📱 [${this.sessionId}] Fetching Baileys version...`);
             const { version, isLatest } = await fetchLatestBaileysVersion();
             console.log(`📱 [${this.sessionId}] Using WA v${version.join('.')}, isLatest: ${isLatest}`);
 
             // Create socket with WORKING configuration
-            console.log(`🔌 [${this.sessionId}] Creating WhatsApp socket...`);
             this.socket = makeWASocket({
                 version,
                 auth: state,
@@ -228,19 +238,15 @@ class WhatsAppSession {
                     return { conversation: 'Hello' };
                 }
             });
-            console.log(`✅ [${this.sessionId}] WhatsApp socket created successfully`);
 
-            // Set up event handlers
-            console.log(`🎧 [${this.sessionId}] Setting up event handlers...`);
+            // Set up event handlers with database backup
             this.setupEventHandlers(saveCreds);
 
-            // Wait for initial connection or QR with 60-second timeout (increased)
-            console.log(`⏳ [${this.sessionId}] Waiting for connection or QR code...`);
+            // Wait for initial connection or QR with 30-second timeout
             return new Promise((resolve, reject) => {
                 const timeout = setTimeout(() => {
-                    console.log(`⏰ [${this.sessionId}] Connection timeout reached`);
-                    reject(new Error('Connection timeout after 60 seconds'));
-                }, 60000); // Increased to 60 seconds
+                    reject(new Error('Connection timeout after 30 seconds'));
+                }, 30000);
 
                 const cleanup = () => {
                     clearTimeout(timeout);
@@ -248,13 +254,12 @@ class WhatsAppSession {
 
                 this.socket.ev.on('connection.update', (update) => {
                     const { connection, lastDisconnect, qr } = update;
-                    console.log(`🔄 [${this.sessionId}] Connection update: connection=${connection}, qr=${!!qr}`);
 
                     if (qr) {
                         this.qrCode = qr;
                         this.status = 'qr_ready';
                         this.lastSeen = new Date().toISOString();
-                        console.log(`📱 [${this.sessionId}] QR code generated successfully`);
+                        console.log(`📱 [${this.sessionId}] QR code generated`);
                         cleanup();
                         resolve({ success: true, status: 'qr_ready', qr_available: true });
                     }
@@ -264,6 +269,10 @@ class WhatsAppSession {
                         this.lastSeen = new Date().toISOString();
                         this.retryCount = 0;
                         console.log(`✅ [${this.sessionId}] Connected successfully`);
+                        
+                        // Backup session to database when connected
+                        backupSessionToDatabase(this.sessionId, this.sessionDir);
+                        
                         cleanup();
                         resolve({ success: true, status: 'connected', connected: true });
                     }
@@ -295,69 +304,34 @@ class WhatsAppSession {
     }
 
     setupEventHandlers(saveCreds) {
-        // Handle credential updates with debugging
+        // Handle credential updates with database backup
         this.socket.ev.on('creds.update', async () => {
-            try {
-                console.log(`💾 [${this.sessionId}] Saving credentials...`);
-                await saveCreds();
-                console.log(`✅ [${this.sessionId}] Credentials saved successfully`);
-            } catch (error) {
-                console.error(`❌ [${this.sessionId}] Error saving credentials:`, error);
-            }
-        });
-
-        // Handle messages (forward to FastAPI)
-        this.socket.ev.on('messages.upsert', async (m) => {
-            try {
-                const messages = m.messages;
-                for (const message of messages) {
-                    if (!message.key.fromMe && message.message) {
-                        await this.forwardMessageToFastAPI(message);
-                    }
-                }
-            } catch (error) {
-                console.error(`❌ [${this.sessionId}] Error handling messages:`, error);
-            }
-        });
-
-        // Handle connection updates
-        this.socket.ev.on('connection.update', (update) => {
-            const { connection, lastDisconnect, qr } = update;
+            console.log(`💾 [${this.sessionId}] Saving credentials...`);
+            await saveCreds();
+            console.log(`✅ [${this.sessionId}] Credentials saved successfully`);
             
-            if (qr) {
-                this.qrCode = qr;
-                this.status = 'qr_ready';
-                this.lastSeen = new Date().toISOString();
-            }
+            // Also backup to database
+            setTimeout(() => {
+                backupSessionToDatabase(this.sessionId, this.sessionDir);
+            }, 1000);
+        });
 
-            if (connection === 'connecting') {
-                this.status = 'connecting';
-                this.lastSeen = new Date().toISOString();
-            }
-
-            if (connection === 'open') {
-                this.status = 'connected';
-                this.lastSeen = new Date().toISOString();
-                this.retryCount = 0;
-            }
-
-            if (connection === 'close') {
-                const reason = lastDisconnect?.error?.output?.statusCode;
-                if (reason === DisconnectReason.loggedOut) {
-                    this.status = 'logged_out';
-                    this.cleanup();
-                } else {
-                    this.status = 'connection_failed';
-                }
-                this.lastSeen = new Date().toISOString();
+        // Handle incoming messages
+        this.socket.ev.on('messages.upsert', async (m) => {
+            const message = m.messages[0];
+            if (!message.key.fromMe && message.message) {
+                await this.forwardMessageToFastAPI(message);
             }
         });
     }
 
     async forwardMessageToFastAPI(message) {
         try {
+            console.log(`🔍 ===== WHATSAPP INCOMING MESSAGE =====`);
+            
             // Extract phone number from Baileys message
             const fromNumber = message.key.remoteJid?.replace('@s.whatsapp.net', '') || 'unknown';
+            console.log(`📱 From: ${fromNumber}`);
             
             // Extract message text from Baileys message object
             let messageText = '';
@@ -370,6 +344,9 @@ class WhatsAppSession {
             } else {
                 messageText = 'Media message or unsupported message type';
             }
+            
+            console.log(`💬 Message: '${messageText}'`);
+            console.log(`🔗 Session ID: ${this.sessionId}`);
 
             const fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000';
             const response = await fetch(`${fastApiUrl}/whatsapp/incoming`, {
@@ -389,7 +366,7 @@ class WhatsAppSession {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error(`❌ [${this.sessionId}] Failed to forward message to FastAPI:`, response.status, errorText);
+                console.error(`❌ [${this.sessionId}] Failed to forward message to FastAPI: ${response.status}`);
             } else {
                 console.log(`✅ [${this.sessionId}] Message forwarded successfully to FastAPI`);
             }
@@ -474,9 +451,9 @@ class WhatsAppSession {
         this.connectionPromise = null;
         this.retryCount = 0;
         
-        // Clear auth state from database
+        // Clear auth state
         try {
-            await this.authState.clearState();
+            await fs.remove(this.sessionDir);
         } catch (error) {
             console.error(`❌ [${this.sessionId}] Error clearing auth state:`, error);
         }
@@ -617,18 +594,15 @@ app.get('/session/:sessionId/qr', async (req, res) => {
             });
         }
 
-        if (refresh === 'true') {
-            console.log(`🔄 [${sessionId}] Refreshing QR code`);
-            await session.forceNew();
+        if (refresh || !session.qrCode) {
+            await session.connect();
         }
 
         const qrImage = await session.getQRCode();
         if (!qrImage) {
             return res.status(404).json({ 
                 success: false, 
-                error: 'QR code not found. Session may not be created, already connected, or expired. Try creating a new session.',
-                has_auth: false,
-                qr_expired: session.status !== 'qr_ready',
+                error: 'QR code not available. Session may be connected or failed.',
                 status: session.status
             });
         }
@@ -641,10 +615,10 @@ app.get('/session/:sessionId/qr', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ QR fetch error:', error);
+        console.error('❌ QR code error:', error);
         res.status(500).json({ 
             success: false, 
-            error: `QR generation failed: ${error.message}` 
+            error: `QR code generation failed: ${error.message}` 
         });
     }
 });
@@ -656,14 +630,15 @@ app.get('/session/:sessionId/status', (req, res) => {
     try {
         const { sessionId } = req.params;
         const session = sessions.get(sessionId);
-
+        
         if (!session) {
             return res.json({
+                session_id: sessionId,
                 status: 'not_found',
                 connected: false,
-                message: 'No session found for this restaurant',
-                has_auth: false,
-                qr_available: false
+                qr_available: false,
+                last_seen: null,
+                has_auth: false
             });
         }
 
@@ -679,7 +654,7 @@ app.get('/session/:sessionId/status', (req, res) => {
 });
 
 /**
- * Send message
+ * Send message via WhatsApp
  */
 app.post('/message/send', authenticateApiKey, async (req, res) => {
     try {
@@ -696,14 +671,24 @@ app.post('/message/send', authenticateApiKey, async (req, res) => {
         if (!session) {
             return res.status(404).json({ 
                 success: false, 
-                error: 'Session not found' 
+                error: 'Session not found. Please create a session first.' 
+            });
+        }
+
+        if (session.status !== 'connected') {
+            return res.status(400).json({ 
+                success: false, 
+                error: `Session not connected. Current status: ${session.status}` 
             });
         }
 
         const result = await session.sendMessage(to, message);
+        
         res.json({
             success: true,
             message: 'Message sent successfully',
+            session_id: session_id,
+            to: to,
             result: result
         });
 
@@ -723,15 +708,21 @@ app.delete('/session/:sessionId', authenticateApiKey, async (req, res) => {
     try {
         const { sessionId } = req.params;
         const session = sessions.get(sessionId);
-
-        if (session) {
-            await session.cleanup();
-            sessions.delete(sessionId);
+        
+        if (!session) {
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Session not found' 
+            });
         }
+
+        await session.cleanup();
+        sessions.delete(sessionId);
 
         res.json({
             success: true,
-            message: 'Session deleted successfully'
+            message: 'Session deleted successfully',
+            session_id: sessionId
         });
 
     } catch (error) {
@@ -743,49 +734,20 @@ app.delete('/session/:sessionId', authenticateApiKey, async (req, res) => {
     }
 });
 
-// Global error handlers to prevent silent crashes
-process.on('uncaughtException', (error) => {
-    console.error('❌ Uncaught Exception:', error);
-    // Don't exit the process, just log the error
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-    // Don't exit the process, just log the error
-});
-
-// Start server with proper error handling
-const PORT = process.env.WHATSAPP_PORT || process.env.PORT || 8002;
-const server = app.listen(PORT, '0.0.0.0', (error) => {
-    if (error) {
-        console.error('❌ Failed to start WhatsApp service:', error);
-        process.exit(1);
-    }
-    console.log(`✅ Node.js WhatsApp service started on port ${PORT}`);
-    console.log(`🚀 WhatsApp Baileys Service running on http://0.0.0.0:${PORT}`);
-    console.log(`📱 Service properly configured according to Baileys documentation`);
-    console.log(`🔗 Health check available at: http://localhost:${PORT}/health`);
-});
-
-// Handle server startup errors
-server.on('error', (error) => {
-    console.error('❌ Server error:', error);
-    if (error.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${PORT} is already in use`);
-        process.exit(1);
-    }
+// Start server
+const PORT = process.env.WHATSAPP_PORT || 8002;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 WhatsApp service running on port ${PORT}`);
+    console.log(`📁 Sessions directory: ${SESSIONS_DIR}`);
+    console.log(`🔑 API Key: ${API_KEY.substring(0, 8)}...`);
+    console.log(`💾 Database backup enabled: ${!!process.env.DATABASE_URL}`);
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-    console.log('🛑 Shutting down gracefully...');
+    console.log('\n🛑 Shutting down WhatsApp service...');
     
-    // Close server first
-    server.close(() => {
-        console.log('🛑 HTTP server closed');
-    });
-    
-    // Clean up sessions
+    // Cleanup all sessions
     for (const [sessionId, session] of sessions) {
         try {
             await session.cleanup();
@@ -794,30 +756,14 @@ process.on('SIGINT', async () => {
         }
     }
     
-    console.log('🛑 All sessions cleaned up');
-    process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-    console.log('🛑 Received SIGTERM, shutting down gracefully...');
-    
-    // Close server first
-    server.close(() => {
-        console.log('🛑 HTTP server closed');
-    });
-    
-    // Clean up sessions
-    for (const [sessionId, session] of sessions) {
-        try {
-            await session.cleanup();
-        } catch (error) {
-            console.error(`❌ Error cleaning up session ${sessionId}:`, error);
-        }
+    // Close database pool
+    try {
+        await pool.end();
+    } catch (error) {
+        console.error('❌ Error closing database pool:', error);
     }
     
-    console.log('🛑 All sessions cleaned up');
+    console.log('✅ WhatsApp service shut down gracefully');
     process.exit(0);
 });
-
-module.exports = app;
 
