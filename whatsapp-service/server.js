@@ -7,6 +7,7 @@
  * 2. Correct connection handling with forced disconnect after QR scan
  * 3. Simplified session management aligned with Baileys architecture
  * 4. Proper cleanup and reconnection logic
+ * 5. Added comprehensive error handling and startup logging
  */
 
 const express = require('express');
@@ -104,9 +105,13 @@ class CustomAuthState {
         return {
             state: { creds, keys },
             saveCreds: async () => {
-                await this.ensureDir();
-                await fs.writeFile(this.credsPath, JSON.stringify(creds, null, 2));
-                await fs.writeFile(this.keysPath, JSON.stringify(keys, null, 2));
+                try {
+                    await this.ensureDir();
+                    await fs.writeFile(this.credsPath, JSON.stringify(creds, null, 2));
+                    await fs.writeFile(this.keysPath, JSON.stringify(keys, null, 2));
+                } catch (error) {
+                    console.error(`❌ [${this.sessionId}] Error saving credentials:`, error);
+                }
             }
         };
     }
@@ -143,7 +148,11 @@ class WhatsAppSession {
             return this.connectionPromise;
         }
 
-        this.connectionPromise = this._doConnect();
+        this.connectionPromise = this._doConnect().catch(error => {
+            console.error(`❌ [${this.sessionId}] Connection failed:`, error);
+            this.connectionPromise = null;
+            throw error;
+        });
         return this.connectionPromise;
     }
 
@@ -241,11 +250,15 @@ class WhatsAppSession {
 
         // Handle messages (forward to FastAPI)
         this.socket.ev.on('messages.upsert', async (m) => {
-            const messages = m.messages;
-            for (const message of messages) {
-                if (!message.key.fromMe && message.message) {
-                    await this.forwardMessageToFastAPI(message);
+            try {
+                const messages = m.messages;
+                for (const message of messages) {
+                    if (!message.key.fromMe && message.message) {
+                        await this.forwardMessageToFastAPI(message);
+                    }
                 }
+            } catch (error) {
+                console.error(`❌ [${this.sessionId}] Error handling messages:`, error);
             }
         });
 
@@ -348,9 +361,13 @@ class WhatsAppSession {
     async cleanup() {
         console.log(`🧹 [${this.sessionId}] Cleaning up session`);
         
-        if (this.socket) {
-            this.socket.end();
-            this.socket = null;
+        try {
+            if (this.socket) {
+                this.socket.end();
+                this.socket = null;
+            }
+        } catch (error) {
+            console.error(`❌ [${this.sessionId}] Error during socket cleanup:`, error);
         }
         
         this.qrCode = null;
@@ -359,7 +376,11 @@ class WhatsAppSession {
         this.retryCount = 0;
         
         // Clear auth state
-        await this.authState.clearState();
+        try {
+            await this.authState.clearState();
+        } catch (error) {
+            console.error(`❌ [${this.sessionId}] Error clearing auth state:`, error);
+        }
     }
 
     async forceNew() {
@@ -378,7 +399,9 @@ app.get('/health', (req, res) => {
         success: true, 
         status: 'healthy', 
         timestamp: new Date().toISOString(),
-        active_sessions: sessions.size
+        active_sessions: sessions.size,
+        service: 'whatsapp-baileys',
+        port: process.env.WHATSAPP_PORT || 8002
     });
 });
 
@@ -569,21 +592,79 @@ app.delete('/session/:sessionId', authenticateApiKey, async (req, res) => {
     }
 });
 
-// Start server
+// Global error handlers to prevent silent crashes
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    // Don't exit the process, just log the error
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit the process, just log the error
+});
+
+// Start server with proper error handling
 const PORT = process.env.WHATSAPP_PORT || 8002;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 WhatsApp Baileys Service running on port ${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', (error) => {
+    if (error) {
+        console.error('❌ Failed to start WhatsApp service:', error);
+        process.exit(1);
+    }
+    console.log(`✅ Node.js WhatsApp service started on port ${PORT}`);
+    console.log(`🚀 WhatsApp Baileys Service running on http://0.0.0.0:${PORT}`);
     console.log(`📱 Service properly configured according to Baileys documentation`);
+    console.log(`🔗 Health check available at: http://localhost:${PORT}/health`);
+});
+
+// Handle server startup errors
+server.on('error', (error) => {
+    console.error('❌ Server error:', error);
+    if (error.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} is already in use`);
+        process.exit(1);
+    }
 });
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
     console.log('🛑 Shutting down gracefully...');
     
+    // Close server first
+    server.close(() => {
+        console.log('🛑 HTTP server closed');
+    });
+    
+    // Clean up sessions
     for (const [sessionId, session] of sessions) {
-        await session.cleanup();
+        try {
+            await session.cleanup();
+        } catch (error) {
+            console.error(`❌ Error cleaning up session ${sessionId}:`, error);
+        }
     }
     
+    console.log('🛑 All sessions cleaned up');
+    process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+    console.log('🛑 Received SIGTERM, shutting down gracefully...');
+    
+    // Close server first
+    server.close(() => {
+        console.log('🛑 HTTP server closed');
+    });
+    
+    // Clean up sessions
+    for (const [sessionId, session] of sessions) {
+        try {
+            await session.cleanup();
+        } catch (error) {
+            console.error(`❌ Error cleaning up session ${sessionId}:`, error);
+        }
+    }
+    
+    console.log('🛑 All sessions cleaned up');
     process.exit(0);
 });
 
