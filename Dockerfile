@@ -29,6 +29,7 @@ RUN cd whatsapp-service && \
 
 # Expose FastAPI port
 EXPOSE 8000
+EXPOSE 8002
 
 # Start FastAPI + WhatsApp
 CMD ["sh", "-c", "node whatsapp-service/server.js & python main.py"]
