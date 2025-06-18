@@ -248,6 +248,21 @@ class WhatsAppSession {
 
     async forwardMessageToFastAPI(message) {
         try {
+            // Extract phone number from Baileys message
+            const fromNumber = message.key.remoteJid?.replace('@s.whatsapp.net', '') || 'unknown';
+            
+            // Extract message text from Baileys message object
+            let messageText = '';
+            if (message.message?.conversation) {
+                messageText = message.message.conversation;
+            } else if (message.message?.extendedTextMessage?.text) {
+                messageText = message.message.extendedTextMessage.text;
+            } else if (message.message?.imageMessage?.caption) {
+                messageText = message.message.imageMessage.caption;
+            } else {
+                messageText = 'Media message or unsupported message type';
+            }
+
             const fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000';
             const response = await fetch(`${fastApiUrl}/whatsapp/incoming`, {
                 method: 'POST',
@@ -255,14 +270,20 @@ class WhatsAppSession {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    from_number: fromNumber,
+                    message: messageText,
                     session_id: this.sessionId,
-                    message: message,
-                    timestamp: new Date().toISOString()
+                    message_id: message.key.id,
+                    timestamp: new Date().toISOString(),
+                    chat_id: message.key.remoteJid
                 })
             });
 
             if (!response.ok) {
-                console.error(`❌ [${this.sessionId}] Failed to forward message to FastAPI:`, response.status);
+                const errorText = await response.text();
+                console.error(`❌ [${this.sessionId}] Failed to forward message to FastAPI:`, response.status, errorText);
+            } else {
+                console.log(`✅ [${this.sessionId}] Message forwarded successfully to FastAPI`);
             }
         } catch (error) {
             console.error(`❌ [${this.sessionId}] Error forwarding message:`, error);
