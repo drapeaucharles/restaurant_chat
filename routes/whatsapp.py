@@ -143,6 +143,58 @@ async def send_whatsapp_message(
         )
 
 
+@router.post("/session/{session_id}/start", response_model=WhatsAppSessionResponse)
+async def start_whatsapp_session(
+    session_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Start a WhatsApp session and generate QR code.
+    This endpoint forwards the request to the Node.js WhatsApp service.
+    """
+    try:
+        print(f"\n🚀 ===== STARTING WHATSAPP SESSION =====")
+        print(f"🔗 Session ID: {session_id}")
+        
+        # Forward request to Node.js WhatsApp service
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                f"{whatsapp_service.open_wa_url}/session/{session_id}/start",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": whatsapp_service.whatsapp_api_key
+                },
+                json={"force_new": False}
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"✅ Session started successfully")
+                return WhatsAppSessionResponse(
+                    session_id=session_id,
+                    status=data.get("status", "qr_ready"),
+                    message=data.get("message", "Session started successfully"),
+                    qr_code=data.get("qr_code"),
+                    connected=data.get("connected", False)
+                )
+            else:
+                error_text = response.text
+                print(f"❌ Session start failed: {error_text}")
+                return WhatsAppSessionResponse(
+                    session_id=session_id,
+                    status="error",
+                    message=f"Failed to start session: {error_text}"
+                )
+                
+    except Exception as e:
+        print(f"❌ Error starting WhatsApp session: {str(e)}")
+        return WhatsAppSessionResponse(
+            session_id=session_id,
+            status="error",
+            message=f"Failed to start session: {str(e)}"
+        )
+
+
 @router.post("/restaurant/{restaurant_id}/connect", response_model=WhatsAppSessionResponse)
 async def connect_restaurant_whatsapp(
     restaurant_id: str,
