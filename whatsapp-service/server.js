@@ -26,6 +26,18 @@ if (typeof global !== 'undefined') {
 const app = express();
 app.use(express.json());
 
+// Add global unhandled rejection handler
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
+    // Don't exit the process, just log the error
+});
+
+// Add global uncaught exception handler
+process.on('uncaughtException', (error) => {
+    console.error('🚨 Uncaught Exception:', error);
+    // Don't exit the process for WhatsApp connection issues
+});
+
 // CORS middleware
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -151,7 +163,9 @@ class WhatsAppSession {
         this.connectionPromise = this._doConnect().catch(error => {
             console.error(`❌ [${this.sessionId}] Connection failed:`, error);
             this.connectionPromise = null;
-            throw error;
+            this.status = 'connection_failed';
+            // Don't re-throw the error to prevent unhandled rejection
+            return { success: false, status: 'connection_failed', error: error.message };
         });
         return this.connectionPromise;
     }
@@ -225,13 +239,24 @@ class WhatsAppSession {
                         if (shouldReconnect && this.retryCount < this.maxRetries) {
                             this.retryCount++;
                             console.log(`🔄 [${this.sessionId}] Retrying connection (${this.retryCount}/${this.maxRetries})`);
-                            setTimeout(() => this._doConnect(), 5000);
+                            // Use a more robust retry mechanism
+                            this.status = 'retrying';
+                            setTimeout(async () => {
+                                try {
+                                    await this._doConnect();
+                                } catch (retryError) {
+                                    console.error(`❌ [${this.sessionId}] Retry failed:`, retryError);
+                                    this.status = 'connection_failed';
+                                }
+                            }, 5000);
                         } else {
                             this.status = 'connection_failed';
                             this.socket = null;
                             this.connectionPromise = null;
+                            console.log(`❌ [${this.sessionId}] Connection failed permanently after ${this.maxRetries} retries`);
                             cleanup();
-                            reject(new Error('Connection failed permanently'));
+                            // Don't reject here, just resolve with failure status
+                            resolve({ success: false, status: 'connection_failed', error: 'Connection failed permanently' });
                         }
                     }
                 });
@@ -354,6 +379,8 @@ class WhatsAppSession {
             connected: this.status === 'connected',
             qr_available: !!this.qrCode && this.status === 'qr_ready',
             last_seen: this.lastSeen,
+            retry_count: this.retryCount,
+            max_retries: this.maxRetries,
             has_auth: false // Will be updated based on auth files
         };
     }
@@ -431,8 +458,12 @@ app.post('/session/create', authenticateApiKey, async (req, res) => {
             sessions.set(session_id, session);
         }
 
-        // Start the connection process in the background - DON'T WAIT FOR IT
-        session.connect().catch(error => {
+        // Start the connection process in the background with improved error handling
+        session.connect().then(result => {
+            if (result && !result.success) {
+                console.log(`⚠️ [${session_id}] Background connection completed with status: ${result.status}`);
+            }
+        }).catch(error => {
             console.error(`❌ [${session_id}] Background connection failed:`, error);
             session.status = 'connection_failed';
         });
