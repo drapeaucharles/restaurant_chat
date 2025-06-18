@@ -11,6 +11,7 @@ import os
 import signal
 import time
 import threading
+import sys
 import atexit
 from contextlib import asynccontextmanager
 
