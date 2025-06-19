@@ -45,7 +45,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     from services.chat_service import get_or_create_client
     
     # Ensure client exists
-    client = get_or_create_client(db, req.client_id, req.restaurant_id)
+    client = get_or_create_client(db, req.client_id, req.restaurant_id)  # No phone number for regular chat endpoint
     print(f"✅ Client ensured: {client.id}")
     
     # Save the incoming message to ChatMessage table
@@ -63,6 +63,57 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     
     # Call chat service for AI response (if appropriate)
     result = chat_service(req, db)
+    
+    # 🔧 NEW FIX: If this is a restaurant message and client has phone number, forward to WhatsApp
+    if req.sender_type == "restaurant":
+        print(f"📱 Restaurant message detected - checking for WhatsApp forwarding...")
+        
+        # Get client to check for phone number
+        client = db.query(models.Client).filter_by(id=req.client_id).first()
+        if client and client.phone_number:
+            print(f"📱 Client has phone number: {client.phone_number} - forwarding to WhatsApp")
+            
+            # Get restaurant for WhatsApp session
+            restaurant = db.query(models.Restaurant).filter_by(restaurant_id=req.restaurant_id).first()
+            if restaurant and restaurant.whatsapp_session_id:
+                print(f"📱 Restaurant has WhatsApp session: {restaurant.whatsapp_session_id}")
+                
+                # Forward to WhatsApp using background task
+                from fastapi import BackgroundTasks
+                import requests
+                import os
+                
+                def send_whatsapp_message():
+                    try:
+                        whatsapp_url = f"{os.getenv('PUBLIC_API_URL', 'http://localhost:8000')}/whatsapp/send"
+                        payload = {
+                            "session_id": restaurant.whatsapp_session_id,
+                            "to_number": client.phone_number,  # Fixed: use to_number instead of to
+                            "message": req.message
+                        }
+                        headers = {
+                            "X-API-Key": os.getenv("WHATSAPP_API_KEY", "supersecretkey123"),
+                            "Content-Type": "application/json"
+                        }
+                        
+                        print(f"📤 Sending WhatsApp message to {client.phone_number}")
+                        response = requests.post(whatsapp_url, json=payload, headers=headers, timeout=10)
+                        
+                        if response.status_code == 200:
+                            print(f"✅ WhatsApp message sent successfully")
+                        else:
+                            print(f"❌ WhatsApp send failed: {response.status_code} - {response.text}")
+                            
+                    except Exception as e:
+                        print(f"❌ Error sending WhatsApp message: {str(e)}")
+                
+                # Execute WhatsApp sending
+                send_whatsapp_message()
+                
+            else:
+                print(f"📵 Restaurant has no WhatsApp session - cannot forward")
+        else:
+            print(f"💻 Client has no phone number - UI-only user, no WhatsApp forwarding needed")
     
     print(f"🤖 AI Response: '{result.answer[:100]}...' (length: {len(result.answer)})")
     print(f"🔍 Response empty: {len(result.answer) == 0}")
