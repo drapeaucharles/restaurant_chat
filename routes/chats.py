@@ -44,7 +44,7 @@ def create_chat_message(
     print(f"✅ Restaurant found: {restaurant.restaurant_id}")
 
     # Check if client exists
-    client = get_or_create_client(db, message_data.client_id, message_data.restaurant_id)
+    client = get_or_create_client(db, message_data.client_id, message_data.restaurant_id)  # No phone number for manual chat messages
     print(f"✅ Ensured client exists: {client.id}")
 
 
@@ -310,7 +310,7 @@ def get_full_chat_history_for_client(
     print(f"✅ Restaurant found: {restaurant.restaurant_id}")
     
     # ✅ Check if client exists, create if not (for first-time visitors)
-    client = get_or_create_client(db, client_id, restaurant_id)
+    client = get_or_create_client(db, client_id, restaurant_id)  # No phone number for chat history requests
     print(f"✅ Ensured client exists: {client.id}")
 
     

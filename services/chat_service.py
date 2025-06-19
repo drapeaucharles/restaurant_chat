@@ -23,17 +23,27 @@ You must:
 You sound like a real person working at the restaurant, not a robot. Keep answers short, clear, and polite.
 """
 
-def get_or_create_client(db: Session, client_id: str, restaurant_id: str):
+def get_or_create_client(db: Session, client_id: str, restaurant_id: str, phone_number: str = None):
     client = db.query(models.Client).filter_by(id=client_id).first()
     if not client:
         try:
-            client = models.Client(id=client_id, restaurant_id=restaurant_id)
+            client = models.Client(
+                id=client_id, 
+                restaurant_id=restaurant_id,
+                phone_number=phone_number  # Store phone number for WhatsApp clients
+            )
             db.add(client)
             db.commit()
             db.refresh(client)
         except IntegrityError:
             db.rollback()
             client = db.query(models.Client).filter_by(id=client_id).first()
+    else:
+        # Update phone number if provided and not already set
+        if phone_number and not client.phone_number:
+            client.phone_number = phone_number
+            db.commit()
+            db.refresh(client)
     return client
 
 def validate_menu_item(item):
@@ -139,7 +149,7 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
 
     # ✅ Check AI state BEFORE processing - get ai_enabled from Client.preferences
     print(f"🔍 Checking AI enabled state...")
-    client = get_or_create_client(db, req.client_id, req.restaurant_id)
+    client = get_or_create_client(db, req.client_id, req.restaurant_id)  # No phone number for regular chat_service calls
     
     # Get ai_enabled from client preferences, default to True if not set
     ai_enabled_state = True  # Default
