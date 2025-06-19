@@ -46,15 +46,4 @@ class ChatMessage(Base):
     message = Column(Text)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
-# Client Phone Mapping Table (for WhatsApp integration)
-class ClientPhoneMapping(Base):
-    __tablename__ = "client_phone_mappings"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.id"))
-    phone_number = Column(String(20), nullable=False)
-    restaurant_id = Column(String, ForeignKey("restaurants.restaurant_id"))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
 
