@@ -96,6 +96,74 @@ def create_chat_message(
         else:
             print(f"ℹ️ AI did not respond (disabled or blocked)")
 
+    # 🔧 NEW FIX: If this is a restaurant/staff message, check if client is WhatsApp user and forward
+    elif message_data.sender_type == "restaurant":
+        print(f"🏪 Restaurant/staff message detected - checking if client is WhatsApp user...")
+        
+        # Import WhatsApp service and background task
+        from services.whatsapp_service import whatsapp_service
+        from fastapi import BackgroundTasks
+        
+        # Check if client has a phone number (indicating WhatsApp user)
+        if client.phone_number:
+            print(f"📱 Client has phone number: {client.phone_number} - forwarding to WhatsApp...")
+            
+            # Check if restaurant has WhatsApp session
+            if restaurant.whatsapp_session_id:
+                print(f"📱 Restaurant has WhatsApp session: {restaurant.whatsapp_session_id}")
+                
+                # Import the background task function
+                from routes.whatsapp import send_whatsapp_reply
+                
+                # Create a background task to send the message via WhatsApp
+                # Note: We need to modify this function to accept BackgroundTasks
+                # For now, we'll call the WhatsApp service directly
+                
+                try:
+                    # Import required modules
+                    from schemas.whatsapp import WhatsAppOutgoingMessage
+                    import asyncio
+                    
+                    # Create outgoing message
+                    outgoing_message = WhatsAppOutgoingMessage(
+                        to_number=client.phone_number,
+                        message=message_data.message,
+                        session_id=restaurant.whatsapp_session_id
+                    )
+                    
+                    # Send message via WhatsApp service (async call in sync context)
+                    async def send_staff_message():
+                        result = await whatsapp_service.send_message(outgoing_message)
+                        if result.success:
+                            print(f"✅ Staff message sent to WhatsApp: {client.phone_number}")
+                        else:
+                            print(f"❌ Failed to send staff message to WhatsApp: {result.error}")
+                        return result
+                    
+                    # Run the async function
+                    import asyncio
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    result = loop.run_until_complete(send_staff_message())
+                    loop.close()
+                    
+                    if result.success:
+                        print(f"✅ Staff message successfully forwarded to WhatsApp")
+                    else:
+                        print(f"⚠️ Staff message saved to database but WhatsApp forwarding failed: {result.error}")
+                        
+                except Exception as e:
+                    print(f"❌ Error forwarding staff message to WhatsApp: {str(e)}")
+                    print(f"   Message saved to database but not sent via WhatsApp")
+                    import traceback
+                    traceback.print_exc()
+                    
+            else:
+                print(f"📵 Restaurant has no WhatsApp session - cannot forward to WhatsApp")
+                print(f"   Staff message will only appear in UI")
+        else:
+            print(f"💻 Client has no phone number - UI-only user, no WhatsApp forwarding needed")
+
     response = ChatMessageResponse(
         id=new_message.id,
         restaurant_id=new_message.restaurant_id,

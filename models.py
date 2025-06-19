@@ -19,6 +19,7 @@ class Client(Base):
     restaurants_visited = Column(JSON)  # list of restaurant_ids
     name = Column(String) # Added for client details
     email = Column(String) # Added for client details
+    phone_number = Column(String, nullable=True) # Added for WhatsApp integration
 
 # Restaurant Table
 class Restaurant(Base):

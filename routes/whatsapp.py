@@ -59,6 +59,12 @@ async def receive_whatsapp_message(
         
         # ✅ SAVE CUSTOMER MESSAGE TO DATABASE FIRST
         print(f"💾 Saving customer WhatsApp message to database...")
+        
+        # Ensure client exists with phone number
+        from services.chat_service import get_or_create_client
+        client = get_or_create_client(db, client_id, restaurant.restaurant_id, message.from_number)
+        print(f"✅ Client ensured with phone number: {client.id}")
+        
         customer_message = models.ChatMessage(
             restaurant_id=restaurant.restaurant_id,
             client_id=uuid.UUID(client_id),
