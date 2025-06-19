@@ -280,6 +280,29 @@ class WhatsAppService:
         client_uuid = uuid.uuid5(namespace, phone_number)
         return str(client_uuid)
     
+    def get_phone_number_for_client(self, client_id: str, db: Session) -> Optional[str]:
+        """
+        Get the phone number for a client by looking up the stored mapping
+        """
+        try:
+            print(f"🔍 Looking up phone number for client: {client_id}")
+            
+            # Query the phone mapping table
+            phone_mapping = db.query(models.ClientPhoneMapping).filter(
+                models.ClientPhoneMapping.client_id == client_id
+            ).first()
+            
+            if phone_mapping:
+                print(f"✅ Found phone number: {phone_mapping.phone_number}")
+                return phone_mapping.phone_number
+            else:
+                print(f"❌ No phone mapping found for client {client_id}")
+                return None
+            
+        except Exception as e:
+            print(f"❌ Error looking up phone number: {str(e)}")
+            return None
+    
     async def get_session_status(self, session_id: str) -> Dict[str, Any]:
         """
         Get the status of a WhatsApp session

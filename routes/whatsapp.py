@@ -70,6 +70,38 @@ async def receive_whatsapp_message(
         db.refresh(customer_message)
         print(f"✅ Customer message saved to ChatMessage table with ID: {customer_message.id}")
         
+        # ✅ STORE PHONE NUMBER MAPPING FOR FUTURE STAFF REPLIES
+        print(f"📞 Storing phone number mapping for client...")
+        try:
+            # Check if mapping already exists
+            existing_mapping = db.query(models.ClientPhoneMapping).filter(
+                models.ClientPhoneMapping.client_id == uuid.UUID(client_id),
+                models.ClientPhoneMapping.restaurant_id == restaurant.restaurant_id
+            ).first()
+            
+            if existing_mapping:
+                # Update existing mapping
+                existing_mapping.phone_number = message.from_number
+                existing_mapping.updated_at = func.now()
+                print(f"✅ Updated existing phone mapping for client {client_id}")
+            else:
+                # Create new mapping
+                phone_mapping = models.ClientPhoneMapping(
+                    client_id=uuid.UUID(client_id),
+                    phone_number=message.from_number,
+                    restaurant_id=restaurant.restaurant_id
+                )
+                db.add(phone_mapping)
+                print(f"✅ Created new phone mapping for client {client_id}")
+            
+            db.commit()
+            print(f"📞 Phone mapping stored: {client_id} -> {message.from_number}")
+            
+        except Exception as e:
+            print(f"❌ Error storing phone mapping: {str(e)}")
+            # Don't fail the whole process if phone mapping fails
+            db.rollback()
+        
         # Create chat request (table_id=None for WhatsApp as specified)
         chat_request = ChatRequest(
             restaurant_id=restaurant.restaurant_id,
