@@ -1,18 +1,18 @@
 """
 Speech-to-text routes for handling audio messages.
 """
-
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 import openai
 import tempfile
 import os
 import uuid
-
+from datetime import datetime
 from database import get_db
 from schemas.speech import SpeechToTextResponse
 from schemas.chat import ChatRequest
 from services.chat_service import chat_service
+from models import ChatMessage
 
 router = APIRouter(tags=["speech"])
 
@@ -105,6 +105,26 @@ async def speech_to_text(
         ai_response = chat_response.answer
         
         print(f"✅ AI response received: '{ai_response[:100]}...' (length: {len(ai_response)})")
+        
+        # SAFE: Save transcript as client message directly to database
+        # This doesn't trigger WhatsApp message handler, avoiding duplication loops
+        try:
+            print(f"💾 Saving transcript as client message in conversation history...")
+            transcript_message = ChatMessage(
+                restaurant_id=restaurant_id,
+                client_id=client_uuid,
+                message=transcript,
+                sender_type='client',
+                message_type='transcript',  # Mark as transcript for identification
+                timestamp=datetime.utcnow()
+            )
+            db.add(transcript_message)
+            db.commit()
+            print(f"✅ Transcript saved successfully in conversation history")
+        except Exception as save_error:
+            print(f"⚠️ Failed to save transcript (non-critical): {save_error}")
+            # Don't fail the whole request if transcript saving fails
+            db.rollback()
         
     except Exception as e:
         print(f"❌ Error in speech-to-text processing: {str(e)}")
