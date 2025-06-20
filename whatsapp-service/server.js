@@ -4,13 +4,14 @@
  */
 
 const express = require('express');
-const { makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { makeWASocket, DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
 const fs = require('fs-extra');
 const path = require('path');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 const { Pool } = require('pg');
+const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
 // Ensure crypto is available globally for Baileys
 if (typeof global !== 'undefined') {
@@ -393,7 +394,7 @@ class WhatsAppSession {
             
             // Step 1: Download the audio file
             console.log(`📥 Step 1: Downloading audio from WhatsApp...`);
-            const audioBuffer = await this.socket.downloadMediaMessage(message);
+            const audioBuffer = await downloadMediaMessage(message, 'buffer', {}, { reuploadRequest: true }, this.socket);
             console.log(`✅ Downloaded audio buffer: ${audioBuffer.length} bytes`);
             
             if (!audioBuffer || audioBuffer.length === 0) {
