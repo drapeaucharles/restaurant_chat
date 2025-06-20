@@ -100,14 +100,8 @@ async def speech_to_text(
         
         print(f"🤖 Calling chat service with transcribed text...")
         
-        # Call existing chat service (this preserves all existing logic)
-        chat_response = chat_service(chat_request, db)
-        ai_response = chat_response.answer
-        
-        print(f"✅ AI response received: '{ai_response[:100]}...' (length: {len(ai_response)})")
-        
-        # SAFE: Save transcript as client message directly to database
-        # This doesn't trigger WhatsApp message handler, avoiding duplication loops
+        # FIRST: Save transcript as client message directly to database
+        # This ensures the client message is saved before AI processing
         try:
             print(f"💾 Saving transcript as client message in conversation history...")
             transcript_message = ChatMessage(
@@ -115,16 +109,22 @@ async def speech_to_text(
                 client_id=client_uuid,
                 message=transcript,
                 sender_type='client',
-                message_type='text',  # Save as normal text message, not 'transcript'
+                message_type='text',  # Save as normal text message
                 timestamp=datetime.utcnow()
             )
             db.add(transcript_message)
             db.commit()
             print(f"✅ Transcript saved successfully as normal client message")
         except Exception as save_error:
-            print(f"⚠️ Failed to save transcript (non-critical): {save_error}")
+            print(f"❌ Failed to save transcript: {save_error}")
             # Don't fail the whole request if transcript saving fails
             db.rollback()
+        
+        # THEN: Call existing chat service (this saves the AI response)
+        chat_response = chat_service(chat_request, db)
+        ai_response = chat_response.answer
+        
+        print(f"✅ AI response received: '{ai_response[:100]}...' (length: {len(ai_response)})")
         
     except Exception as e:
         print(f"❌ Error in speech-to-text processing: {str(e)}")
