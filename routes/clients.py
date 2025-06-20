@@ -77,3 +77,31 @@ def get_clients(
         for client in clients
     ]
 
+
+@router.get("/chat/logs/client")
+def get_client_logs(
+    restaurant_id: str,
+    client_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Public: Return chat logs for a given client (used in public chat UI)
+    """
+    print("📥 /logs called")
+    print(f"🔍 restaurant_id: {restaurant_id}, client_id: {client_id}")
+
+    messages = db.query(models.ChatMessage).filter(
+        models.ChatMessage.restaurant_id == restaurant_id,
+        models.ChatMessage.client_id == client_id
+    ).order_by(models.ChatMessage.timestamp).all()
+
+    result = []
+    for message in messages:
+        result.append({
+            "message": message.message if message.sender_type == "client" else "",
+            "answer": message.message if message.sender_type == "ai" else "",
+            "client_id": str(message.client_id),
+            "timestamp": message.timestamp
+        })
+
+    return result
