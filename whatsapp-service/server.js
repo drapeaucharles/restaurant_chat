@@ -11,7 +11,6 @@ const path = require('path');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
 const { Pool } = require('pg');
-const { downloadMediaMessage } = require('@whiskeysockets/baileys');
 
 // Ensure crypto is available globally for Baileys
 if (typeof global !== 'undefined') {
