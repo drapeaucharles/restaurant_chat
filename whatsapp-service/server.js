@@ -460,15 +460,9 @@ class WhatsAppSession {
             console.log(`   Transcript: "${result.transcript}"`);
             console.log(`   AI Response: "${result.ai_response?.substring(0, 100)}..."`);
             
-            // Step 6: Save transcript as client message in conversation history
-            if (result.transcript && result.transcript.trim()) {
-                console.log(`💾 Step 6: Saving transcript as client message...`);
-                await this.saveTranscriptAsClientMessage(fromNumber, result.transcript, message.key.id);
-            } else {
-                console.log(`⚠️ Empty transcript, not saving to conversation history`);
-            }
-            
-            // 2. Send AI response back to WhatsApp user
+            // Send AI response back to WhatsApp user
+            // Note: Transcript is already processed and saved by the FastAPI /speech-to-text endpoint
+            // No need to save transcript again here to avoid duplication loops
             if (result.ai_response && result.ai_response.trim()) {
                 await this.sendMessage(fromNumber, result.ai_response);
                 console.log(`✅ AI response sent back to WhatsApp user`);
