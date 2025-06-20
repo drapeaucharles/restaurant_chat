@@ -311,22 +311,18 @@ def get_full_chat_history_for_client(
     
     # ✅ Check if client exists, create if not (for first-time visitors)
     client = get_or_create_client(db, client_id, restaurant_id)  # No phone number for chat history requests
-    print(f"✅ Ensured client exists: {client.id}")
 
     
     # ✅ VERIFIED: Get messages from ChatMessage table (new) instead of ChatLog (legacy)
-    print(f"📋 Querying ChatMessage table for messages...")
     messages = db.query(models.ChatMessage).filter(
         models.ChatMessage.restaurant_id == restaurant_id,
         models.ChatMessage.client_id == client_id
     ).order_by(models.ChatMessage.timestamp).all()
     
-    print(f"📋 Found {len(messages)} messages in ChatMessage table for client {client_id}")
 
     # ✅ VERIFIED: Return messages with proper sender_type preservation
     full_log = []
     for message in messages:
-        print(f"📨 Message #{len(full_log)+1}: sender_type='{message.sender_type}', message='{message.message[:50]}...', timestamp={message.timestamp}")
         
         # Verify sender_type is not None or empty
         if not message.sender_type:
@@ -340,8 +336,6 @@ def get_full_chat_history_for_client(
             "sender_type": message.sender_type,  # ✅ VERIFIED: Use actual sender_type from database
         })
 
-    print(f"📤 Returning {len(full_log)} messages with preserved sender_type")
-    print(f"🔍 sender_type distribution:")
     sender_types = {}
     for msg in full_log:
         sender_type = msg['sender_type'] or 'NULL'

@@ -99,28 +99,52 @@ async def speech_to_text(
         )
         
         print(f"🤖 Calling chat service with transcribed text...")
+        print(f"🔍 DEBUG: About to save transcript - restaurant_id: {restaurant_id}, client_id: {client_uuid}")
+        print(f"🔍 DEBUG: Transcript to save: '{transcript}'")
         
-        # FIRST: Save transcript as client message directly to database
-        # This ensures the client message is saved before AI processing
+        # ALTERNATIVE: Use WhatsApp incoming endpoint to save transcript
+        # This uses existing infrastructure and avoids direct database issues
+        print(f"🔄 Using alternative approach: WhatsApp incoming endpoint")
+        
         try:
-            print(f"💾 Saving transcript as client message in conversation history...")
-            transcript_message = ChatMessage(
-                restaurant_id=restaurant_id,
-                client_id=client_uuid,
-                message=transcript,
-                sender_type='client',
-                message_type='text',  # Save as normal text message
-                timestamp=datetime.utcnow()
-            )
-            db.add(transcript_message)
-            db.commit()
-            print(f"✅ Transcript saved successfully as normal client message")
+            import httpx
+            
+            # Prepare transcript message for WhatsApp incoming endpoint
+            transcript_data = {
+                "from_number": client_id,  # Use client_id as from_number
+                "message": transcript,
+                "session_id": restaurant_id,  # Use restaurant_id as session_id
+                "is_transcript": True  # Flag to prevent AI processing loop
+            }
+            
+            print(f"📤 Sending transcript to WhatsApp incoming endpoint...")
+            print(f"🔍 DEBUG: Transcript data: {transcript_data}")
+            
+            # Get the base URL for the API
+            base_url = os.getenv('BACKEND_URL', 'http://localhost:8000')
+            
+            async with httpx.AsyncClient(timeout=30) as client_http:
+                response = await client_http.post(
+                    f"{base_url}/whatsapp/incoming",
+                    json=transcript_data,
+                    headers={"Content-Type": "application/json"}
+                )
+                
+                if response.status_code == 200:
+                    print(f"✅ Transcript saved successfully via WhatsApp incoming endpoint")
+                    transcript_save_success = True
+                else:
+                    print(f"❌ Failed to save transcript via WhatsApp endpoint: {response.status_code} - {response.text}")
+                    
         except Exception as save_error:
-            print(f"❌ Failed to save transcript: {save_error}")
-            # Don't fail the whole request if transcript saving fails
-            db.rollback()
+            print(f"❌ CRITICAL: Failed to save transcript via WhatsApp endpoint: {save_error}")
+            print(f"❌ Error type: {type(save_error).__name__}")
+            print(f"❌ Error details: {str(save_error)}")
+        
+        print(f"🔍 DEBUG: Transcript save success: {transcript_save_success}")
         
         # THEN: Call existing chat service (this saves the AI response)
+        print(f"🤖 Now calling chat service...")
         chat_response = chat_service(chat_request, db)
         ai_response = chat_response.answer
         
