@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 
 from database import engine
 import models
-from routes import auth, restaurant, chat, clients, chats, whatsapp
+from routes import auth, restaurant, chat, clients, chats, whatsapp, speech
 
 # Load environment variables
 load_dotenv()
@@ -205,6 +205,7 @@ app.include_router(chat.router)  # No prefix - handles /chat, /client/create-or-
 app.include_router(clients.router)  # New client management router
 app.include_router(chats.router, prefix="/chat")  # Prefix for chat management - handles /chat/logs/*, /chat/
 app.include_router(whatsapp.router)  # WhatsApp integration routes
+app.include_router(speech.router)  # Speech-to-text routes
 
 # Health check endpoints
 @app.get("/")
