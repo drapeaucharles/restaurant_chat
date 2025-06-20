@@ -89,6 +89,28 @@ def format_menu(menu_items):
     
     return "\n\n".join(formatted_items)
 
+def format_faq(faq_items):
+    """Format FAQ items for OpenAI prompt with defensive checks."""
+    if not faq_items:
+        return "No FAQ available."
+    
+    formatted_items = []
+    for item in faq_items:
+        try:
+            # Ensure all required fields exist with fallbacks
+            question = item.get('question', 'Question not available')
+            answer = item.get('answer', 'Answer not available')
+            
+            formatted_item = f"Q: {question}\nA: {answer}"
+            formatted_items.append(formatted_item)
+            
+        except Exception as e:
+            print(f"Warning: Error formatting FAQ item {item}: {e}")
+            # Add a fallback item to prevent complete failure
+            formatted_items.append(f"FAQ item (details unavailable): {str(item)[:100]}")
+    
+    return "\n\n".join(formatted_items)
+
 def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     """Handle chat requests with proper error handling and data validation."""
     
@@ -192,6 +214,10 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             if 'allergens' not in item:
                 item['allergens'] = []
 
+        # Prepare FAQ
+        faq_items = data.get("faq", [])
+        print(f"Found {len(faq_items)} FAQ items")
+
         user_prompt = f"""
 Customer message: "{req.message}"
 
@@ -203,6 +229,9 @@ Restaurant Info:
 
 Menu:
 {format_menu(validated_menu)}
+
+Frequently Asked Questions:
+{format_faq(faq_items)}
 """
 
         response = openai.chat.completions.create(
