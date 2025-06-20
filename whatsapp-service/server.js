@@ -162,6 +162,7 @@ class WhatsAppSession {
         this.lastSeen = new Date().toISOString();
         this.retryCount = 0;
         this.maxRetries = 3;
+        this.processedMessages = new Set(); // Track processed message IDs to prevent duplicates
     }
 
     async connect() {
@@ -327,7 +328,18 @@ class WhatsAppSession {
 
     async forwardMessageToFastAPI(message) {
         try {
+            // DEDUPLICATION: Check if message already processed
+            const messageId = message.key.id;
+            if (this.processedMessages.has(messageId)) {
+                console.log(`⏭️ [${this.sessionId}] Skipping duplicate message: ${messageId}`);
+                return;
+            }
+
+            // Mark message as processed
+            this.processedMessages.add(messageId);
+            
             console.log(`🔍 ===== WHATSAPP INCOMING MESSAGE =====`);
+            console.log(`📨 Message ID: ${messageId}`);
             
             // Extract phone number from Baileys message
             const fromNumber = message.key.remoteJid?.replace('@s.whatsapp.net', '') || 'unknown';
@@ -385,7 +397,14 @@ class WhatsAppSession {
     }
 
     async handleAudioMessage(message, fromNumber) {
+        const messageId = message.key.id;
+        const timestamp = new Date().toISOString();
+        
         try {
+            console.log(`🎤 [${timestamp}] ===== AUDIO PROCESSING START =====`);
+            console.log(`📨 Message ID: ${messageId}`);
+            console.log(`📱 From: ${fromNumber}`);
+            console.log(`🔧 Session: ${this.sessionId}`);
             console.log(`🎤 ===== PROCESSING AUDIO MESSAGE =====`);
             
             const audioMessage = message.message.audioMessage;
@@ -470,7 +489,7 @@ class WhatsAppSession {
                 console.log(`⚠️ Empty AI response, not sending message`);
             }
             
-            console.log(`===== END AUDIO MESSAGE PROCESSING =====`);
+            console.log(`🎤 [${timestamp}] ===== AUDIO PROCESSING END =====`);
             
         } catch (error) {
             console.error(`❌ [${this.sessionId}] Error processing audio message:`, error);
