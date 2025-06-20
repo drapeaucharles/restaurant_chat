@@ -31,24 +31,68 @@ def create_embedding(text):
 
 # Insert restaurant data into Pinecone
 def insert_restaurant_data(restaurant_id, content_dict):
-    content_text = "\n".join([
-        content_dict.get("name", ""),
-        content_dict.get("story", ""),
-        "\n".join([
-            item.get("dish", "") + " " + item.get("description", "")
-            for item in content_dict.get("menu", [])
-        ]),
-        "\n".join([
-            faq.get("question", "") + " " + faq.get("answer", "")
-            for faq in content_dict.get("faq", [])
+    """
+    Insert restaurant data into Pinecone with comprehensive context.
+    Includes: name, story, menu, FAQ, opening hours
+    """
+    # Build formatted content for embedding
+    content_parts = []
+    
+    # Restaurant Name
+    name = content_dict.get("name", "")
+    if name:
+        content_parts.append(f"Restaurant Name: {name}")
+    
+    # Story
+    story = content_dict.get("story", "")
+    if story:
+        content_parts.append(f"Story: {story}")
+    
+    # Opening Hours
+    opening_hours = content_dict.get("opening_hours", "")
+    if opening_hours:
+        content_parts.append(f"Opening Hours: {opening_hours}")
+    
+    # Menu Section
+    menu_items = content_dict.get("menu", [])
+    if menu_items:
+        content_parts.append("Menu:")
+        for item in menu_items:
+            # Handle both 'dish' and 'name' fields for flexibility
+            dish_name = item.get("dish", "") or item.get("name", "")
+            description = item.get("description", "")
+            price = item.get("price", "")
+            
+            if dish_name:
+                menu_line = f"- {dish_name}"
+                if price:
+                    menu_line += f" ({price})"
+                if description:
+                    menu_line += f": {description}"
+                content_parts.append(menu_line)
+    
+    # FAQ Section
+    faq_items = content_dict.get("faq", [])
+    if faq_items:
+        content_parts.append("FAQs:")
+        for faq in faq_items:
+            question = faq.get("question", "")
+            answer = faq.get("answer", "")
+            if question and answer:
+                content_parts.append(f"- Q: {question} A: {answer}")
+    
+    # Join all parts with double newlines for clear separation
+    content_text = "\n\n".join(content_parts)
+    
+    # Create embedding only if we have content
+    if content_text.strip():
+        embedding = create_embedding(content_text)
+        
+        index.upsert([
+            (f"restaurant_{restaurant_id}", embedding)
         ])
-    ])
-
-    embedding = create_embedding(content_text)
-
-    index.upsert([
-        (f"restaurant_{restaurant_id}", embedding)
-    ])
+    else:
+        print(f"Warning: No content to embed for restaurant {restaurant_id}")
 
 # Insert client preferences into Pinecone
 def insert_client_preferences(client_id, preferences_dict):

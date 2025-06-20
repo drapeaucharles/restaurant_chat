@@ -21,6 +21,7 @@ class RestaurantData(BaseModel):
     opening_hours: Optional[str] = None
     contact_info: Optional[str] = None
     restaurant_story: Optional[str] = None  # Alternative field name
+    whatsapp_number: Optional[str] = None  # Add WhatsApp number field
 
 class RestaurantCreateRequest(BaseModel):
     restaurant_id: str

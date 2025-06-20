@@ -32,7 +32,9 @@ def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
         "name": restaurant.data.get("name"),
         "story": restaurant.data.get("story"),
         "menu": restaurant.data.get("menu", []),
-        "faq": restaurant.data.get("faq", [])
+        "faq": restaurant.data.get("faq", []),
+        "opening_hours": restaurant.data.get("opening_hours"),
+        "whatsapp_number": restaurant.whatsapp_number
     }
 
 
@@ -46,7 +48,9 @@ def list_restaurants(db: Session = Depends(get_db)):
             "name": r.data.get("name"),
             "story": r.data.get("story"),
             "menu": r.data.get("menu", []),
-            "faq": r.data.get("faq", [])
+            "faq": r.data.get("faq", []),
+            "opening_hours": r.data.get("opening_hours"),
+            "whatsapp_number": r.whatsapp_number
         }
         for r in restaurants
     ]
@@ -63,6 +67,10 @@ def update_restaurant(
     # Merge old + new (shallow merge)
     updated_data = {**existing_data, **restaurant_data.data.dict(exclude_unset=True)}
     current_owner.data = updated_data
+    
+    # Update WhatsApp number if provided
+    if restaurant_data.data.whatsapp_number is not None:
+        current_owner.whatsapp_number = restaurant_data.data.whatsapp_number
 
     db.commit()
     db.refresh(current_owner)
@@ -84,7 +92,9 @@ def get_restaurant_profile(
         "name": current_restaurant.data.get("name"),
         "story": current_restaurant.data.get("story"),
         "menu": current_restaurant.data.get("menu", []),
-        "faq": current_restaurant.data.get("faq", [])
+        "faq": current_restaurant.data.get("faq", []),
+        "opening_hours": current_restaurant.data.get("opening_hours"),
+        "whatsapp_number": current_restaurant.whatsapp_number
     }
 
 
@@ -97,6 +107,11 @@ def update_restaurant_profile(
     """Update current restaurant's profile (protected endpoint - owner only)."""
     # Update the restaurant data with new values
     current_owner.data = restaurant_data.dict()
+    
+    # Update WhatsApp number if provided in the data
+    if hasattr(restaurant_data, 'whatsapp_number') and restaurant_data.whatsapp_number:
+        current_owner.whatsapp_number = restaurant_data.whatsapp_number
+    
     db.commit()
     db.refresh(current_owner)
     
