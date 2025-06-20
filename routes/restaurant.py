@@ -11,8 +11,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_restaurant, get_current_owner, ACCESS_TOKEN_EXPIRE_MINUTES
 from database import get_db
 import models
-from schemas.restaurant import RestaurantCreateRequest, RestaurantData, RestaurantUpdateRequest, RestaurantProfileUpdate
-
+from schemas.restaurant import RestaurantUpdateRequest, RestaurantProfileUpdate
 
 
 router = APIRouter(prefix="/restaurant", tags=["restaurant"])
@@ -66,7 +65,7 @@ def update_restaurant(
     existing_data = current_owner.data or {}
 
     # Merge old + new (shallow merge)
-    updated_data = {**existing_data, **restaurant_data.data.dict(exclude_unset=True)}
+    updated_data = {**existing_data, **restaurant_data.data.model_dump(exclude_unset=True)}
     current_owner.data = updated_data
     
     # Update WhatsApp number if provided
@@ -80,7 +79,6 @@ def update_restaurant(
         "message": "Restaurant updated successfully",
         "restaurant_id": current_owner.restaurant_id
     }
-
 
 
 @router.get("/profile")
@@ -100,27 +98,39 @@ def get_restaurant_profile(
 
 
 @router.put("/profile")
-def update_restaurant_profile(
-    restaurant_data: RestaurantData,
+def update_restaurant_profile_new(
+    payload: RestaurantProfileUpdate,
     current_owner: models.Restaurant = Depends(get_current_owner),
     db: Session = Depends(get_db)
 ):
-    """Update current restaurant's profile (protected endpoint - owner only)."""
-    # Update the restaurant data with new values
-    current_owner.data = restaurant_data.dict()
+    """
+    Update restaurant profile for authenticated owner.
+    New implementation with structured opening hours and success response.
+    """
+    # Prepare the data dictionary for the restaurant
+    updated_data = {
+        "name": payload.name,
+        "story": payload.story,
+        "menu": [item.model_dump() for item in payload.menu],
+        "faq": [faq.model_dump() for faq in payload.faq] if payload.faq else [],
+    }
     
-    # Update WhatsApp number if provided in the data
-    if hasattr(restaurant_data, 'whatsapp_number') and restaurant_data.whatsapp_number:
-        current_owner.whatsapp_number = restaurant_data.whatsapp_number
+    # Handle opening hours - convert to dict if provided
+    if payload.opening_hours:
+        updated_data["opening_hours"] = payload.opening_hours.model_dump(exclude_none=True)
     
+    # Update the restaurant data
+    current_owner.data = updated_data
+    
+    # Update WhatsApp number if provided
+    if payload.whatsapp_number:
+        current_owner.whatsapp_number = payload.whatsapp_number
+    
+    # Commit changes to database
     db.commit()
     db.refresh(current_owner)
     
-    return {
-        "message": "Restaurant profile updated successfully",
-        "restaurant_id": current_owner.restaurant_id,
-        "data": current_owner.data
-    }
+    return {"success": True}
 
 
 @router.delete("/delete")
