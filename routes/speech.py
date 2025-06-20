@@ -115,12 +115,12 @@ async def speech_to_text(
                 client_id=client_uuid,
                 message=transcript,
                 sender_type='client',
-                message_type='transcript',  # Mark as transcript for identification
+                message_type='text',  # Save as normal text message, not 'transcript'
                 timestamp=datetime.utcnow()
             )
             db.add(transcript_message)
             db.commit()
-            print(f"✅ Transcript saved successfully in conversation history")
+            print(f"✅ Transcript saved successfully as normal client message")
         except Exception as save_error:
             print(f"⚠️ Failed to save transcript (non-critical): {save_error}")
             # Don't fail the whole request if transcript saving fails
