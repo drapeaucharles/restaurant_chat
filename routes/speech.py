@@ -112,7 +112,6 @@ async def speech_to_text(
                 client_id=client_uuid,
                 message=transcript,
                 sender_type='client_audio',  # Special type: saves but no AI processing
-                message_type='text',
                 timestamp=datetime.utcnow()
             )
             
