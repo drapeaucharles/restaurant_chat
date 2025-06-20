@@ -223,7 +223,7 @@ Customer message: "{req.message}"
 
 Restaurant Info:
 - Name: {data.get("name", "Restaurant name not available")}
-- Story: {data.get("restaurant_story", "No story available")}
+- Story: {data.get("story", "No story available")}
 - Opening Hours: {data.get("opening_hours", "Hours not available")}
 - Contact Info: {data.get("contact_info", "Contact info not available")}
 
