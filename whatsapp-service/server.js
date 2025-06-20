@@ -333,7 +333,16 @@ class WhatsAppSession {
             const fromNumber = message.key.remoteJid?.replace('@s.whatsapp.net', '') || 'unknown';
             console.log(`📱 From: ${fromNumber}`);
             
-            // Extract message text from Baileys message object
+            // Check if this is an audio message
+            const isAudioMessage = message.message?.audioMessage;
+            
+            if (isAudioMessage) {
+                console.log(`🎤 Audio message detected`);
+                await this.handleAudioMessage(message, fromNumber);
+                return;
+            }
+            
+            // Extract message text from Baileys message object (existing text logic)
             let messageText = '';
             if (message.message?.conversation) {
                 messageText = message.message.conversation;
@@ -345,7 +354,7 @@ class WhatsAppSession {
                 messageText = 'Media message or unsupported message type';
             }
             
-            console.log(`💬 Message: '${messageText}'`);
+            console.log(`💬 Text Message: '${messageText}'`);
             console.log(`🔗 Session ID: ${this.sessionId}`);
 
             const fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000';
@@ -368,10 +377,94 @@ class WhatsAppSession {
                 const errorText = await response.text();
                 console.error(`❌ [${this.sessionId}] Failed to forward message to FastAPI: ${response.status}`);
             } else {
-                console.log(`✅ [${this.sessionId}] Message forwarded successfully to FastAPI`);
+                console.log(`✅ [${this.sessionId}] Text message forwarded successfully to FastAPI`);
             }
         } catch (error) {
             console.error(`❌ [${this.sessionId}] Error forwarding message:`, error);
+        }
+    }
+
+    async handleAudioMessage(message, fromNumber) {
+        try {
+            console.log(`🎤 ===== PROCESSING AUDIO MESSAGE =====`);
+            
+            const audioMessage = message.message.audioMessage;
+            console.log(`📁 Audio details: mimetype=${audioMessage.mimetype}, seconds=${audioMessage.seconds}`);
+            
+            // Download the audio file
+            const audioBuffer = await this.socket.downloadMediaMessage(message);
+            console.log(`📥 Downloaded audio buffer: ${audioBuffer.length} bytes`);
+            
+            // Determine file extension based on mimetype
+            let fileExtension = '.ogg'; // Default for WhatsApp
+            if (audioMessage.mimetype?.includes('mp4')) fileExtension = '.m4a';
+            else if (audioMessage.mimetype?.includes('mpeg')) fileExtension = '.mp3';
+            
+            // Create FormData for multipart upload
+            const FormData = require('form-data');
+            const form = new FormData();
+            
+            // Add audio file
+            form.append('file', audioBuffer, {
+                filename: `audio_${Date.now()}${fileExtension}`,
+                contentType: audioMessage.mimetype || 'audio/ogg'
+            });
+            
+            // Add form fields
+            form.append('client_id', fromNumber);
+            form.append('restaurant_id', this.sessionId); // Use session_id as restaurant_id
+            form.append('table_id', ''); // Empty for WhatsApp messages
+            
+            const fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000';
+            console.log(`🚀 Sending audio to FastAPI: ${fastApiUrl}/speech-to-text`);
+            
+            const response = await fetch(`${fastApiUrl}/speech-to-text`, {
+                method: 'POST',
+                body: form,
+                headers: form.getHeaders()
+            });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`❌ [${this.sessionId}] Speech-to-text failed: ${response.status} - ${errorText}`);
+                
+                // Send error message back to user
+                await this.sendMessage(fromNumber, "Sorry, I couldn't process your audio message. Please try sending a text message instead.");
+                return;
+            }
+            
+            const result = await response.json();
+            console.log(`✅ Speech-to-text successful:`);
+            console.log(`   Transcript: "${result.transcript}"`);
+            console.log(`   AI Response: "${result.ai_response?.substring(0, 100)}..."`);
+            
+            // 1. Save transcript as client message in conversation history
+            if (result.transcript && result.transcript.trim()) {
+                console.log(`💾 Saving transcript as client message...`);
+                await this.saveTranscriptAsClientMessage(fromNumber, result.transcript, message.key.id);
+            } else {
+                console.log(`⚠️ Empty transcript, not saving to conversation history`);
+            }
+            
+            // 2. Send AI response back to WhatsApp user
+            if (result.ai_response && result.ai_response.trim()) {
+                await this.sendMessage(fromNumber, result.ai_response);
+                console.log(`✅ AI response sent back to WhatsApp user`);
+            } else {
+                console.log(`⚠️ Empty AI response, not sending message`);
+            }
+            
+            console.log(`===== END AUDIO MESSAGE PROCESSING =====`);
+            
+        } catch (error) {
+            console.error(`❌ [${this.sessionId}] Error processing audio message:`, error);
+            
+            // Send error message to user
+            try {
+                await this.sendMessage(fromNumber, "Sorry, I encountered an error processing your audio message. Please try again or send a text message.");
+            } catch (sendError) {
+                console.error(`❌ Failed to send error message:`, sendError);
+            }
         }
     }
 
@@ -406,6 +499,44 @@ class WhatsAppSession {
         } catch (error) {
             console.error(`❌ [${this.sessionId}] Error sending message:`, error);
             throw error;
+        }
+    }
+
+    async saveTranscriptAsClientMessage(fromNumber, transcript, originalMessageId) {
+        try {
+            console.log(`💾 ===== SAVING TRANSCRIPT AS CLIENT MESSAGE =====`);
+            console.log(`📱 From: ${fromNumber}`);
+            console.log(`💬 Transcript: "${transcript}"`);
+            console.log(`🔗 Session ID: ${this.sessionId}`);
+            
+            const fastApiUrl = process.env.FASTAPI_URL || 'http://localhost:8000';
+            const response = await fetch(`${fastApiUrl}/whatsapp/incoming`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    from_number: fromNumber,
+                    message: transcript,
+                    session_id: this.sessionId,
+                    message_id: `transcript_${originalMessageId}`, // Unique ID for transcript
+                    timestamp: new Date().toISOString(),
+                    chat_id: fromNumber + '@s.whatsapp.net',
+                    is_transcript: true // Flag to indicate this is a transcribed message
+                })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`❌ [${this.sessionId}] Failed to save transcript: ${response.status} - ${errorText}`);
+            } else {
+                console.log(`✅ [${this.sessionId}] Transcript saved successfully as client message`);
+            }
+            
+            console.log(`===== END TRANSCRIPT SAVING =====`);
+            
+        } catch (error) {
+            console.error(`❌ [${this.sessionId}] Error saving transcript:`, error);
         }
     }
 
