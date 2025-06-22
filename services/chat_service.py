@@ -1,5 +1,6 @@
 import openai
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
 import models
 from pinecone_utils import query_pinecone
 from schemas.chat import ChatRequest, ChatResponse
@@ -22,6 +23,84 @@ You must:
 
 You sound like a real person working at the restaurant, not a robot. Keep answers short, clear, and polite.
 """
+
+def fetch_recent_chat_history(db: Session, client_id: str, restaurant_id: str):
+    """
+    Fetch recent chat history for context.
+    
+    Returns messages from the last 60 minutes, maximum of 20 messages,
+    sorted chronologically (oldest to newest).
+    
+    Args:
+        db: Database session
+        client_id: Client identifier (table ID or WhatsApp ID)
+        restaurant_id: Restaurant identifier
+        
+    Returns:
+        List of ChatMessage objects sorted chronologically
+    """
+    print(f"🔍 Fetching chat history for client {client_id}, restaurant {restaurant_id}")
+    
+    # Calculate cutoff time (60 minutes ago)
+    cutoff_time = datetime.utcnow() - timedelta(minutes=60)
+    print(f"📅 Fetching messages since: {cutoff_time}")
+    
+    # Query messages from the last 60 minutes
+    # Filter by client_id (which could be table ID or WhatsApp ID) and restaurant_id
+    # Only include client and ai messages (exclude restaurant messages for context)
+    recent_messages = db.query(models.ChatMessage).filter(
+        models.ChatMessage.client_id == client_id,
+        models.ChatMessage.restaurant_id == restaurant_id,
+        models.ChatMessage.timestamp >= cutoff_time,
+        models.ChatMessage.sender_type.in_(['client', 'ai'])  # Only client and AI messages for context
+    ).order_by(models.ChatMessage.timestamp.asc()).limit(20).all()  # Oldest to newest, max 20
+    
+    print(f"📋 Found {len(recent_messages)} recent messages for context")
+    
+    # Log the messages for debugging
+    for i, msg in enumerate(recent_messages):
+        print(f"   {i+1}. [{msg.sender_type}] {msg.timestamp}: '{msg.message[:50]}...'")
+    
+    return recent_messages
+
+def format_chat_history_for_openai(chat_history):
+    """
+    Format chat history messages for OpenAI API.
+    
+    Maps sender_type to OpenAI roles:
+    - 'client' -> 'user'
+    - 'ai' -> 'assistant'
+    
+    Args:
+        chat_history: List of ChatMessage objects
+        
+    Returns:
+        List of message dictionaries formatted for OpenAI API
+    """
+    print(f"🔄 Formatting {len(chat_history)} messages for OpenAI context")
+    
+    formatted_messages = []
+    
+    for msg in chat_history:
+        # Map sender_type to OpenAI roles
+        if msg.sender_type == 'client':
+            role = 'user'
+        elif msg.sender_type == 'ai':
+            role = 'assistant'
+        else:
+            # Skip restaurant messages or unknown types
+            print(f"⚠️ Skipping message with sender_type: {msg.sender_type}")
+            continue
+            
+        formatted_message = {
+            "role": role,
+            "content": msg.message
+        }
+        formatted_messages.append(formatted_message)
+        print(f"   ✅ [{role}]: '{msg.message[:50]}...'")
+    
+    print(f"📋 Formatted {len(formatted_messages)} messages for OpenAI")
+    return formatted_messages
 
 def get_or_create_client(db: Session, client_id: str, restaurant_id: str, phone_number: str = None):
     client = db.query(models.Client).filter_by(id=client_id).first()
@@ -234,14 +313,31 @@ Frequently Asked Questions:
 {format_faq(faq_items)}
 """
 
+        # 🆕 NEW: Fetch and format recent chat history for context
+        print(f"🔍 Fetching recent chat history for context...")
+        recent_history = fetch_recent_chat_history(db, req.client_id, req.restaurant_id)
+        
+        # Prepare messages for OpenAI API
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Add chat history if available
+        if recent_history:
+            print(f"📋 Adding {len(recent_history)} historical messages to context")
+            history_messages = format_chat_history_for_openai(recent_history)
+            messages.extend(history_messages)
+        else:
+            print(f"📋 No recent chat history found - using current behavior")
+        
+        # Add the current user message
+        messages.append({"role": "user", "content": user_prompt})
+        
+        print(f"🤖 Sending {len(messages)} messages to OpenAI (1 system + {len(recent_history)} history + 1 current)")
+
         response = openai.chat.completions.create(
             model="gpt-4",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.5,
-            max_tokens=300
+            messages=messages,
+            temperature=0.7,
+            max_tokens=200
         )
 
         answer = response.choices[0].message.content.strip()
