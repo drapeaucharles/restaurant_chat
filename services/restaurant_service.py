@@ -10,7 +10,7 @@ from auth import hash_password
 KNOWN_ALLERGENS = {"milk", "peanuts", "egg", "wheat", "soy", "fish", "shellfish", "tree nuts", "sesame", "mustard"}
 
 def apply_menu_fallbacks(menu_items: list) -> list:
-    """Apply fallbacks to menu items to ensure all required fields exist."""
+    """Apply fallbacks to menu items to ensure all required fields exist with new structure."""
     def infer_allergens(ingredients):
         """Infer allergens from ingredients list."""
         if not ingredients:
@@ -30,43 +30,98 @@ def apply_menu_fallbacks(menu_items: list) -> list:
                 print(f"Warning: Unexpected item type: {type(item)}")
                 continue
             
-            # Apply fallbacks for all required fields
-            item_dict["name"] = item_dict.get("name") or item_dict.get("dish", "Unknown Dish")
-            item_dict["price"] = item_dict.get("price") or "Price not available"
-            item_dict["ingredients"] = item_dict.get("ingredients") or ["Not specified"]
-            item_dict["description"] = item_dict.get("description") or "No description provided"
+            # Apply new structure with backward compatibility
+            processed_item = {}
+            
+            # Required fields with fallbacks
+            processed_item["title"] = (
+                item_dict.get("title") or 
+                item_dict.get("dish") or 
+                item_dict.get("name") or 
+                "Unknown Dish"
+            )
+            
+            processed_item["description"] = (
+                item_dict.get("description") or 
+                "No description provided"
+            )
+            
+            processed_item["price"] = str(
+                item_dict.get("price") or "N/A"
+            )
+            
+            # Optional fields with safe defaults
+            processed_item["info"] = item_dict.get("info")
+            processed_item["category"] = item_dict.get("category")
+            processed_item["subcategory"] = item_dict.get("subcategory")
+            processed_item["area"] = item_dict.get("area")
+            
+            # Handle ingredients - ensure it's a list
+            ingredients = item_dict.get("ingredients", [])
+            if isinstance(ingredients, str):
+                processed_item["ingredients"] = [ingredients] if ingredients else []
+            else:
+                processed_item["ingredients"] = ingredients or []
             
             # Handle allergens with inference
-            if not item_dict.get("allergens"):
-                inferred = infer_allergens(item_dict["ingredients"])
-                item_dict["allergens"] = inferred if inferred else []
+            allergens = item_dict.get("allergens", [])
+            if isinstance(allergens, str):
+                allergens = [allergens] if allergens else []
             
-            fallback_items.append(item_dict)
+            if not allergens:
+                inferred = infer_allergens(processed_item["ingredients"])
+                processed_item["allergens"] = inferred if inferred else []
+            else:
+                processed_item["allergens"] = allergens
+            
+            # Keep legacy fields for backward compatibility
+            if item_dict.get("dish"):
+                processed_item["dish"] = item_dict["dish"]
+            if item_dict.get("name"):
+                processed_item["name"] = item_dict["name"]
+            
+            fallback_items.append(processed_item)
             
         except Exception as e:
             print(f"Error processing menu item {item}: {e}")
             # Add a minimal fallback item to prevent complete failure
             fallback_items.append({
-                "name": "Menu Item (Error)",
-                "price": "Unknown",
-                "ingredients": ["Not available"],
+                "title": "Menu Item (Error)",
                 "description": "Unable to process item details",
+                "price": "N/A",
+                "info": None,
+                "category": None,
+                "subcategory": None,
+                "area": None,
+                "ingredients": [],
                 "allergens": []
             })
     
     return fallback_items
 
 def validate_menu_data(menu_items: list) -> bool:
-    """Validate that all menu items have required fields."""
-    required_fields = ['name', 'ingredients', 'description', 'price', 'allergens']
+    """Validate that all menu items have required fields for new structure."""
+    required_fields = ['title', 'description', 'price']
     
     for i, item in enumerate(menu_items):
         if not isinstance(item, dict):
             raise ValueError(f"Menu item {i} is not a dictionary: {item}")
         
-        missing_fields = [field for field in required_fields if field not in item]
+        missing_fields = [field for field in required_fields if not item.get(field)]
         if missing_fields:
             raise ValueError(f"Menu item {i} missing required fields: {missing_fields}")
+        
+        # Validate category if provided
+        if item.get('category'):
+            valid_categories = ["Breakfast", "Brunch", "Lunch", "Dinner", "Cocktail/Drink List"]
+            if item['category'] not in valid_categories:
+                raise ValueError(f"Menu item {i} has invalid category: {item['category']}")
+        
+        # Validate subcategory if provided
+        if item.get('subcategory'):
+            valid_subcategories = ["starter", "main", "dessert"]
+            if item['subcategory'] not in valid_subcategories:
+                raise ValueError(f"Menu item {i} has invalid subcategory: {item['subcategory']}")
     
     return True
 
@@ -77,6 +132,7 @@ def create_restaurant_service(req: RestaurantCreateRequest, db: Session):
     - Password hashing
     - Database insert
     - Pinecone update
+    - New menu structure with backward compatibility
     """
     # Check if restaurant already exists
     existing_restaurant = db.query(models.Restaurant).filter(
@@ -99,7 +155,7 @@ def create_restaurant_service(req: RestaurantCreateRequest, db: Session):
             data["menu"] = apply_menu_fallbacks(data["menu"])
             # Validate the processed menu
             validate_menu_data(data["menu"])
-            print(f"Successfully processed {len(data['menu'])} menu items")
+            print(f"Successfully processed {len(data['menu'])} menu items with new structure")
         except Exception as e:
             print(f"Error processing menu data: {e}")
             raise HTTPException(

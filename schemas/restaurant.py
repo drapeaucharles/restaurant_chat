@@ -1,13 +1,100 @@
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field, validator, root_validator
+from typing import List, Optional, Union
 
 class MenuItem(BaseModel):
-    dish: str
-    price: Optional[str] = None
-    ingredients: Optional[List[str]] = None
-    description: Optional[str] = None
-    allergens: Optional[List[str]] = None
-    name: Optional[str] = None  # Allow both 'dish' and 'name' for flexibility
+    # Required fields
+    title: str = Field(..., description="Name/title of the dish or drink")
+    description: str = Field(..., description="Description of the dish or drink")
+    price: str = Field(..., description="Price as string (e.g., '120K IDR', 'AED 65')")
+    
+    # Optional fields with validation
+    info: Optional[str] = Field(None, description="Additional info like pairing tips or origin details")
+    category: Optional[str] = Field(None, description="Menu category")
+    subcategory: Optional[str] = Field(None, description="Menu subcategory")
+    area: Optional[str] = Field(None, description="Restaurant area (e.g., 'Poolside', 'Rooftop')")
+    ingredients: Optional[List[str]] = Field(default_factory=list, description="List of ingredients")
+    allergens: Optional[List[str]] = Field(default_factory=list, description="List of allergens")
+    
+    # Legacy fields for backward compatibility
+    dish: Optional[str] = Field(None, description="Legacy field - mapped to title")
+    name: Optional[str] = Field(None, description="Legacy field - mapped to title")
+    
+    @root_validator(pre=True)
+    def handle_legacy_fields(cls, values):
+        """Handle legacy field mapping before validation."""
+        # If title is not provided, try to get it from legacy fields
+        if not values.get('title'):
+            title = values.get('dish') or values.get('name')
+            if title:
+                values['title'] = title
+        
+        # Ensure required fields have defaults
+        if not values.get('description'):
+            values['description'] = 'No description provided'
+        
+        if not values.get('price'):
+            values['price'] = 'N/A'
+        
+        return values
+    
+    @validator('category')
+    def validate_category(cls, v):
+        if v is not None:
+            valid_categories = ["Breakfast", "Brunch", "Lunch", "Dinner", "Cocktail/Drink List"]
+            if v not in valid_categories:
+                raise ValueError(f"Category must be one of: {valid_categories}")
+        return v
+    
+    @validator('subcategory')
+    def validate_subcategory(cls, v):
+        if v is not None:
+            valid_subcategories = ["starter", "main", "dessert"]
+            if v not in valid_subcategories:
+                raise ValueError(f"Subcategory must be one of: {valid_subcategories}")
+        return v
+    
+    @validator('price', pre=True, always=True)
+    def ensure_price_string(cls, v):
+        if v is None:
+            return "N/A"
+        return str(v)
+    
+    @validator('allergens', pre=True, always=True)
+    def ensure_allergens_list(cls, v):
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [v] if v else []
+        return v
+    
+    @validator('ingredients', pre=True, always=True)
+    def ensure_ingredients_list(cls, v):
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [v] if v else []
+        return v
+    
+    class Config:
+        # Allow extra fields for backward compatibility
+        extra = "allow"
+        
+        # Example for documentation
+        json_schema_extra = {
+            "example": {
+                "title": "Buffalo Ribeye",
+                "description": "Grilled buffalo ribeye served with chimichurri and seasonal vegetables.",
+                "info": "Pairs well with Malbec. Grass-fed from New Zealand.",
+                "category": "Dinner",
+                "subcategory": "main",
+                "price": "320K IDR",
+                "area": "Main Dining",
+                "ingredients": [
+                    "Buffalo ribeye", "chimichurri", "seasonal vegetables", "olive oil", "garlic"
+                ],
+                "allergens": ["none"]
+            }
+        }
 
 class FAQItem(BaseModel):
     question: str
