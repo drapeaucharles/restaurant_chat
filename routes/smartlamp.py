@@ -1,7 +1,7 @@
 """
 Smart Lamp audio routes for handling voice interactions.
 """
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 import openai
 import tempfile
@@ -101,29 +101,30 @@ def parse_txt_to_wav(txt_content: str) -> bytes:
 
 @router.post("/smartlamp/audio")
 async def smartlamp_audio(
-    file: UploadFile = File(...),
-    client_id: str = Form(...),
-    restaurant_id: str = Form(...),
+    request: Request,
+    client_id: str = Query(..., description="Client ID for the smart lamp"),
+    restaurant_id: str = Query(..., description="Restaurant ID"),
     db: Session = Depends(get_db)
 ):
     """
-    Handle Smart Lamp audio input:
-    - Accept .txt files with audio samples from ESP32 (convert to WAV)
-    - Accept existing audio files (mp3, wav, etc.)
+    Handle Smart Lamp audio input with simplified interface for ESP32:
+    - Accept client_id and restaurant_id as query parameters
+    - Accept audio data as plain text in request body (Content-Type: text/plain)
+    - Process text with audio samples (convert to WAV) or handle as needed
     
     Processing pipeline:
-    1. Transcribe audio using OpenAI Whisper
-    2. Save transcript as client message to ChatMessage table
-    3. Send transcript to OpenAI ChatCompletion
-    4. Save AI response as assistant message to ChatMessage table
-    5. Convert response to speech using ElevenLabs TTS
-    6. Return audio stream (mp3) to the smart lamp
+    1. Parse text body with audio samples and convert to WAV
+    2. Transcribe audio using OpenAI Whisper
+    3. Save transcript as client message to ChatMessage table
+    4. Send transcript to OpenAI ChatCompletion
+    5. Save AI response as assistant message to ChatMessage table
+    6. Convert response to speech using ElevenLabs TTS
+    7. Return audio stream (mp3) to the smart lamp
     
     This endpoint saves conversations to the database like WhatsApp integration.
     """
     
     print(f"\n🔊 ===== SMART LAMP AUDIO ENDPOINT CALLED =====")
-    print(f"📁 File: {file.filename}, Content-Type: {file.content_type}")
     print(f"👤 Client ID: {client_id}")
     print(f"🏪 Restaurant ID: {restaurant_id}")
     
@@ -142,55 +143,33 @@ async def smartlamp_audio(
     client = get_or_create_client(db, client_id, restaurant_id)
     print(f"✅ Client ensured: {client.id}")
     
-    # Read file content
-    content = await file.read()
-    file_extension = os.path.splitext(file.filename or '')[1].lower()
+    # Read request body as text
+    try:
+        body_bytes = await request.body()
+        txt_content = body_bytes.decode('utf-8')
+        print(f"📄 Received text body: {len(txt_content)} characters")
+        print(f"📄 First 100 chars: {txt_content[:100]}...")
+    except Exception as e:
+        print(f"❌ Error reading request body: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to read request body: {str(e)}")
     
-    # Handle .txt files with audio samples
-    if file_extension == '.txt' or (file.content_type and 'text' in file.content_type):
-        print("📝 Processing .txt file with audio samples...")
-        
-        try:
-            # Decode text content
-            txt_content = content.decode('utf-8')
-            
-            # Convert txt samples to WAV
-            wav_bytes = parse_txt_to_wav(txt_content)
-            
-            # Save WAV to temporary file for Whisper
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
-                temp_file.write(wav_bytes)
-                temp_file_path = temp_file.name
-            
-            print(f"💾 Saved converted WAV file temporarily: {temp_file_path}")
-            
-        except Exception as e:
-            print(f"❌ Error processing .txt file: {str(e)}")
-            raise HTTPException(status_code=400, detail=f"Failed to process .txt file: {str(e)}")
+    # Process the text content as audio samples
+    print("📝 Processing text content with audio samples...")
     
-    else:
-        # Handle existing audio files
-        print("🎵 Processing audio file...")
+    try:
+        # Convert txt samples to WAV
+        wav_bytes = parse_txt_to_wav(txt_content)
         
-        # Validate audio file
-        if not file.content_type or not file.content_type.startswith('audio/'):
-            raise HTTPException(status_code=400, detail="File must be an audio file or .txt file with audio samples")
-        
-        # Supported audio formats for Whisper
-        supported_formats = ['.mp3', '.mp4', '.mpeg', '.mpga', '.m4a', '.wav', '.webm', '.ogg']
-        
-        if file_extension not in supported_formats:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Unsupported audio format. Supported formats: {', '.join(supported_formats)} or .txt"
-            )
-        
-        # Save uploaded audio file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as temp_file:
-            temp_file.write(content)
+        # Save WAV to temporary file for Whisper
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_file:
+            temp_file.write(wav_bytes)
             temp_file_path = temp_file.name
         
-        print(f"💾 Saved audio file temporarily: {temp_file_path}")
+        print(f"💾 Saved converted WAV file temporarily: {temp_file_path}")
+        
+    except Exception as e:
+        print(f"❌ Error processing text content: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to process text content: {str(e)}")
     
     transcript = ""
     ai_response = ""
