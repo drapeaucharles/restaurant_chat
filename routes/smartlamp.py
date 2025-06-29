@@ -11,6 +11,7 @@ import io
 import wave
 import struct
 import uuid
+import hashlib
 from typing import Generator
 from sqlalchemy.orm import Session
 from fastapi import Depends
@@ -21,6 +22,18 @@ import models
 from services.chat_service import get_or_create_client
 
 router = APIRouter(tags=["smartlamp"])
+
+
+def generate_client_id_from_lamp_id(lamp_id: str) -> str:
+    """
+    Generate a consistent client ID from smart lamp identifier.
+    This ensures the same lamp_id always gets the same client UUID.
+    Similar to WhatsApp's phone number to UUID conversion.
+    """
+    # Create a deterministic UUID from lamp identifier
+    namespace = uuid.UUID('6ba7b810-9dad-11d1-80b4-00c04fd430c8')  # Standard namespace UUID
+    client_uuid = uuid.uuid5(namespace, f"smartlamp:{lamp_id}")
+    return str(client_uuid)
 
 
 def parse_txt_to_wav(txt_content: str) -> bytes:
@@ -102,7 +115,7 @@ def parse_txt_to_wav(txt_content: str) -> bytes:
 @router.post("/smartlamp/audio")
 async def smartlamp_audio(
     request: Request,
-    client_id: str = Query(..., description="Client ID for the smart lamp"),
+    client_id: str = Query(..., description="Smart lamp identifier (will be converted to UUID)"),
     restaurant_id: str = Query(..., description="Restaurant ID"),
     db: Session = Depends(get_db)
 ):
@@ -125,7 +138,7 @@ async def smartlamp_audio(
     """
     
     print(f"\n🔊 ===== SMART LAMP AUDIO ENDPOINT CALLED =====")
-    print(f"👤 Client ID: {client_id}")
+    print(f"👤 Client ID (lamp): {client_id}")
     print(f"🏪 Restaurant ID: {restaurant_id}")
     
     # Validate restaurant exists
@@ -134,13 +147,17 @@ async def smartlamp_audio(
     ).first()
     if not restaurant:
         print(f"❌ Restaurant not found: {restaurant_id}")
-        raise HTTPException(status_code=404, detail=f"Restaurant {restaurant_id} not found")
+        raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found. Please check the restaurant_id parameter.")
     
     print(f"✅ Restaurant found: {restaurant.restaurant_id}")
     
+    # Generate consistent UUID from lamp identifier
+    client_uuid = generate_client_id_from_lamp_id(client_id)
+    print(f"🔄 Generated client UUID from '{client_id}': {client_uuid}")
+    
     # Ensure client exists
     print(f"👤 Ensuring client exists...")
-    client = get_or_create_client(db, client_id, restaurant_id)
+    client = get_or_create_client(db, client_uuid, restaurant_id)
     print(f"✅ Client ensured: {client.id}")
     
     # Read request body as text
@@ -194,7 +211,7 @@ async def smartlamp_audio(
         
         client_message = models.ChatMessage(
             restaurant_id=restaurant_id,
-            client_id=uuid.UUID(client_id),
+            client_id=uuid.UUID(client_uuid),  # Use the generated UUID
             sender_type="client",
             message=transcript
         )
@@ -235,7 +252,7 @@ async def smartlamp_audio(
         
         assistant_message = models.ChatMessage(
             restaurant_id=restaurant_id,
-            client_id=uuid.UUID(client_id),
+            client_id=uuid.UUID(client_uuid),  # Use the generated UUID
             sender_type="assistant",
             message=ai_response
         )
