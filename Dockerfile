@@ -4,9 +4,9 @@ FROM python:3.12-slim
 # Force cache busting
 ARG CACHEBUST=1
 
-# Install required tools & Node.js + WhatsApp deps
+# Install required tools & Node.js + WhatsApp deps + ffmpeg
 RUN apt-get update && \
-    apt-get install -y curl gnupg build-essential git \
+    apt-get install -y curl gnupg build-essential git ffmpeg \
     libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 libxss1 libasound2 libatk-bridge2.0-0 libgtk-3-0 && \
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
