@@ -15,6 +15,7 @@ import hashlib
 from typing import Generator, Dict, List
 from sqlalchemy.orm import Session
 from fastapi import Depends
+from pydub import AudioSegment
 
 # Import database and models
 from database import get_db
@@ -121,6 +122,40 @@ def parse_txt_to_wav(txt_content: str) -> bytes:
     return wav_bytes
 
 
+def convert_mp3_to_wav(mp3_data: bytes) -> bytes:
+    """
+    Convert MP3 data to 16kHz mono 16-bit WAV format.
+    
+    Args:
+        mp3_data: Raw MP3 audio data as bytes
+        
+    Returns:
+        WAV audio data as bytes in 16kHz mono 16-bit format
+    """
+    try:
+        # Load MP3 data into AudioSegment
+        audio = AudioSegment.from_mp3(io.BytesIO(mp3_data))
+        
+        # Convert to 16kHz mono 16-bit
+        audio = audio.set_frame_rate(16000)  # 16kHz sample rate
+        audio = audio.set_channels(1)        # Mono
+        audio = audio.set_sample_width(2)    # 16-bit (2 bytes per sample)
+        
+        # Export to WAV format in memory
+        wav_buffer = io.BytesIO()
+        audio.export(wav_buffer, format="wav")
+        wav_buffer.seek(0)
+        wav_data = wav_buffer.getvalue()
+        
+        print(f"✅ Converted MP3 to WAV: {len(mp3_data)} bytes MP3 -> {len(wav_data)} bytes WAV (16kHz mono 16-bit)")
+        
+        return wav_data
+        
+    except Exception as e:
+        print(f"❌ Error converting MP3 to WAV: {str(e)}")
+        raise
+
+
 @router.post("/smartlamp/audio")
 async def smartlamp_audio(
     request: Request,
@@ -141,7 +176,7 @@ async def smartlamp_audio(
     2. Server accumulates chunks in memory
     3. ESP32 sends final chunk with finish=True
     4. Server concatenates all chunks and processes complete audio data
-    5. Server clears chunk storage and returns MP3 response
+    5. Server clears chunk storage and returns WAV response
     
     Processing pipeline (when finish=True):
     1. Concatenate all chunks in order
@@ -150,8 +185,9 @@ async def smartlamp_audio(
     4. Save transcript as client message to ChatMessage table
     5. Send transcript to OpenAI ChatCompletion
     6. Save AI response as assistant message to ChatMessage table
-    7. Convert response to speech using ElevenLabs TTS
-    8. Return audio stream (mp3) to the smart lamp
+    7. Convert response to speech using ElevenLabs TTS (MP3)
+    8. Convert MP3 to 16kHz mono 16-bit WAV format
+    9. Return WAV audio stream to the smart lamp
     
     This endpoint saves conversations to the database like WhatsApp integration.
     """
@@ -357,19 +393,32 @@ async def smartlamp_audio(
                 print(f"❌ ElevenLabs TTS failed: {tts_response.status_code} - {tts_response.text}")
                 raise HTTPException(status_code=500, detail="Text-to-speech conversion failed")
             
-            print("✅ TTS conversion successful, streaming audio response...")
+            print("✅ TTS conversion successful, converting MP3 to WAV and streaming audio response...")
             
-            # Step 6: Stream the audio response back to the smart lamp
-            def generate_audio() -> Generator[bytes, None, None]:
+            # Step 6: Convert MP3 stream to WAV and stream back to the smart lamp
+            def generate_wav_audio() -> Generator[bytes, None, None]:
+                # First, collect all MP3 data from ElevenLabs
+                mp3_data = b""
                 for chunk in tts_response.iter_content(chunk_size=1024):
                     if chunk:
-                        yield chunk
+                        mp3_data += chunk
+                
+                print(f"📥 Collected {len(mp3_data)} bytes of MP3 data from ElevenLabs")
+                
+                # Convert MP3 to WAV
+                wav_data = convert_mp3_to_wav(mp3_data)
+                
+                # Stream WAV data in chunks
+                chunk_size = 1024
+                for i in range(0, len(wav_data), chunk_size):
+                    chunk = wav_data[i:i + chunk_size]
+                    yield chunk
             
             return StreamingResponse(
-                generate_audio(),
-                media_type="audio/mpeg",
+                generate_wav_audio(),
+                media_type="audio/wav",
                 headers={
-                    "Content-Disposition": "attachment; filename=response.mp3",
+                    "Content-Disposition": "attachment; filename=response.wav",
                     "Cache-Control": "no-cache"
                 }
             )
@@ -397,23 +446,4 @@ async def smartlamp_audio(
         
         print(f"❌ Error processing chunked upload: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Chunked upload processing failed: {str(e)}")
-
-
-@router.get("/smartlamp/status")
-async def smartlamp_status():
-    """
-    Get status of chunked uploads for debugging.
-    Returns information about active chunk storage sessions.
-    """
-    return {
-        "active_sessions": len(chunk_storage),
-        "sessions": {
-            session_key: {
-                "chunks_count": len(chunks),
-                "chunk_numbers": sorted(chunks.keys()),
-                "total_size": sum(len(chunk_data) for chunk_data in chunks.values())
-            }
-            for session_key, chunks in chunk_storage.items()
-        }
-    }
 
