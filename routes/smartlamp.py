@@ -122,17 +122,25 @@ def parse_txt_to_wav(txt_content: str) -> bytes:
     return wav_bytes
 
 
-def convert_mp3_to_wav(mp3_data: bytes) -> bytes:
+def convert_mp3_to_wav_streaming(mp3_response) -> bytes:
     """
-    Convert MP3 data to 16kHz mono 16-bit WAV format.
+    Convert MP3 stream to 16kHz mono 16-bit WAV format.
     
     Args:
-        mp3_data: Raw MP3 audio data as bytes
+        mp3_response: Response object with MP3 stream
         
     Returns:
         WAV audio data as bytes in 16kHz mono 16-bit format
     """
     try:
+        # Collect MP3 data from the stream
+        mp3_data = b""
+        for chunk in mp3_response.iter_content(chunk_size=1024):
+            if chunk:
+                mp3_data += chunk
+        
+        print(f"📥 Collected {len(mp3_data)} bytes of MP3 data from ElevenLabs")
+        
         # Load MP3 data into AudioSegment
         audio = AudioSegment.from_mp3(io.BytesIO(mp3_data))
         
@@ -395,33 +403,30 @@ async def smartlamp_audio(
             
             print("✅ TTS conversion successful, converting MP3 to WAV and streaming audio response...")
             
-            # Step 6: Convert MP3 stream to WAV and stream back to the smart lamp
-            def generate_wav_audio() -> Generator[bytes, None, None]:
-                # First, collect all MP3 data from ElevenLabs
-                mp3_data = b""
-                for chunk in tts_response.iter_content(chunk_size=1024):
-                    if chunk:
-                        mp3_data += chunk
+            # Step 6: Convert MP3 to WAV and stream back to the smart lamp
+            try:
+                # Convert the entire MP3 response to WAV
+                wav_data = convert_mp3_to_wav_streaming(tts_response)
                 
-                print(f"📥 Collected {len(mp3_data)} bytes of MP3 data from ElevenLabs")
+                # Create generator to stream WAV data in chunks
+                def generate_wav_audio() -> Generator[bytes, None, None]:
+                    chunk_size = 1024
+                    for i in range(0, len(wav_data), chunk_size):
+                        chunk = wav_data[i:i + chunk_size]
+                        yield chunk
                 
-                # Convert MP3 to WAV
-                wav_data = convert_mp3_to_wav(mp3_data)
+                return StreamingResponse(
+                    generate_wav_audio(),
+                    media_type="audio/wav",
+                    headers={
+                        "Content-Disposition": "attachment; filename=response.wav",
+                        "Cache-Control": "no-cache"
+                    }
+                )
                 
-                # Stream WAV data in chunks
-                chunk_size = 1024
-                for i in range(0, len(wav_data), chunk_size):
-                    chunk = wav_data[i:i + chunk_size]
-                    yield chunk
-            
-            return StreamingResponse(
-                generate_wav_audio(),
-                media_type="audio/wav",
-                headers={
-                    "Content-Disposition": "attachment; filename=response.wav",
-                    "Cache-Control": "no-cache"
-                }
-            )
+            except Exception as e:
+                print(f"❌ Error converting MP3 to WAV: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"MP3 to WAV conversion failed: {str(e)}")
             
         except Exception as e:
             print(f"❌ Error in Smart Lamp audio processing: {str(e)}")
