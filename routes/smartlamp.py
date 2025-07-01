@@ -50,14 +50,34 @@ def parse_txt_to_wav(txt_content: str) -> bytes:
     """
     Parse .txt file with audio samples and convert to 16-bit mono 16kHz WAV.
     
-    Expected format:
+    Supports two formats:
+    
+    1. Original newline-separated format:
     --- START OF RECORDING ---
     2198
     1950
     1598
     ...
     === END OF DATA ===
+    
+    2. New comma-separated format (more memory efficient):
+    START
+    2198,1950,1598,...
+    END
     """
+    # Detect format based on markers
+    if "--- START OF RECORDING ---" in txt_content and "=== END OF DATA ===" in txt_content:
+        print("📝 Detected original newline-separated format")
+        return parse_newline_format(txt_content)
+    elif "START" in txt_content and "END" in txt_content:
+        print("📝 Detected new comma-separated format")
+        return parse_comma_format(txt_content)
+    else:
+        raise ValueError("Could not detect valid format markers in audio data")
+
+
+def parse_newline_format(txt_content: str) -> bytes:
+    """Parse original newline-separated format"""
     lines = txt_content.strip().split('\n')
     
     # Find start and end markers
@@ -95,8 +115,58 @@ def parse_txt_to_wav(txt_content: str) -> bytes:
     if not samples:
         raise ValueError("No valid audio samples found in txt file")
     
-    print(f"📊 Parsed {len(samples)} audio samples from txt file")
+    print(f"📊 Parsed {len(samples)} audio samples from newline-separated format")
     
+    return create_wav_from_samples(samples)
+
+
+def parse_comma_format(txt_content: str) -> bytes:
+    """Parse new comma-separated format (more memory efficient)"""
+    lines = txt_content.strip().split('\n')
+    
+    # Find start and end markers
+    data_lines = []
+    in_data_section = False
+    
+    for line in lines:
+        line = line.strip()
+        if line == "START":
+            in_data_section = True
+            continue
+        elif line == "END":
+            in_data_section = False
+            break
+        elif in_data_section and line:
+            data_lines.append(line)
+    
+    if not data_lines:
+        raise ValueError("No data lines found between START and END markers")
+    
+    # Extract and parse sample values from comma-separated lines
+    samples = []
+    for line in data_lines:
+        # Split by comma and parse each value
+        for value in line.split(','):
+            if value.strip():  # Skip empty values
+                try:
+                    sample = int(value.strip())
+                    # Clamp to 16-bit signed integer range
+                    sample = max(-32768, min(32767, sample))
+                    samples.append(sample)
+                except ValueError:
+                    print(f"⚠️ Skipping invalid sample value: '{value}'")
+                    continue
+    
+    if not samples:
+        raise ValueError("No valid audio samples found in comma-separated format")
+    
+    print(f"📊 Parsed {len(samples)} audio samples from comma-separated format")
+    
+    return create_wav_from_samples(samples)
+
+
+def create_wav_from_samples(samples: list) -> bytes:
+    """Create WAV file from audio samples"""
     # Create WAV file in memory
     wav_buffer = io.BytesIO()
     
