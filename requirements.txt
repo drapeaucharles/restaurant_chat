@@ -12,4 +12,7 @@ python-multipart
 pydantic[email]
 slowapi
 requests
-pydub 
+pydub
+fastapi[websockets]
+websockets
+numpy
