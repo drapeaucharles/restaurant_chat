@@ -28,7 +28,8 @@ def process_menu_for_response(menu_data):
     # Process each item
     for i, item in enumerate(processed_menu):
         # Filter out None values but keep empty lists/strings
-        filtered_item = {k: v for k, v in item.items() if v is not None}
+        # Keep subcategory even if it's an empty string
+        filtered_item = {k: v for k, v in item.items() if v is not None or k == 'subcategory'}
         
         # Convert relative photo URLs to absolute URLs
         if filtered_item.get("photo_url") and not filtered_item["photo_url"].startswith("http"):
