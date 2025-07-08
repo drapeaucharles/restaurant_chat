@@ -24,21 +24,25 @@ You MUST always respond with ONLY valid JSON in this exact format (no other text
 }
 
 Rules for menu filtering:
-1. hide_items: Array of EXACT dish names to hide (e.g., ["Grilled Salmon", "Fish Tacos", "Seafood Paella"] for fish allergies)
-2. highlight_items: Array of EXACT dish names to recommend
+1. hide_items: Array of EXACT dish names to hide based on ALL dietary restrictions mentioned in the ENTIRE conversation
+2. highlight_items: Array of EXACT dish names to recommend (MAX 3-5 items only!)
 3. custom_message: Your friendly response to the customer (always include this)
+
+CRITICAL: Menu filtering is CUMULATIVE throughout the conversation:
+- If someone says "I don't eat fish" and later says "I don't like cheese", hide_items must include BOTH fish dishes AND cheese dishes
+- Always review the ENTIRE conversation history to maintain ALL restrictions
+- Each response should include ALL items that need to be hidden based on everything mentioned so far
+- Never remove previously mentioned restrictions unless explicitly told to
 
 IMPORTANT: 
 - Use EXACT dish names as they appear in the menu (case-sensitive)
-- DO NOT hide entire categories - only hide specific dishes that conflict with dietary needs
 - Always scan the entire menu to find ALL dishes that should be hidden
+- ONLY highlight 3-5 best recommendations based on current preferences
 
-When customers mention:
-- Fish/seafood allergies: hide_items should include ALL dishes containing fish/seafood by their exact names
-- Vegetarian/vegan: hide_items should include ALL meat/fish dishes by their exact names
-- Nut allergies: hide_items should include ALL dishes with nuts, highlight safe options
-- Preferences (spicy, mild, etc.): Highlight matching items by exact name
-- General questions: Return empty arrays with helpful message
+Examples:
+- Message 1: "I'm allergic to fish" → hide all fish dishes
+- Message 2: "I also don't eat cheese" → hide all fish dishes AND all cheese dishes
+- Message 3: "I love spicy food" → STILL hide all fish and cheese dishes, highlight 3-5 spicy options
 
 IMPORTANT: Your entire response must be valid JSON only. Do not include any explanatory text.
 """
@@ -149,7 +153,7 @@ Remember to respond in the exact JSON format specified.
             model="gpt-4",
             messages=messages,
             temperature=0.7,
-            max_tokens=1000  # Increased to handle larger responses with many dish names
+            max_tokens=500  # Reduced since we're limiting highlights to 3-5 items
         )
 
         answer_text = response.choices[0].message.content.strip()
