@@ -11,6 +11,7 @@ import models
 from schemas.chat import ChatRequest, ChatResponse
 from schemas.client import ClientCreateRequest
 from services.chat_service import chat_service
+from services.structured_chat_service import structured_chat_service
 from services.client_service import create_or_update_client_service
 
 router = APIRouter(tags=["chat"])
@@ -61,8 +62,13 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     db.refresh(client_message)
     print(f"✅ Client message saved: ID={client_message.id}, sender_type='{client_message.sender_type}'")
     
-    # Call chat service for AI response (if appropriate)
-    result = chat_service(req, db)
+    # Call appropriate chat service based on structured_response flag
+    if getattr(req, 'structured_response', False):
+        print(f"📊 Using structured chat service")
+        result = structured_chat_service(req, db)
+    else:
+        print(f"💬 Using regular chat service")
+        result = chat_service(req, db)
     
     # 🔧 NEW FIX: If this is a restaurant message and client has phone number, forward to WhatsApp
     if req.sender_type == "restaurant":

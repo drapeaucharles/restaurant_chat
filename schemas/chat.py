@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import uuid
 from datetime import datetime
 from pydantic import BaseModel
@@ -10,9 +10,16 @@ class ChatRequest(BaseModel):
     client_id: uuid.UUID
     message: str
     sender_type: Optional[str] = 'client'  # ✅ FIXED: Add sender_type with default
+    structured_response: Optional[bool] = False  # Flag to request structured response
+
+class MenuUpdate(BaseModel):
+    hide_categories: Optional[List[str]] = []
+    highlight_items: Optional[List[str]] = []
+    custom_message: str
 
 class ChatResponse(BaseModel):
     answer: str
+    menu_update: Optional[MenuUpdate] = None
 
 class ChatMessageCreate(BaseModel):
     restaurant_id: str
