@@ -92,11 +92,21 @@ def update_bella_vista_subcategories(
             else:
                 item['subcategory'] = 'main'
     
-    # Update restaurant data
+    # Update restaurant data - Force SQLAlchemy to detect changes
     data['menu'] = menu_items
-    restaurant.data = data
+    
+    # Force update by creating a new dict
+    new_data = dict(restaurant.data)
+    new_data['menu'] = menu_items
+    restaurant.data = new_data
+    
+    # Mark as modified
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(restaurant, 'data')
+    
     db.add(restaurant)
     db.commit()
+    db.refresh(restaurant)
     
     # Generate summary
     summary = {}
