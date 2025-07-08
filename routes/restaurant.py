@@ -3,16 +3,18 @@ Restaurant-related routes and endpoints.
 """
 
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
+import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from auth import get_current_restaurant, get_current_owner, ACCESS_TOKEN_EXPIRE_MINUTES
 from database import get_db
 import models
-from schemas.restaurant import RestaurantUpdateRequest, RestaurantProfileUpdate
+from schemas.restaurant import RestaurantUpdateRequest, RestaurantProfileUpdate, MenuItem
 from services.restaurant_service import apply_menu_fallbacks
+from services.file_service import save_upload_file, delete_upload_file
 
 
 def process_menu_for_response(menu_data):
@@ -160,6 +162,80 @@ def update_restaurant_profile_new(
     db.refresh(current_owner)
     
     return {"success": True}
+
+
+@router.put("/profile/multipart")
+async def update_restaurant_profile_multipart(
+    restaurant_data: str = Form(...),
+    current_owner: models.Restaurant = Depends(get_current_owner),
+    db: Session = Depends(get_db),
+    menu_photo_0: Optional[UploadFile] = File(None),
+    menu_photo_1: Optional[UploadFile] = File(None),
+    menu_photo_2: Optional[UploadFile] = File(None),
+    menu_photo_3: Optional[UploadFile] = File(None),
+    menu_photo_4: Optional[UploadFile] = File(None),
+    menu_photo_5: Optional[UploadFile] = File(None),
+    menu_photo_6: Optional[UploadFile] = File(None),
+    menu_photo_7: Optional[UploadFile] = File(None),
+    menu_photo_8: Optional[UploadFile] = File(None),
+    menu_photo_9: Optional[UploadFile] = File(None),
+):
+    """
+    Update restaurant profile with multipart/form-data support for image uploads.
+    Accepts up to 10 menu item photos.
+    """
+    try:
+        # Parse the JSON data
+        data = json.loads(restaurant_data)
+        restaurant_info = data.get("restaurant_data", {})
+        
+        # Collect all menu photos
+        menu_photos = [
+            menu_photo_0, menu_photo_1, menu_photo_2, menu_photo_3, menu_photo_4,
+            menu_photo_5, menu_photo_6, menu_photo_7, menu_photo_8, menu_photo_9
+        ]
+        
+        # Process menu items and upload photos
+        menu_items = restaurant_info.get("menu", [])
+        for idx, menu_item in enumerate(menu_items):
+            if idx < len(menu_photos) and menu_photos[idx] is not None:
+                # Delete old photo if exists
+                if "photo_url" in menu_item and menu_item["photo_url"]:
+                    delete_upload_file(menu_item["photo_url"])
+                
+                # Save new photo
+                photo_url = await save_upload_file(menu_photos[idx], "menu")
+                menu_item["photo_url"] = photo_url
+        
+        # Apply menu fallbacks
+        processed_menu = apply_menu_fallbacks(menu_items)
+        
+        # Prepare the data dictionary for the restaurant
+        updated_data = {
+            "name": restaurant_info.get("name"),
+            "story": restaurant_info.get("story"),
+            "menu": processed_menu,
+            "faq": restaurant_info.get("faq", []),
+            "opening_hours": restaurant_info.get("opening_hours"),
+        }
+        
+        # Update the restaurant data
+        current_owner.data = updated_data
+        
+        # Update WhatsApp number if provided
+        if restaurant_info.get("whatsapp_number"):
+            current_owner.whatsapp_number = restaurant_info["whatsapp_number"]
+        
+        # Commit changes to database
+        db.commit()
+        db.refresh(current_owner)
+        
+        return {"success": True}
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON data")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/delete")

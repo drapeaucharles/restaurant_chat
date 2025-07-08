@@ -1,23 +1,65 @@
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Testing
+test_*.py
 test.py
-back-end.zip
-Front-End.zip
-Back_end.zip
-FRONT_END.zip
-OLD.zip
-backend.zip
-FINAL_VERIFICATION_REPORT.zip
-FINAL_VERIFICATION_REPORT (2).zip
-FINAL.zip
-whatsapp-service.zip
-FULL.zip
-whatsapp-service/server_OLD
-schemas.zip
-FRONT_END_V1.zip
-BACK_END_V1.zip
-BACK_END_V1_1.zip
-whatsapp-service/server_OLD.js
-BACK_END_V1_2.zip
-BACKENDV1_3.zip
-Back_end_v15.zip
-Front_end_v15.zip
+
+# Backup files
+*.bak
+*_old.*
+*.old
+server_OLD
+server_OLD.js
+
+# Archive files
+*.zip
+
+# Temporary files
+*.tmp
+*.temp
+sandbox.*
+
+# Windows WSL artifacts
+*:Zone.Identifier
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Arduino files
+*.ino
+
+# Migration scripts (if you want to keep them, remove these lines)
+migrate_*.py
+
+# Uploaded files
+uploads/
+!uploads/.gitkeep

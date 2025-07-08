@@ -3,8 +3,10 @@ Authentication routes for restaurant login and registration.
 """
 
 from datetime import timedelta
+from typing import Optional
+import json
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Form
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -14,14 +16,16 @@ from auth import (
     get_current_owner,
     get_current_restaurant_from_refresh_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    REFRESH_TOKEN_EXPIRE_DAYS
+    REFRESH_TOKEN_EXPIRE_DAYS,
+    hash_password
 )
 from database import get_db
 import models
 from schemas.restaurant import RestaurantCreateRequest, RestaurantLoginRequest, StaffCreateRequest
 from schemas.token import TokenRefreshRequest
 from schemas.auth import TokenResponse
-from services.restaurant_service import create_restaurant_service
+from services.restaurant_service import create_restaurant_service, apply_menu_fallbacks
+from services.file_service import save_upload_file
 from rate_limiter import check_rate_limit, record_failed_attempt, clear_failed_attempts, get_client_ip
 
 router = APIRouter(prefix="/restaurant", tags=["authentication"])
@@ -31,6 +35,85 @@ router = APIRouter(prefix="/restaurant", tags=["authentication"])
 def register_restaurant(req: RestaurantCreateRequest, db: Session = Depends(get_db)):
     """Register a new restaurant using the consolidated service."""
     return create_restaurant_service(req, db)
+
+
+@router.post("/register/multipart")
+async def register_restaurant_multipart(
+    data: str = Form(...),
+    db: Session = Depends(get_db),
+    menu_photo_0: Optional[UploadFile] = File(None),
+    menu_photo_1: Optional[UploadFile] = File(None),
+    menu_photo_2: Optional[UploadFile] = File(None),
+    menu_photo_3: Optional[UploadFile] = File(None),
+    menu_photo_4: Optional[UploadFile] = File(None),
+    menu_photo_5: Optional[UploadFile] = File(None),
+    menu_photo_6: Optional[UploadFile] = File(None),
+    menu_photo_7: Optional[UploadFile] = File(None),
+    menu_photo_8: Optional[UploadFile] = File(None),
+    menu_photo_9: Optional[UploadFile] = File(None),
+):
+    """Register a new restaurant with multipart/form-data support for image uploads."""
+    try:
+        # Parse the JSON data
+        parsed_data = json.loads(data)
+        restaurant_id = parsed_data.get("restaurant_id")
+        password = parsed_data.get("password")
+        restaurant_data = parsed_data.get("restaurant_data", {})
+        
+        if not restaurant_id or not password:
+            raise HTTPException(status_code=400, detail="Restaurant ID and password are required")
+        
+        # Check if restaurant already exists
+        existing = db.query(models.Restaurant).filter(
+            models.Restaurant.restaurant_id == restaurant_id
+        ).first()
+        
+        if existing:
+            raise HTTPException(status_code=400, detail="Restaurant ID already exists")
+        
+        # Collect all menu photos
+        menu_photos = [
+            menu_photo_0, menu_photo_1, menu_photo_2, menu_photo_3, menu_photo_4,
+            menu_photo_5, menu_photo_6, menu_photo_7, menu_photo_8, menu_photo_9
+        ]
+        
+        # Process menu items and upload photos
+        menu_items = restaurant_data.get("menu", [])
+        for idx, menu_item in enumerate(menu_items):
+            if idx < len(menu_photos) and menu_photos[idx] is not None:
+                # Save photo
+                photo_url = await save_upload_file(menu_photos[idx], "menu")
+                menu_item["photo_url"] = photo_url
+        
+        # Apply menu fallbacks
+        if menu_items:
+            restaurant_data["menu"] = apply_menu_fallbacks(menu_items)
+        
+        # Create new restaurant
+        new_restaurant = models.Restaurant(
+            restaurant_id=restaurant_id,
+            password=hash_password(password),
+            role="owner",
+            data=restaurant_data,
+            whatsapp_number=restaurant_data.get("whatsapp_number")
+        )
+        
+        db.add(new_restaurant)
+        db.commit()
+        db.refresh(new_restaurant)
+        
+        return {
+            "message": "Restaurant created successfully",
+            "restaurant_id": new_restaurant.restaurant_id
+        }
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON data")
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/login")

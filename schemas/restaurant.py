@@ -19,6 +19,9 @@ class MenuItem(BaseModel):
     dish: Optional[str] = Field(None, description="Legacy field - mapped to title")
     name: Optional[str] = Field(None, description="Legacy field - mapped to title")
     
+    # Photo URL field
+    photo_url: Optional[str] = Field(None, description="URL of the menu item photo")
+    
     @root_validator(pre=True)
     def handle_legacy_fields(cls, values):
         """Handle legacy field mapping before validation."""
