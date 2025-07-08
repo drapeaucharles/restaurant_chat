@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Menu Images</title>
+    <style>
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <h1>Testing Menu Item Images</h1>
+    <div class="grid">
+        <div class="item">
+            <h3>Truffle Arancini</h3>
+            <img src="https://images.unsplash.com/photo-1541014741259-de529411b96a?w=400" alt="Truffle Arancini">
+        </div>
+        <div class="item">
+            <h3>Caesar Salad</h3>
+            <img src="https://images.unsplash.com/photo-1550304943-4f24f54ddde9?w=400" alt="Caesar Salad">
+        </div>
+        <div class="item">
+            <h3>Filet Mignon</h3>
+            <img src="https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400" alt="Filet Mignon">
+        </div>
+        <div class="item">
+            <h3>Tiramisu</h3>
+            <img src="https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400" alt="Tiramisu">
+        </div>
+    </div>
+    <p>If you can see these images, the URLs are working correctly.</p>
+</body>
+</html>
