@@ -193,7 +193,8 @@ app = FastAPI(
 # CORS middleware - PRODUCTION READY
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://lucky-lokum-06b2de.netlify.app"],  # ✅ VERIFIED: Production domain only
+    allow_origins=[        "https://lucky-lokum-06b2de.netlify.app",
+        "https://restaurantfront-production.up.railway.app"],  # ✅ VERIFIED: Production domain only# ✅ VERIFIED: Production domain only
     allow_credentials=True,  # ✅ VERIFIED: Required for authentication
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # ✅ VERIFIED: Specific methods only
     allow_headers=["*"],
