@@ -1,8 +1,8 @@
-from pinecone_utils import openai
 import json
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import models
+from pinecone_utils import client as openai_client
 from schemas.chat import ChatRequest, ChatResponse, MenuUpdate
 from services.chat_service import (
     get_or_create_client,
@@ -143,7 +143,7 @@ Remember to respond in the exact JSON format specified.
         messages.append({"role": "user", "content": user_prompt})
 
         # Call OpenAI
-        response = openai.chat.completions.create(
+        response = openai_client.chat.completions.create(
             model="gpt-4",
             messages=messages,
             temperature=0.7,
