@@ -8,6 +8,8 @@ import requests
 import io
 import wave
 import struct
+import asyncio
+
 import uuid
 import json
 import numpy as np
@@ -362,7 +364,8 @@ class AudioStreamHandler:
                 
                 # Send binary packet
                 await self.websocket.send_bytes(packet)
-                
+                 # ✅ wait for the ESP32 to receive
+                await asyncio.sleep(0.005)  # 5 milliseconds
                 sequence += 1
                 
             # Send end of audio response
@@ -423,18 +426,20 @@ async def websocket_endpoint(
     # Accept WebSocket connection
     await websocket.accept()
     print(f"✅ WebSocket connected for {client_id}")
-    
+
     # Create audio handler
     handler = AudioStreamHandler(websocket, client_id, restaurant_id, db)
-    
+
     try:
         # Main message loop
         while True:
             # Receive message (can be text or binary)
             message = await websocket.receive()
-            
+
+            print(f"📥 Raw WebSocket message: {message}")
+
             if "text" in message:
-                # Control message (JSON)
+                print(f"📄 Received TEXT message: {message['text']}")
                 try:
                     data = json.loads(message["text"])
                     await handler.handle_control_message(data)
@@ -442,13 +447,19 @@ async def websocket_endpoint(
                     print(f"⚠️ Invalid JSON: {message['text']}")
                     
             elif "bytes" in message:
-                # Audio packet (binary)
+                print(f"🎧 Received BINARY message: {len(message['bytes'])} bytes")
                 await handler.handle_audio_packet(message["bytes"])
-                
+            else:
+                print(f"⚠️ Unrecognized WebSocket message format: {message}")
+
     except WebSocketDisconnect:
         print(f"📴 WebSocket disconnected for {client_id}")
     except Exception as e:
         print(f"❌ WebSocket error: {str(e)}")
-        await websocket.close(code=1011, reason=str(e))
+        try:
+            await websocket.close(code=1011, reason=str(e))
+        except Exception as close_error:
+            print(f"⚠️ Could not close WebSocket cleanly (already closed?): {close_error}")
+
     finally:
         print(f"===== END WEBSOCKET CONNECTION =====\n")

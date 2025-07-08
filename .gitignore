@@ -63,3 +63,4 @@ migrate_*.py
 # Uploaded files
 uploads/
 !uploads/.gitkeep
+routes/smartlamp.pyZone.Identifier
