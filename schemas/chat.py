@@ -13,7 +13,7 @@ class ChatRequest(BaseModel):
     structured_response: Optional[bool] = False  # Flag to request structured response
 
 class MenuUpdate(BaseModel):
-    hide_categories: Optional[List[str]] = []
+    hide_items: Optional[List[str]] = []
     highlight_items: Optional[List[str]] = []
     custom_message: str
 

@@ -17,25 +17,28 @@ You are an AI restaurant assistant that helps customers explore the menu based o
 You MUST always respond with ONLY valid JSON in this exact format (no other text before or after):
 {
   "menu_update": {
-    "hide_categories": [],
+    "hide_items": [],
     "highlight_items": [],
     "custom_message": ""
   }
 }
 
 Rules for menu filtering:
-1. hide_categories: Array of category names to hide (e.g., ["Seafood", "Meat"] for vegetarians)
-2. highlight_items: Array of specific dish names to recommend
+1. hide_items: Array of EXACT dish names to hide (e.g., ["Grilled Salmon", "Fish Tacos", "Seafood Paella"] for fish allergies)
+2. highlight_items: Array of EXACT dish names to recommend
 3. custom_message: Your friendly response to the customer (always include this)
 
-When customers mention:
-- Dietary restrictions (vegetarian, vegan, gluten-free, etc.): Hide conflicting categories
-- Allergies to fish/seafood: hide_categories should include ["Seafood"], highlight safe options
-- Allergies to nuts: highlight items without nuts
-- Preferences (spicy, mild, etc.): Highlight matching items
-- General questions: Return empty arrays with helpful message
+IMPORTANT: 
+- Use EXACT dish names as they appear in the menu (case-sensitive)
+- DO NOT hide entire categories - only hide specific dishes that conflict with dietary needs
+- Always scan the entire menu to find ALL dishes that should be hidden
 
-Categories available: Breakfast, Brunch, Lunch, Dinner, Appetizers, Soups, Salads, Pasta, Meat, Seafood, Vegetarian, Vegan, Dessert
+When customers mention:
+- Fish/seafood allergies: hide_items should include ALL dishes containing fish/seafood by their exact names
+- Vegetarian/vegan: hide_items should include ALL meat/fish dishes by their exact names
+- Nut allergies: hide_items should include ALL dishes with nuts, highlight safe options
+- Preferences (spicy, mild, etc.): Highlight matching items by exact name
+- General questions: Return empty arrays with helpful message
 
 IMPORTANT: Your entire response must be valid JSON only. Do not include any explanatory text.
 """
@@ -166,7 +169,7 @@ Remember to respond in the exact JSON format specified.
             
             # Ensure all required fields exist
             menu_update_obj = MenuUpdate(
-                hide_categories=menu_update.get('hide_categories', []),
+                hide_items=menu_update.get('hide_items', []),
                 highlight_items=menu_update.get('highlight_items', []),
                 custom_message=menu_update.get('custom_message', 'I can help you explore our menu!')
             )
@@ -181,7 +184,7 @@ Remember to respond in the exact JSON format specified.
             db.add(new_message)
             db.commit()
             
-            print(f"✅ Structured response: hide={menu_update_obj.hide_categories}, highlight={menu_update_obj.highlight_items}")
+            print(f"✅ Structured response: hide={menu_update_obj.hide_items}, highlight={menu_update_obj.highlight_items}")
             
             return ChatResponse(
                 answer=menu_update_obj.custom_message,
@@ -208,7 +211,7 @@ Remember to respond in the exact JSON format specified.
             return ChatResponse(
                 answer=fallback_message,
                 menu_update=MenuUpdate(
-                    hide_categories=["Seafood"],  # Default for fish allergy
+                    hide_items=[],  # No default hiding - AI should determine specific items
                     highlight_items=[],
                     custom_message=fallback_message
                 )
@@ -220,7 +223,7 @@ Remember to respond in the exact JSON format specified.
         return ChatResponse(
             answer=error_msg,
             menu_update=MenuUpdate(
-                hide_categories=[],
+                hide_items=[],
                 highlight_items=[],
                 custom_message=error_msg
             )
