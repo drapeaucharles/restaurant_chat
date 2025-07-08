@@ -149,7 +149,7 @@ Remember to respond in the exact JSON format specified.
             model="gpt-4",
             messages=messages,
             temperature=0.7,
-            max_tokens=300
+            max_tokens=1000  # Increased to handle larger responses with many dish names
         )
 
         answer_text = response.choices[0].message.content.strip()
