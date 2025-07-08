@@ -57,6 +57,8 @@ restaurant_data = {
                 "ingredients": ["arborio rice", "truffle oil", "parmesan", "breadcrumbs", "marinara sauce"],
                 "allergens": ["gluten", "dairy"],
                 "category": "Appetizers",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1541014741259-de529411b96a?w=400"
             },
             {
@@ -66,6 +68,8 @@ restaurant_data = {
                 "ingredients": ["mozzarella", "cherry tomatoes", "fresh basil", "balsamic glaze"],
                 "allergens": ["dairy"],
                 "category": "Appetizers",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1529928520614-7c76e2d99740?w=400"
             },
             {
@@ -75,6 +79,8 @@ restaurant_data = {
                 "ingredients": ["calamari", "flour", "spices", "aioli", "lemon"],
                 "allergens": ["seafood", "gluten"],
                 "category": "Appetizers",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=400"
             },
             {
@@ -84,6 +90,8 @@ restaurant_data = {
                 "ingredients": ["baguette", "tomatoes", "mushrooms", "goat cheese", "olives"],
                 "allergens": ["gluten", "dairy"],
                 "category": "Appetizers",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?w=400"
             },
             {
@@ -93,6 +101,8 @@ restaurant_data = {
                 "ingredients": ["mushrooms", "garlic", "parmesan", "mozzarella", "ricotta", "herbs"],
                 "allergens": ["dairy"],
                 "category": "Appetizers",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=400"
             },
             {
@@ -102,6 +112,8 @@ restaurant_data = {
                 "ingredients": ["jumbo shrimp", "cocktail sauce", "lemon", "herbs"],
                 "allergens": ["shellfish"],
                 "category": "Appetizers",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1625943553852-781c6dd46faa?w=400"
             },
             {
@@ -111,6 +123,8 @@ restaurant_data = {
                 "ingredients": ["spinach", "artichokes", "cream cheese", "parmesan", "tortilla chips"],
                 "allergens": ["dairy", "gluten"],
                 "category": "Appetizers",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=400"
             },
             {
@@ -120,6 +134,8 @@ restaurant_data = {
                 "ingredients": ["beef tenderloin", "arugula", "capers", "parmesan", "olive oil"],
                 "allergens": ["dairy"],
                 "category": "Appetizers",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1625937286074-9ca519d5d9df?w=400"
             },
             {
@@ -129,6 +145,8 @@ restaurant_data = {
                 "ingredients": ["chickpeas", "tahini", "eggplant", "pita bread", "olives"],
                 "allergens": ["gluten", "sesame"],
                 "category": "Appetizers",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1593001872095-7d5b3868fb1d?w=400"
             },
             {
@@ -138,6 +156,8 @@ restaurant_data = {
                 "ingredients": ["oysters", "spinach", "hollandaise", "breadcrumbs", "herbs"],
                 "allergens": ["shellfish", "dairy", "gluten"],
                 "category": "Appetizers",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1606850780554-b55ea4dd0b70?w=400"
             },
             
@@ -149,6 +169,8 @@ restaurant_data = {
                 "ingredients": ["onions", "beef broth", "gruyere cheese", "baguette"],
                 "allergens": ["dairy", "gluten"],
                 "category": "Soups",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400"
             },
             {
@@ -158,6 +180,8 @@ restaurant_data = {
                 "ingredients": ["lobster", "cream", "sherry", "herbs", "butter"],
                 "allergens": ["shellfish", "dairy"],
                 "category": "Soups",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1594756202469-9ff9799b2e4e?w=400"
             },
             {
@@ -167,6 +191,8 @@ restaurant_data = {
                 "ingredients": ["romaine lettuce", "parmesan", "croutons", "caesar dressing", "anchovies"],
                 "allergens": ["dairy", "gluten", "fish"],
                 "category": "Salads",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1550304943-4f24f54ddde9?w=400"
             },
             {
@@ -176,6 +202,8 @@ restaurant_data = {
                 "ingredients": ["cucumbers", "tomatoes", "feta", "olives", "red onions", "oregano"],
                 "allergens": ["dairy"],
                 "category": "Salads",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400"
             },
             {
@@ -185,6 +213,8 @@ restaurant_data = {
                 "ingredients": ["beets", "goat cheese", "walnuts", "mixed greens", "balsamic"],
                 "allergens": ["dairy", "nuts"],
                 "category": "Salads",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1609501676725-7186f017a4b7?w=400"
             },
             {
@@ -194,6 +224,8 @@ restaurant_data = {
                 "ingredients": ["vegetables", "beans", "pasta", "tomatoes", "herbs"],
                 "allergens": ["gluten"],
                 "category": "Soups",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1613844237701-8f3664fc2eff?w=400"
             },
             {
@@ -203,6 +235,8 @@ restaurant_data = {
                 "ingredients": ["quinoa", "avocado", "chickpeas", "vegetables", "tahini"],
                 "allergens": ["sesame"],
                 "category": "Salads",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400"
             },
             {
@@ -212,6 +246,8 @@ restaurant_data = {
                 "ingredients": ["shrimp", "lemongrass", "mushrooms", "chili", "lime"],
                 "allergens": ["shellfish"],
                 "category": "Soups",
+
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1562565652-a0d8f0c59eb4?w=400"
             },
             
@@ -223,6 +259,8 @@ restaurant_data = {
                 "ingredients": ["spaghetti", "guanciale", "eggs", "pecorino romano", "black pepper"],
                 "allergens": ["gluten", "dairy", "eggs"],
                 "category": "Pasta",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1612874742237-6526221588e3?w=400"
             },
             {
@@ -232,6 +270,8 @@ restaurant_data = {
                 "ingredients": ["pasta", "lobster", "ricotta", "tomatoes", "cream"],
                 "allergens": ["gluten", "dairy", "shellfish"],
                 "category": "Pasta",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1587740908075-9e245070dfaa?w=400"
             },
             {
@@ -241,6 +281,8 @@ restaurant_data = {
                 "ingredients": ["arborio rice", "mushrooms", "parmesan", "truffle oil", "white wine"],
                 "allergens": ["dairy"],
                 "category": "Risotto",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1595908129746-57ca1a63dd4d?w=400"
             },
             {
@@ -250,6 +292,8 @@ restaurant_data = {
                 "ingredients": ["penne", "tomatoes", "garlic", "chili", "olive oil"],
                 "allergens": ["gluten"],
                 "category": "Pasta",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=400"
             },
             {
@@ -259,6 +303,8 @@ restaurant_data = {
                 "ingredients": ["linguine", "shrimp", "scallops", "mussels", "white wine"],
                 "allergens": ["gluten", "shellfish"],
                 "category": "Pasta",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400"
             },
             {
@@ -268,6 +314,8 @@ restaurant_data = {
                 "ingredients": ["potato gnocchi", "gorgonzola", "cream", "walnuts"],
                 "allergens": ["gluten", "dairy", "nuts"],
                 "category": "Pasta",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1609501676725-7186f017a4b7?w=400"
             },
             {
@@ -277,6 +325,8 @@ restaurant_data = {
                 "ingredients": ["pasta sheets", "beef", "tomatoes", "bechamel", "mozzarella"],
                 "allergens": ["gluten", "dairy"],
                 "category": "Pasta",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1574894709920-11b28e7367e3?w=400"
             },
             {
@@ -286,6 +336,8 @@ restaurant_data = {
                 "ingredients": ["arborio rice", "saffron", "parmesan", "white wine", "butter"],
                 "allergens": ["dairy"],
                 "category": "Risotto",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=400"
             },
             
@@ -297,6 +349,8 @@ restaurant_data = {
                 "ingredients": ["beef tenderloin", "red wine", "butter", "herbs"],
                 "allergens": ["dairy"],
                 "category": "Meat",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=400"
             },
             {
@@ -306,6 +360,8 @@ restaurant_data = {
                 "ingredients": ["lamb", "herbs", "breadcrumbs", "mint", "garlic"],
                 "allergens": ["gluten"],
                 "category": "Meat",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1595777216528-071e0127ccbf?w=400"
             },
             {
@@ -315,6 +371,8 @@ restaurant_data = {
                 "ingredients": ["veal", "vegetables", "white wine", "saffron", "gremolata"],
                 "allergens": ["dairy"],
                 "category": "Meat",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1432139555190-58524dae6a55?w=400"
             },
             {
@@ -324,6 +382,8 @@ restaurant_data = {
                 "ingredients": ["duck", "duck fat", "cherries", "thyme", "garlic"],
                 "allergens": [],
                 "category": "Meat",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1623428187969-5da2dcea5ebf?w=400"
             },
             {
@@ -333,6 +393,8 @@ restaurant_data = {
                 "ingredients": ["beef ribs", "red wine", "carrots", "celery", "onions"],
                 "allergens": [],
                 "category": "Meat",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1544025162-d76694265947?w=400"
             },
             {
@@ -342,6 +404,8 @@ restaurant_data = {
                 "ingredients": ["pork", "maple syrup", "apples", "cinnamon", "butter"],
                 "allergens": ["dairy"],
                 "category": "Meat",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1606850780554-b55ea4dd0b70?w=400"
             },
             {
@@ -351,6 +415,8 @@ restaurant_data = {
                 "ingredients": ["veal", "flour", "lemon", "capers", "white wine"],
                 "allergens": ["gluten"],
                 "category": "Meat",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?w=400"
             },
             {
@@ -360,6 +426,8 @@ restaurant_data = {
                 "ingredients": ["ribeye", "herbs", "butter", "garlic"],
                 "allergens": ["dairy"],
                 "category": "Meat",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1558030006-450675393462?w=400"
             },
             
@@ -371,6 +439,8 @@ restaurant_data = {
                 "ingredients": ["salmon", "lemon", "dill", "asparagus", "olive oil"],
                 "allergens": ["fish"],
                 "category": "Seafood",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1485921325833-c519f76c4927?w=400"
             },
             {
@@ -380,6 +450,8 @@ restaurant_data = {
                 "ingredients": ["sea bass", "miso", "bok choy", "ginger", "sesame"],
                 "allergens": ["fish", "soy", "sesame"],
                 "category": "Seafood",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?w=400"
             },
             {
@@ -389,6 +461,8 @@ restaurant_data = {
                 "ingredients": ["lobster", "brandy", "cream", "egg yolk", "cheese"],
                 "allergens": ["shellfish", "dairy", "eggs"],
                 "category": "Seafood",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1626645738196-c2a7c87a8f58?w=400"
             },
             {
@@ -398,6 +472,8 @@ restaurant_data = {
                 "ingredients": ["scallops", "cauliflower", "pancetta", "butter"],
                 "allergens": ["shellfish", "dairy"],
                 "category": "Seafood",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1626201642492-15d1b4c0cd75?w=400"
             },
             {
@@ -407,6 +483,8 @@ restaurant_data = {
                 "ingredients": ["tuna", "sesame seeds", "wasabi", "soy sauce"],
                 "allergens": ["fish", "sesame", "soy"],
                 "category": "Seafood",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1567479938401-f265a66ba382?w=400"
             },
             {
@@ -416,6 +494,8 @@ restaurant_data = {
                 "ingredients": ["lobster", "shrimp", "fish", "garlic", "butter"],
                 "allergens": ["shellfish", "fish", "dairy"],
                 "category": "Seafood",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1623961990059-7d9d7e2f6fdd?w=400"
             },
             
@@ -427,6 +507,8 @@ restaurant_data = {
                 "ingredients": ["eggplant", "breadcrumbs", "marinara", "mozzarella", "parmesan"],
                 "allergens": ["gluten", "dairy"],
                 "category": "Vegetarian",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1573821663912-6df460f9c684?w=400"
             },
             {
@@ -436,6 +518,8 @@ restaurant_data = {
                 "ingredients": ["vegetables", "coconut milk", "curry", "rice"],
                 "allergens": [],
                 "category": "Vegan",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=400"
             },
             {
@@ -445,6 +529,8 @@ restaurant_data = {
                 "ingredients": ["bell peppers", "quinoa", "vegetables", "herbs"],
                 "allergens": [],
                 "category": "Vegan",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1583278171230-7cde103c5935?w=400"
             },
             {
@@ -454,6 +540,8 @@ restaurant_data = {
                 "ingredients": ["mushrooms", "puff pastry", "spinach", "herbs"],
                 "allergens": ["gluten"],
                 "category": "Vegetarian",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1511690078903-71dc5a49f5e3?w=400"
             },
             {
@@ -463,6 +551,8 @@ restaurant_data = {
                 "ingredients": ["brown rice", "tofu", "vegetables", "tahini", "seeds"],
                 "allergens": ["soy", "sesame"],
                 "category": "Vegan",
+
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1540914124281-342587941389?w=400"
             },
             
@@ -474,6 +564,8 @@ restaurant_data = {
                 "ingredients": ["ladyfingers", "mascarpone", "espresso", "cocoa", "eggs"],
                 "allergens": ["gluten", "dairy", "eggs"],
                 "category": "Dessert",
+
+                "subcategory": "dessert",
                 "image_url": "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400"
             },
             {
@@ -483,6 +575,8 @@ restaurant_data = {
                 "ingredients": ["chocolate", "flour", "eggs", "butter", "ice cream"],
                 "allergens": ["gluten", "dairy", "eggs"],
                 "category": "Dessert",
+
+                "subcategory": "dessert",
                 "image_url": "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=400"
             },
             {
@@ -492,6 +586,8 @@ restaurant_data = {
                 "ingredients": ["cream", "eggs", "sugar", "vanilla"],
                 "allergens": ["dairy", "eggs"],
                 "category": "Dessert",
+
+                "subcategory": "dessert",
                 "image_url": "https://images.unsplash.com/photo-1470124182917-cc6e71b22ecc?w=400"
             },
             {
@@ -501,6 +597,8 @@ restaurant_data = {
                 "ingredients": ["cream cheese", "graham crackers", "eggs", "berries"],
                 "allergens": ["gluten", "dairy", "eggs"],
                 "category": "Dessert",
+
+                "subcategory": "dessert",
                 "image_url": "https://images.unsplash.com/photo-1524351199678-941a58a3df50?w=400"
             },
             {
@@ -510,6 +608,8 @@ restaurant_data = {
                 "ingredients": ["milk", "cream", "sugar", "various flavors"],
                 "allergens": ["dairy", "nuts"],
                 "category": "Dessert",
+
+                "subcategory": "dessert",
                 "image_url": "https://images.unsplash.com/photo-1567206563064-6f60f40a2b57?w=400"
             }
         ]

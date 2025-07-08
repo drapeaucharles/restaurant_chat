@@ -13,8 +13,9 @@ class ChatRequest(BaseModel):
     structured_response: Optional[bool] = False  # Flag to request structured response
 
 class MenuUpdate(BaseModel):
-    hide_items: Optional[List[str]] = []
-    highlight_items: Optional[List[str]] = []
+    show_items: Optional[List[str]] = []  # When provided, ONLY show these items
+    hide_items: Optional[List[str]] = []  # Items to hide (cumulative)
+    highlight_items: Optional[List[str]] = []  # Items to highlight
     custom_message: str
 
 class ChatResponse(BaseModel):

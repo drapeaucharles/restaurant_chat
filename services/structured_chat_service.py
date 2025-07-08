@@ -17,6 +17,7 @@ You are an AI restaurant assistant that helps customers explore the menu based o
 You MUST always respond with ONLY valid JSON in this exact format (no other text before or after):
 {
   "menu_update": {
+    "show_items": [],
     "hide_items": [],
     "highlight_items": [],
     "custom_message": ""
@@ -24,25 +25,27 @@ You MUST always respond with ONLY valid JSON in this exact format (no other text
 }
 
 Rules for menu filtering:
-1. hide_items: Array of EXACT dish names to hide based on ALL dietary restrictions mentioned in the ENTIRE conversation
-2. highlight_items: Array of EXACT dish names to recommend (MAX 3-5 items only!)
-3. custom_message: Your friendly response to the customer (always include this)
+1. show_items: When user asks to "show me X", list ALL items matching X. This OVERRIDES all previous show_items.
+2. hide_items: Items to ADD to the hidden list (only new items to hide, not cumulative)
+3. highlight_items: Items to highlight/recommend (MAX 3-5 items only!)
+4. custom_message: Your friendly response to the customer (always include this)
 
-CRITICAL: Menu filtering is CUMULATIVE throughout the conversation:
-- If someone says "I don't eat fish" and later says "I don't like cheese", hide_items must include BOTH fish dishes AND cheese dishes
-- Always review the ENTIRE conversation history to maintain ALL restrictions
-- Each response should include ALL items that need to be hidden based on everything mentioned so far
-- Never remove previously mentioned restrictions unless explicitly told to
-
-IMPORTANT: 
-- Use EXACT dish names as they appear in the menu (case-sensitive)
-- Always scan the entire menu to find ALL dishes that should be hidden
-- ONLY highlight 3-5 best recommendations based on current preferences
+IMPORTANT LOGIC:
+- show_items: Used when user says "show me dishes with X" - list ALL matching items
+- hide_items: Used when user says "I don't eat X" or "I'm allergic to X" - list items to ADD to hidden list
+- highlight_items: Used for recommendations within the shown items
 
 Examples:
-- Message 1: "I'm allergic to fish" → hide all fish dishes
-- Message 2: "I also don't eat cheese" → hide all fish dishes AND all cheese dishes
-- Message 3: "I love spicy food" → STILL hide all fish and cheese dishes, highlight 3-5 spicy options
+1. "Show me dishes with fish" → show_items: ["Grilled Salmon", "Sea Bass", "Tuna Steak", ...all fish dishes]
+2. "I'm allergic to nuts" → hide_items: ["Roasted Beet Salad", "Gnocchi Gorgonzola", ...items with nuts]
+3. "Show me vegetarian options" → show_items: [...all vegetarian dishes], highlight_items: [3-5 best ones]
+4. "I don't like cheese" → hide_items: [...items with cheese to ADD to hidden list]
+
+CRITICAL:
+- Always return empty arrays for fields you're not updating
+- Use EXACT dish names as they appear in the menu (case-sensitive)
+- For show_items, include ALL matching dishes
+- For hide_items, only include NEW items to hide (frontend handles accumulation)
 
 IMPORTANT: Your entire response must be valid JSON only. Do not include any explanatory text.
 """
@@ -173,6 +176,7 @@ Remember to respond in the exact JSON format specified.
             
             # Ensure all required fields exist
             menu_update_obj = MenuUpdate(
+                show_items=menu_update.get('show_items', []),
                 hide_items=menu_update.get('hide_items', []),
                 highlight_items=menu_update.get('highlight_items', []),
                 custom_message=menu_update.get('custom_message', 'I can help you explore our menu!')
@@ -188,7 +192,7 @@ Remember to respond in the exact JSON format specified.
             db.add(new_message)
             db.commit()
             
-            print(f"✅ Structured response: hide={menu_update_obj.hide_items}, highlight={menu_update_obj.highlight_items}")
+            print(f"✅ Structured response: show={menu_update_obj.show_items}, hide={menu_update_obj.hide_items}, highlight={menu_update_obj.highlight_items}")
             
             return ChatResponse(
                 answer=menu_update_obj.custom_message,
@@ -215,6 +219,7 @@ Remember to respond in the exact JSON format specified.
             return ChatResponse(
                 answer=fallback_message,
                 menu_update=MenuUpdate(
+                    show_items=[],
                     hide_items=[],  # No default hiding - AI should determine specific items
                     highlight_items=[],
                     custom_message=fallback_message
@@ -227,6 +232,7 @@ Remember to respond in the exact JSON format specified.
         return ChatResponse(
             answer=error_msg,
             menu_update=MenuUpdate(
+                show_items=[],
                 hide_items=[],
                 highlight_items=[],
                 custom_message=error_msg
