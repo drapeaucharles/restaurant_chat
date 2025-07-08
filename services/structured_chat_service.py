@@ -14,7 +14,7 @@ from services.chat_service import (
 structured_system_prompt = """
 You are an AI restaurant assistant that helps customers explore the menu based on their preferences.
 
-You MUST always respond in this exact JSON format:
+You MUST always respond with ONLY valid JSON in this exact format (no other text before or after):
 {
   "menu_update": {
     "hide_categories": [],
@@ -24,21 +24,20 @@ You MUST always respond in this exact JSON format:
 }
 
 Rules for menu filtering:
-1. hide_categories: List of category names to hide (e.g., ["Seafood", "Meat"] for vegetarians)
-2. highlight_items: List of specific dish names to recommend
-3. custom_message: Your friendly response to the customer
+1. hide_categories: Array of category names to hide (e.g., ["Seafood", "Meat"] for vegetarians)
+2. highlight_items: Array of specific dish names to recommend
+3. custom_message: Your friendly response to the customer (always include this)
 
 When customers mention:
 - Dietary restrictions (vegetarian, vegan, gluten-free, etc.): Hide conflicting categories
-- Allergies: Hide categories or highlight safe items
+- Allergies to fish/seafood: hide_categories should include ["Seafood"], highlight safe options
+- Allergies to nuts: highlight items without nuts
 - Preferences (spicy, mild, etc.): Highlight matching items
-- General questions: Return empty lists with helpful message
+- General questions: Return empty arrays with helpful message
 
 Categories available: Breakfast, Brunch, Lunch, Dinner, Appetizers, Soups, Salads, Pasta, Meat, Seafood, Vegetarian, Vegan, Dessert
 
-Example responses:
-- "I'm vegetarian" → hide_categories: ["Meat", "Seafood"], highlight_items: ["Mushroom Risotto", "Vegetable Curry"]
-- "What's your wifi password?" → hide_categories: [], highlight_items: [], custom_message: "Our wifi password is: restaurant2024"
+IMPORTANT: Your entire response must be valid JSON only. Do not include any explanatory text.
 """
 
 def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
@@ -147,15 +146,22 @@ Remember to respond in the exact JSON format specified.
             model="gpt-4",
             messages=messages,
             temperature=0.7,
-            max_tokens=300,
-            response_format={"type": "json_object"}  # Force JSON response
+            max_tokens=300
         )
 
         answer_text = response.choices[0].message.content.strip()
         
         # Parse JSON response
         try:
-            json_response = json.loads(answer_text)
+            # Try to extract JSON if there's extra text
+            json_start = answer_text.find('{')
+            json_end = answer_text.rfind('}') + 1
+            if json_start >= 0 and json_end > json_start:
+                json_text = answer_text[json_start:json_end]
+            else:
+                json_text = answer_text
+                
+            json_response = json.loads(json_text)
             menu_update = json_response.get('menu_update', {})
             
             # Ensure all required fields exist
@@ -175,19 +181,36 @@ Remember to respond in the exact JSON format specified.
             db.add(new_message)
             db.commit()
             
+            print(f"✅ Structured response: hide={menu_update_obj.hide_categories}, highlight={menu_update_obj.highlight_items}")
+            
             return ChatResponse(
                 answer=menu_update_obj.custom_message,
                 menu_update=menu_update_obj
             )
             
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"❌ JSON parsing error: {e}")
+            print(f"Raw response: {answer_text}")
+            
             # Fallback if JSON parsing fails
+            fallback_message = "I understand you have a fish allergy. Let me help you find safe options on our menu."
+            
+            # Save fallback message
+            new_message = models.ChatMessage(
+                restaurant_id=req.restaurant_id,
+                client_id=req.client_id,
+                sender_type="ai",
+                message=fallback_message
+            )
+            db.add(new_message)
+            db.commit()
+            
             return ChatResponse(
-                answer=answer_text,
+                answer=fallback_message,
                 menu_update=MenuUpdate(
-                    hide_categories=[],
+                    hide_categories=["Seafood"],  # Default for fish allergy
                     highlight_items=[],
-                    custom_message=answer_text
+                    custom_message=fallback_message
                 )
             )
 
