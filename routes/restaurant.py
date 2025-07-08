@@ -25,11 +25,17 @@ def process_menu_for_response(menu_data):
     # Apply fallbacks to ensure consistent structure
     processed_menu = apply_menu_fallbacks(menu_data)
     
-    # Remove None values for cleaner API responses
-    for item in processed_menu:
+    # Process each item
+    for i, item in enumerate(processed_menu):
         # Filter out None values but keep empty lists/strings
         filtered_item = {k: v for k, v in item.items() if v is not None}
-        processed_menu[processed_menu.index(item)] = filtered_item
+        
+        # Convert relative photo URLs to absolute URLs
+        if filtered_item.get("photo_url") and not filtered_item["photo_url"].startswith("http"):
+            # Assuming the backend is hosted at the same domain
+            filtered_item["photo_url"] = f"https://restaurantchat-production.up.railway.app{filtered_item['photo_url']}"
+        
+        processed_menu[i] = filtered_item
     
     return processed_menu
 

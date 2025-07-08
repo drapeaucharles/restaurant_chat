@@ -80,6 +80,10 @@ def apply_menu_fallbacks(menu_items: list) -> list:
             if item_dict.get("name"):
                 processed_item["name"] = item_dict["name"]
             
+            # Preserve photo_url if present
+            if item_dict.get("photo_url"):
+                processed_item["photo_url"] = item_dict["photo_url"]
+            
             fallback_items.append(processed_item)
             
         except Exception as e:
