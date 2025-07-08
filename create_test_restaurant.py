@@ -146,7 +146,7 @@ restaurant_data = {
                 "allergens": ["gluten", "sesame"],
                 "category": "Appetizers",
 
-                "subcategory": "starter",
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1593001872095-7d5b3868fb1d?w=400"
             },
             {
@@ -236,7 +236,7 @@ restaurant_data = {
                 "allergens": ["sesame"],
                 "category": "Salads",
 
-                "subcategory": "starter",
+                "subcategory": "main",
                 "image_url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400"
             },
             {
@@ -587,7 +587,7 @@ restaurant_data = {
                 "allergens": ["dairy", "eggs"],
                 "category": "Dessert",
 
-                "subcategory": "dessert",
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1470124182917-cc6e71b22ecc?w=400"
             },
             {
@@ -609,7 +609,7 @@ restaurant_data = {
                 "allergens": ["dairy", "nuts"],
                 "category": "Dessert",
 
-                "subcategory": "dessert",
+                "subcategory": "starter",
                 "image_url": "https://images.unsplash.com/photo-1567206563064-6f60f40a2b57?w=400"
             }
         ]
