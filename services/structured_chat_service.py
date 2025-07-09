@@ -129,7 +129,7 @@ Complete list of ALL menu items (for show/hide operations):
 {', '.join(all_item_names)}
 
 FAQ Info (if relevant to query):
-{chr(10).join([f"Q: {faq.get('question', '')} A: {faq.get('answer', '')}" for faq in data.get('faq', [])[:3]]}
+{chr(10).join([f"Q: {faq.get('question', '')} A: {faq.get('answer', '')}" for faq in data.get('faq', [])[:3]])
 
 Remember to respond in the exact JSON format specified. When using show_items or hide_items, use EXACT item names from the complete list above.
 """
