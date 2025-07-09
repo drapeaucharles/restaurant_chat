@@ -2,7 +2,7 @@ import json
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import models
-from pinecone_utils import client as openai_client
+from pinecone_utils import client as openai_client, search_menu_items
 from schemas.chat import ChatRequest, ChatResponse, MenuUpdate
 from services.chat_service import (
     get_or_create_client,
@@ -12,9 +12,7 @@ from services.chat_service import (
 )
 
 structured_system_prompt = """
-You are an AI restaurant assistant that helps customers explore the menu based on their preferences.
-
-You MUST always respond with ONLY valid JSON in this exact format (no other text before or after):
+You are an AI restaurant assistant. Respond ONLY with valid JSON in this format:
 {
   "menu_update": {
     "show_items": [],
@@ -24,39 +22,18 @@ You MUST always respond with ONLY valid JSON in this exact format (no other text
   }
 }
 
-Rules for menu filtering:
-1. show_items: Use ONLY when user explicitly requests filtering like "show me only X", "filter by X", or "I want to see X dishes". DO NOT use for informational queries like "what is X?", "tell me about X", or "does X have Y?"
-2. hide_items: Items to ADD to the hidden list (only new items to hide, not cumulative)
-3. highlight_items: Items to highlight/recommend (MAX 3-5 items, ONLY when user expresses preferences they LIKE)
-4. custom_message: Your friendly response to the customer (always include this)
+Rules:
+- show_items: ONLY for explicit filtering requests ("show me only X", "filter by X")
+- hide_items: For dislikes/allergies ("I don't eat X", "allergic to X")
+- highlight_items: For preferences (max 3-5 items, only positive preferences)
+- custom_message: Your response (always required)
 
-IMPORTANT LOGIC:
-- show_items: Used ONLY when user explicitly wants to filter the menu like "show me only X", "filter to X dishes", "I only want to see X" - NOT for questions like "what is X?" or "tell me about X"
-- hide_items: Used when user says "I don't like X", "I don't eat X", "no X" or "I'm allergic to X" - list ALL items containing that ingredient
-- highlight_items: Used ONLY for positive preferences like "I love X" or "I prefer X" - NEVER use when only dislikes are mentioned
+Key distinctions:
+- "What is X?" = informational query → no filtering
+- "Show me only X" = filter request → use show_items
+- "I don't like X" = preference → use hide_items
 
-CRITICAL: When user mentions something they DON'T like:
-- Search through ALL ingredients of EVERY dish
-- Hide EVERY dish that contains that ingredient
-- Do NOT highlight anything unless they mention something they DO like
-
-Examples:
-1. "What is calamari?" → show_items: [], hide_items: [], highlight_items: [], custom_message: "Calamari is squid that's been prepared as food..."
-2. "Show me only calamari dishes" → show_items: ["Calamari Fritti", ...other calamari dishes], hide_items: [], highlight_items: []
-3. "I don't like tomato" → hide_items: [...ALL dishes with tomatoes in ingredients], highlight_items: []
-4. "I'm allergic to nuts" → hide_items: [...ALL items with nuts], highlight_items: []
-5. "I don't eat cheese" → hide_items: [...ALL items with cheese], highlight_items: []
-6. "I love spicy food" → hide_items: [], highlight_items: [3-5 spicy dishes]
-7. "No fish and I like pasta" → hide_items: [...ALL fish dishes], highlight_items: [3-5 pasta dishes without fish]
-8. "Tell me about your pasta options" → show_items: [], hide_items: [], highlight_items: [], custom_message: "We have several delicious pasta dishes..."
-
-CRITICAL:
-- Always return empty arrays for fields you're not updating
-- Use EXACT dish names as they appear in the menu (case-sensitive)
-- For show_items, include ALL matching dishes
-- For hide_items, only include NEW items to hide (frontend handles accumulation)
-
-IMPORTANT: Your entire response must be valid JSON only. Do not include any explanatory text.
+Use EXACT item names from the complete list provided.
 """
 
 def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
@@ -101,36 +78,43 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     data = restaurant.data or {}
 
     try:
-        # Prepare menu with categories
-        menu_items = data.get("menu", [])
-        if menu_items:
-            menu_items = apply_menu_fallbacks(menu_items)
-
-        # Format menu for context
-        menu_by_category = {}
-        for item in menu_items:
-            category = item.get('category', 'Uncategorized')
-            if category not in menu_by_category:
-                menu_by_category[category] = []
+        # Use semantic search to find relevant menu items based on the query
+        print(f"🔍 Searching for relevant menu items for query: '{req.message}'")
+        relevant_items = search_menu_items(req.restaurant_id, req.message, top_k=15)
+        
+        # Get all menu items for complete context (needed for show/hide operations)
+        all_menu_items = data.get("menu", [])
+        if all_menu_items:
+            all_menu_items = apply_menu_fallbacks(all_menu_items)
+        
+        # Format relevant items for context
+        menu_context = "Relevant Menu Items:\n"
+        if relevant_items:
+            # Group by category for better organization
+            items_by_category = {}
+            for item in relevant_items:
+                category = item.get('category', 'Uncategorized')
+                if category not in items_by_category:
+                    items_by_category[category] = []
+                items_by_category[category].append(item)
             
-            item_info = {
-                'name': item.get('title') or item.get('dish', 'Unknown'),
-                'description': item.get('description', ''),
-                'ingredients': item.get('ingredients', []),
-                'allergens': item.get('allergens', []),
-                'price': item.get('price', '')
-            }
-            menu_by_category[category].append(item_info)
-
-        # Create menu context
-        menu_context = "Menu by Category:\n"
-        for category, items in menu_by_category.items():
-            menu_context += f"\n{category}:\n"
-            for item in items:
-                menu_context += f"- {item['name']}: {item['description']}"
-                if item['allergens']:
-                    menu_context += f" (Allergens: {', '.join(item['allergens'])})"
-                menu_context += "\n"
+            for category, items in items_by_category.items():
+                menu_context += f"\n{category}:\n"
+                for item in items:
+                    menu_context += f"- {item['title']}: {item['description']}"
+                    if item['ingredients']:
+                        menu_context += f" (Ingredients: {', '.join(item['ingredients'][:5])}...)"
+                    if item['allergens']:
+                        menu_context += f" (Allergens: {', '.join(item['allergens'])})"
+                    menu_context += f" - {item['price']}\n"
+        else:
+            # Fallback: if no relevant items found, include a few sample items
+            menu_context += "\nNo specific items found matching your query. Here are some menu categories available:\n"
+            categories = list(set(item.get('category', 'Other') for item in all_menu_items))[:5]
+            menu_context += ", ".join(categories)
+        
+        # Create list of all item names for show/hide operations
+        all_item_names = [item.get('title') or item.get('dish', '') for item in all_menu_items if item.get('title') or item.get('dish')]
 
         # Prepare user prompt
         user_prompt = f"""
@@ -138,14 +122,16 @@ Customer message: "{req.message}"
 
 Restaurant Info:
 - Name: {data.get("name", "Restaurant")}
-- Categories Available: {', '.join(menu_by_category.keys())}
 
 {menu_context}
 
-FAQ Info:
-{chr(10).join([f"Q: {faq.get('question', '')} A: {faq.get('answer', '')}" for faq in data.get('faq', [])])}
+Complete list of ALL menu items (for show/hide operations):
+{', '.join(all_item_names)}
 
-Remember to respond in the exact JSON format specified.
+FAQ Info (if relevant to query):
+{chr(10).join([f"Q: {faq.get('question', '')} A: {faq.get('answer', '')}" for faq in data.get('faq', [])[:3]]}
+
+Remember to respond in the exact JSON format specified. When using show_items or hide_items, use EXACT item names from the complete list above.
 """
 
         # Get recent chat history

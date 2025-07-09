@@ -15,6 +15,7 @@ import models
 from schemas.restaurant import RestaurantUpdateRequest, RestaurantProfileUpdate, MenuItem
 from services.restaurant_service import apply_menu_fallbacks
 from services.file_service import save_upload_file, delete_upload_file
+from pinecone_utils import insert_restaurant_data, index_menu_items
 
 
 def process_menu_for_response(menu_data):
@@ -173,6 +174,19 @@ def update_restaurant_profile_new(
     # Commit changes to database
     db.commit()
     db.refresh(current_owner)
+    
+    # Update Pinecone indexes
+    try:
+        # Update restaurant context
+        insert_restaurant_data(current_owner.restaurant_id, updated_data)
+        
+        # Re-index menu items for semantic search
+        if processed_menu:
+            indexed_count = index_menu_items(current_owner.restaurant_id, processed_menu)
+            print(f"✅ Re-indexed {indexed_count} menu items for restaurant {current_owner.restaurant_id}")
+    except Exception as e:
+        print(f"Warning: Pinecone update failed: {e}")
+        # Don't fail the operation for Pinecone issues
     
     return {"success": True}
 

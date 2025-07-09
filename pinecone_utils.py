@@ -123,3 +123,125 @@ def query_pinecone(restaurant_id, client_id, user_message):
     )
 
     return results
+
+# Insert individual menu items into Pinecone for semantic search
+def index_menu_items(restaurant_id, menu_items):
+    """
+    Index each menu item individually for more efficient semantic search.
+    This allows us to retrieve only relevant items instead of the entire menu.
+    """
+    vectors_to_upsert = []
+    
+    for item in menu_items:
+        # Get item name (handle both 'title' and 'dish' fields)
+        item_name = item.get('title') or item.get('dish', '')
+        if not item_name:
+            continue
+            
+        # Build rich text representation for embedding
+        text_parts = [f"Dish: {item_name}"]
+        
+        # Add category
+        if item.get('category'):
+            text_parts.append(f"Category: {item['category']}")
+            
+        # Add subcategory
+        if item.get('subcategory'):
+            text_parts.append(f"Subcategory: {item['subcategory']}")
+            
+        # Add description
+        if item.get('description'):
+            text_parts.append(f"Description: {item['description']}")
+            
+        # Add ingredients
+        ingredients = item.get('ingredients', [])
+        if ingredients:
+            text_parts.append(f"Ingredients: {', '.join(ingredients)}")
+            
+        # Add allergens
+        allergens = item.get('allergens', [])
+        if allergens:
+            text_parts.append(f"Allergens: {', '.join(allergens)}")
+            
+        # Add dietary tags
+        if item.get('vegetarian'):
+            text_parts.append("Vegetarian")
+        if item.get('vegan'):
+            text_parts.append("Vegan")
+        if item.get('gluten_free'):
+            text_parts.append("Gluten-free")
+        if item.get('spicy'):
+            text_parts.append("Spicy")
+            
+        # Create embedding text
+        embedding_text = " | ".join(text_parts)
+        
+        # Create embedding
+        embedding = create_embedding(embedding_text)
+        
+        # Create unique ID for this menu item
+        item_id = f"menu_{restaurant_id}_{item_name.replace(' ', '_').lower()}"
+        
+        # Prepare metadata
+        metadata = {
+            "restaurant_id": restaurant_id,
+            "item_name": item_name,
+            "category": item.get('category', 'Uncategorized'),
+            "subcategory": item.get('subcategory', ''),
+            "description": item.get('description', ''),
+            "ingredients": ingredients,
+            "allergens": allergens,
+            "price": item.get('price', ''),
+            "type": "menu_item"
+        }
+        
+        vectors_to_upsert.append({
+            "id": item_id,
+            "values": embedding,
+            "metadata": metadata
+        })
+    
+    # Batch upsert all menu items
+    if vectors_to_upsert:
+        index.upsert(vectors=vectors_to_upsert)
+        print(f"Indexed {len(vectors_to_upsert)} menu items for restaurant {restaurant_id}")
+    
+    return len(vectors_to_upsert)
+
+# Search for relevant menu items based on user query
+def search_menu_items(restaurant_id, query, top_k=10):
+    """
+    Search for relevant menu items based on user query.
+    Returns only the menu items that are semantically relevant to the query.
+    """
+    # Create embedding for the query
+    query_embedding = create_embedding(query)
+    
+    # Search with metadata filter for this restaurant's menu items
+    results = index.query(
+        vector=query_embedding,
+        top_k=top_k,
+        include_metadata=True,
+        filter={
+            "restaurant_id": {"$eq": restaurant_id},
+            "type": {"$eq": "menu_item"}
+        }
+    )
+    
+    # Extract menu items from results
+    relevant_items = []
+    for match in results.matches:
+        if match.metadata:
+            item = {
+                "title": match.metadata.get("item_name", ""),
+                "category": match.metadata.get("category", ""),
+                "subcategory": match.metadata.get("subcategory", ""),
+                "description": match.metadata.get("description", ""),
+                "ingredients": match.metadata.get("ingredients", []),
+                "allergens": match.metadata.get("allergens", []),
+                "price": match.metadata.get("price", ""),
+                "relevance_score": match.score
+            }
+            relevant_items.append(item)
+    
+    return relevant_items

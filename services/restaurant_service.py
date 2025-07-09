@@ -3,7 +3,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 import models
-from pinecone_utils import insert_restaurant_data
+from pinecone_utils import insert_restaurant_data, index_menu_items
 from schemas.restaurant import RestaurantCreateRequest
 from auth import hash_password
 
@@ -189,7 +189,13 @@ def create_restaurant_service(req: RestaurantCreateRequest, db: Session):
     # Inject into Pinecone (only for owners, not staff)
     if restaurant.role == "owner":
         try:
+            # Insert restaurant data for general context
             insert_restaurant_data(req.restaurant_id, data)
+            
+            # Index individual menu items for semantic search
+            if data.get("menu"):
+                indexed_count = index_menu_items(req.restaurant_id, data["menu"])
+                print(f"✅ Indexed {indexed_count} menu items for restaurant {req.restaurant_id}")
         except Exception as e:
             print(f"Warning: Pinecone insertion failed: {e}")
             # Don't fail the entire operation for Pinecone issues
