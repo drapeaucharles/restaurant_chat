@@ -108,6 +108,7 @@ Be natural, helpful, and maintain user control. NEVER invent menu items.
 def validate_menu_items_exist(recommended_items: list, all_menu_items: list) -> tuple[list, list]:
     """
     Validate that recommended items actually exist in the menu.
+    Supports fuzzy matching for partial names (e.g., "Bruschetta" matches "Bruschetta Trio")
     
     Args:
         recommended_items: List of item names recommended by AI
@@ -119,26 +120,61 @@ def validate_menu_items_exist(recommended_items: list, all_menu_items: list) -> 
     # Create a set of all valid menu item names (case-insensitive for comparison)
     valid_names = set()
     name_mapping = {}  # Maps lowercase to actual case
+    fuzzy_mapping = {}  # Maps partial names to full names
     
     for item in all_menu_items:
         # Get the item name (handle multiple possible fields)
         item_name = item.get('title') or item.get('dish') or item.get('name', '')
         if item_name:
-            valid_names.add(item_name.lower())
-            name_mapping[item_name.lower()] = item_name
+            item_name_lower = item_name.lower()
+            valid_names.add(item_name_lower)
+            name_mapping[item_name_lower] = item_name
+            
+            # Create fuzzy mappings for partial matches
+            # Split the name into words and create mappings for significant words
+            words = item_name_lower.split()
+            for word in words:
+                # Skip common words like "and", "the", "with", etc.
+                if len(word) > 3 and word not in ['with', 'trio', 'special', 'classic']:
+                    if word not in fuzzy_mapping:
+                        fuzzy_mapping[word] = []
+                    fuzzy_mapping[word].append(item_name)
     
     valid_items = []
     invalid_items = []
     
     for recommended in recommended_items:
         if isinstance(recommended, str):
-            # Check if the item exists (case-insensitive)
-            if recommended.lower() in valid_names:
+            recommended_lower = recommended.lower()
+            
+            # First try exact match (case-insensitive)
+            if recommended_lower in valid_names:
                 # Use the correct case from the actual menu
-                valid_items.append(name_mapping[recommended.lower()])
+                valid_items.append(name_mapping[recommended_lower])
             else:
-                invalid_items.append(recommended)
-                print(f"⚠️ WARNING: AI recommended non-existent item: '{recommended}'")
+                # Try fuzzy matching
+                found = False
+                
+                # Check if the recommended item is a partial match for any menu item
+                for menu_name_lower, menu_name_proper in name_mapping.items():
+                    if recommended_lower in menu_name_lower or menu_name_lower.startswith(recommended_lower):
+                        valid_items.append(menu_name_proper)
+                        found = True
+                        print(f"✅ Fuzzy match: '{recommended}' → '{menu_name_proper}'")
+                        break
+                
+                # If not found, check word-based fuzzy mapping
+                if not found and recommended_lower in fuzzy_mapping:
+                    matches = fuzzy_mapping[recommended_lower]
+                    if matches:
+                        # Use the first match (could be improved with better ranking)
+                        valid_items.append(matches[0])
+                        found = True
+                        print(f"✅ Word match: '{recommended}' → '{matches[0]}'")
+                
+                if not found:
+                    invalid_items.append(recommended)
+                    print(f"⚠️ WARNING: AI recommended non-existent item: '{recommended}'")
     
     return valid_items, invalid_items
 
@@ -292,7 +328,7 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         all_item_names = [item.get('title') or item.get('dish', '') for item in all_menu_items if item.get('title') or item.get('dish')]
         
         # CRITICAL: Create explicit menu validation context
-        menu_validation_context = f"\n🚨 IMPORTANT: The ONLY valid menu items you can recommend are:\n{', '.join(['\"' + name + '\"' for name in all_item_names])}\n\nNEVER recommend items not in this list!"
+        menu_validation_context = f"\n🚨 IMPORTANT: The ONLY valid menu items you can recommend are:\n{', '.join(['\"' + name + '\"' for name in all_item_names])}\n\nYou can use common names (e.g., 'Bruschetta' for 'Bruschetta Trio') as our system will match them correctly. Just make sure the item actually exists!"
 
         # Get relevant FAQ items based on the query
         all_faqs = data.get('faq', [])

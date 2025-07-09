@@ -157,7 +157,7 @@ def get_chat_logs(
                 "message": message.message,
                 "answer": "",  # Will be filled by next AI message if exists
                 "client_id": str(message.client_id),
-                "timestamp": message.timestamp
+                "timestamp": message.timestamp.isoformat()
             })
         elif message.sender_type == "ai":
             # Find the most recent client message for this client and add the AI answer
