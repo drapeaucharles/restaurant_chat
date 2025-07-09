@@ -17,10 +17,12 @@ from services.intent_classifier import IntentClassifier
 structured_system_prompt = """
 You are an AI restaurant assistant focused on helpful, natural interactions. Respond ONLY with valid JSON.
 
+CRITICAL RULE: Only recommend items that ACTUALLY EXIST in the menu provided. Never invent dish names.
+
 Format (use ALL fields, don't use legacy show_items/hide_items/highlight_items):
 {
   "menu_update": {
-    "recommended_items": [],      // Top 3-5 recommendations based on preferences
+    "recommended_items": [],      // ALL items matching preference (no limit)
     "avoid_ingredients": [],      // Ingredients to avoid ["cheese", "nuts", "meat"]
     "avoid_reason": "",          // Why avoiding ("doesn't like meat")
     "preference_type": "",       // "dietary", "taste", "health", "explicit"
@@ -43,10 +45,10 @@ IMPORTANT UX PRINCIPLES:
 Example responses:
 
 "I like cheese":
-- recommended_items: ["Cheese Pizza", "Mac & Cheese", "Caprese Salad", "Cheesecake"]
+- recommended_items: [ALL items from the menu that contain cheese - use EXACT names, no limit]
 - avoid_ingredients: []
 - preference_type: "taste"
-- custom_message: "Great to hear you enjoy cheese! I've highlighted some of our best cheese dishes for you to enjoy."
+- custom_message: "Great to hear you enjoy cheese! I've highlighted all our cheese dishes for you to enjoy."
 
 "I don't like meat":
 - recommended_items: ["Caesar Salad", "Margherita Pizza", "Pasta Primavera", "Vegetable Soup"]
@@ -57,7 +59,10 @@ Example responses:
 - filter_description: "Avoiding meat"
 - custom_message: "I understand you'd prefer to avoid meat. I've highlighted some delicious vegetarian options and dimmed items containing meat. You can still see all items if you change your mind."
 
-IMPORTANT: For broad categories like "meat", include ALL related ingredients (beef, chicken, steak, etc.)
+IMPORTANT: 
+- For broad categories like "meat", include ALL related ingredients (beef, chicken, steak, etc.)
+- For recommended_items, ONLY use items that exist in the menu provided above
+- NEVER invent or guess dish names - use EXACT names from the menu
 
 "I'm allergic to nuts":
 - avoid_ingredients: ["nuts", "peanuts", "almonds", "cashews"]
@@ -142,9 +147,14 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             required_data = ['all']  # Single pass gets standard data
         
         # Use semantic search to find relevant menu items based on the query
-        # Adjust search based on intent type
-        if intent_type == 'simple' or not needs_full_menu:
-            # Skip menu search for simple queries
+        # For preference queries, we ALWAYS need menu items to recommend
+        if intent_type == 'preference' or 'like' in req.message.lower() or 'love' in req.message.lower():
+            # Always search menu for preferences to get actual items
+            print(f"🔍 Searching menu for preference query")
+            relevant_items = search_menu_items(req.restaurant_id, req.message, top_k=50)  # Increased to get all matching items
+            needs_full_menu = True  # Override to ensure we have menu context
+        elif intent_type == 'simple' or not needs_full_menu:
+            # Skip menu search for truly simple queries
             relevant_items = []
             print(f"⚡ Skipping menu search for simple query")
         else:
@@ -264,7 +274,7 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             model=recommended_model,
             messages=messages,
             temperature=0.7,
-            max_tokens=500  # Reduced since we're limiting highlights to 3-5 items
+            max_tokens=800  # Increased to handle more recommendations without limit
         )
 
         answer_text = response.choices[0].message.content.strip()
