@@ -116,6 +116,10 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         # Create list of all item names for show/hide operations
         all_item_names = [item.get('title') or item.get('dish', '') for item in all_menu_items if item.get('title') or item.get('dish')]
 
+        # Get first 3 FAQ items
+        faq_items = data.get('faq', [])[:3]
+        faq_text = chr(10).join([f"Q: {faq.get('question', '')} A: {faq.get('answer', '')}" for faq in faq_items])
+        
         # Prepare user prompt
         user_prompt = f"""
 Customer message: "{req.message}"
@@ -129,7 +133,7 @@ Complete list of ALL menu items (for show/hide operations):
 {', '.join(all_item_names)}
 
 FAQ Info (if relevant to query):
-{chr(10).join([f"Q: {faq.get('question', '')} A: {faq.get('answer', '')}" for faq in data.get('faq', [])[:3]])
+{faq_text}
 
 Remember to respond in the exact JSON format specified. When using show_items or hide_items, use EXACT item names from the complete list above.
 """
