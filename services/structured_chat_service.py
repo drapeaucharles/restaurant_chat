@@ -2,14 +2,17 @@ import json
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import models
-from pinecone_utils import client as openai_client, search_menu_items
+from pinecone_utils import client as openai_client, search_menu_items, search_relevant_faqs
 from schemas.chat import ChatRequest, ChatResponse, MenuUpdate
 from services.chat_service import (
     get_or_create_client,
     fetch_recent_chat_history,
     format_chat_history_for_openai,
-    apply_menu_fallbacks
+    apply_menu_fallbacks,
+    filter_essential_messages
 )
+from services.response_cache import response_cache
+from services.intent_classifier import IntentClassifier
 
 structured_system_prompt = """
 You are an AI restaurant assistant. Respond ONLY with valid JSON in this format:
@@ -44,6 +47,15 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     print(f"👤 Client ID: {req.client_id}")
     print(f"💬 Message: '{req.message}'")
     print(f"📋 Structured Response: {req.structured_response}")
+    
+    # Check cache first for common queries
+    cached_response = response_cache.get(req.restaurant_id, req.message)
+    if cached_response:
+        print(f"✅ Using cached response")
+        return ChatResponse(
+            answer=cached_response.get('answer', ''),
+            menu_update=cached_response.get('menu_update')
+        )
 
     # Get restaurant data
     restaurant = db.query(models.Restaurant).filter(
@@ -76,83 +88,104 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         return ChatResponse(answer="", menu_update=None)
 
     data = restaurant.data or {}
+    
+    # Classify intent to optimize processing
+    intent_type, is_complex, features = IntentClassifier.classify_intent(req.message)
+    recommended_model = IntentClassifier.get_model_recommendation(intent_type, is_complex)
+    needs_full_menu = IntentClassifier.needs_full_menu_context(intent_type, req.message)
+    
+    print(f"🎯 Intent: {intent_type}, Complex: {is_complex}, Model: {recommended_model}")
+    print(f"📋 Features: {features}, Needs full menu: {needs_full_menu}")
 
     try:
         # Use semantic search to find relevant menu items based on the query
-        print(f"🔍 Searching for relevant menu items for query: '{req.message}'")
-        relevant_items = search_menu_items(req.restaurant_id, req.message, top_k=15)
+        # Adjust search based on intent type
+        if intent_type == 'simple' or not needs_full_menu:
+            # Skip menu search for simple queries
+            relevant_items = []
+            print(f"⚡ Skipping menu search for simple query")
+        else:
+            # Adjust top_k based on complexity
+            top_k = 20 if intent_type == 'filter' else (15 if is_complex else 10)
+            print(f"🔍 Searching for relevant menu items (top_k={top_k})")
+            relevant_items = search_menu_items(req.restaurant_id, req.message, top_k=top_k)
         
         # Get all menu items for complete context (needed for show/hide operations)
         all_menu_items = data.get("menu", [])
         if all_menu_items:
             all_menu_items = apply_menu_fallbacks(all_menu_items)
         
-        # Format relevant items for context
-        menu_context = "Relevant Menu Items:\n"
-        if relevant_items:
-            # Group by category for better organization
-            items_by_category = {}
-            for item in relevant_items:
-                category = item.get('category', 'Uncategorized')
-                if category not in items_by_category:
-                    items_by_category[category] = []
-                items_by_category[category].append(item)
+        # Format relevant items for context - COMPRESSED VERSION
+        menu_context = ""
+        if relevant_items and needs_full_menu:
+            # Only include essential info to reduce tokens
+            menu_lines = []
+            for item in relevant_items[:12]:  # Limit items further
+                line = f"- {item['title']}"
+                # Only add critical info based on query intent
+                if 'allerg' in req.message.lower() and item.get('allergens'):
+                    line += f" [A: {','.join(item['allergens'])}]"
+                elif 'ingredient' in req.message.lower() and item.get('ingredients'):
+                    line += f" [I: {','.join(item['ingredients'][:3])}]"
+                elif 'price' in req.message.lower() or 'cost' in req.message.lower():
+                    line += f" [{item.get('price', 'N/A')}]"
+                menu_lines.append(line)
             
-            for category, items in items_by_category.items():
-                menu_context += f"\n{category}:\n"
-                for item in items:
-                    menu_context += f"- {item['title']}: {item['description']}"
-                    if item['ingredients']:
-                        menu_context += f" (Ingredients: {', '.join(item['ingredients'][:5])}...)"
-                    if item['allergens']:
-                        menu_context += f" (Allergens: {', '.join(item['allergens'])})"
-                    menu_context += f" - {item['price']}\n"
-        else:
-            # Fallback: if no relevant items found, include a few sample items
-            menu_context += "\nNo specific items found matching your query. Here are some menu categories available:\n"
-            categories = list(set(item.get('category', 'Other') for item in all_menu_items))[:5]
-            menu_context += ", ".join(categories)
+            if menu_lines:
+                menu_context = "Relevant items:\n" + '\n'.join(menu_lines) + "\n"
         
         # Create list of all item names for show/hide operations
         all_item_names = [item.get('title') or item.get('dish', '') for item in all_menu_items if item.get('title') or item.get('dish')]
 
-        # Get first 3 FAQ items
-        faq_items = data.get('faq', [])[:3]
-        faq_text = chr(10).join([f"Q: {faq.get('question', '')} A: {faq.get('answer', '')}" for faq in faq_items])
+        # Get relevant FAQ items based on the query
+        all_faqs = data.get('faq', [])
+        relevant_faqs = search_relevant_faqs(req.restaurant_id, req.message, all_faqs, top_k=3)
         
-        # Prepare user prompt
-        user_prompt = f"""
-Customer message: "{req.message}"
-
-Restaurant Info:
-- Name: {data.get("name", "Restaurant")}
-
-{menu_context}
-
-Complete list of ALL menu items (for show/hide operations):
-{', '.join(all_item_names)}
-
-FAQ Info (if relevant to query):
-{faq_text}
-
-Remember to respond in the exact JSON format specified. When using show_items or hide_items, use EXACT item names from the complete list above.
-"""
+        if relevant_faqs:
+            faq_text = chr(10).join([f"Q: {faq.get('question', '')} A: {faq.get('answer', '')}" for faq in relevant_faqs])
+            print(f"📚 Found {len(relevant_faqs)} relevant FAQs for the query")
+        else:
+            faq_text = ""
+            print(f"📚 No relevant FAQs found for this query")
+        
+        # Prepare user prompt - COMPRESSED VERSION
+        # Only include necessary context based on intent
+        prompt_parts = [f'Query: "{req.message}"']
+        
+        if needs_full_menu and menu_context:
+            prompt_parts.append(menu_context)
+        
+        # Only include full item list for filter operations
+        if intent_type == 'filter' or 'show' in req.message.lower() or 'hide' in req.message.lower():
+            prompt_parts.append(f"All items: {', '.join(all_item_names)}")
+        
+        if faq_text:
+            prompt_parts.append(f"FAQ:\n{faq_text}")
+            
+        user_prompt = '\n\n'.join(prompt_parts)
 
         # Get recent chat history
         recent_history = fetch_recent_chat_history(db, req.client_id, req.restaurant_id)
         
+        # Filter out non-essential messages to reduce tokens
+        if recent_history:
+            filtered_history = filter_essential_messages(recent_history)
+            print(f"📊 History filtering: {len(recent_history)} messages → {len(filtered_history)} essential messages")
+        else:
+            filtered_history = []
+        
         # Prepare messages for OpenAI
         messages = [{"role": "system", "content": structured_system_prompt}]
         
-        if recent_history:
-            history_messages = format_chat_history_for_openai(recent_history)
+        if filtered_history:
+            history_messages = format_chat_history_for_openai(filtered_history)
             messages.extend(history_messages)
         
         messages.append({"role": "user", "content": user_prompt})
 
-        # Call OpenAI
+        # Call OpenAI with recommended model
         response = openai_client.chat.completions.create(
-            model="gpt-4",
+            model=recommended_model,
             messages=messages,
             temperature=0.7,
             max_tokens=500  # Reduced since we're limiting highlights to 3-5 items
@@ -192,6 +225,13 @@ Remember to respond in the exact JSON format specified. When using show_items or
             db.commit()
             
             print(f"✅ Structured response: show={menu_update_obj.show_items}, hide={menu_update_obj.hide_items}, highlight={menu_update_obj.highlight_items}")
+            
+            # Cache the response for common queries
+            response_data = {
+                'answer': menu_update_obj.custom_message,
+                'menu_update': menu_update_obj.dict()
+            }
+            response_cache.set(req.restaurant_id, req.message, response_data)
             
             return ChatResponse(
                 answer=menu_update_obj.custom_message,

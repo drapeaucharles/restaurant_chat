@@ -1,4 +1,5 @@
 import openai
+import re
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import models
@@ -62,6 +63,58 @@ def fetch_recent_chat_history(db: Session, client_id: str, restaurant_id: str):
         print(f"   {i+1}. [{msg.sender_type}] {msg.timestamp}: '{msg.message[:50]}...'")
     
     return recent_messages
+
+def filter_essential_messages(messages):
+    """
+    Filter out non-essential messages to reduce token usage.
+    Keeps messages that contain questions, preferences, or important context.
+    
+    Args:
+        messages: List of ChatMessage objects
+        
+    Returns:
+        List of filtered ChatMessage objects
+    """
+    # Patterns for non-essential messages
+    non_essential_patterns = [
+        r'^(ok|okay|thanks|thank you|yes|no|yeah|yep|nope|sure|alright|got it|understood|perfect|great|good|nice|cool|awesome)\.?$',
+        r'^(hi|hello|hey|bye|goodbye|see you|later)\.?$',
+        r'^👍|😊|😄|🙏|✅|👌$',  # Single emojis
+        r'^\.$',  # Just a period
+        r'^!+$',  # Just exclamation marks
+    ]
+    
+    essential_keywords = [
+        'what', 'how', 'when', 'where', 'why', 'which', 'who',
+        'allerg', 'gluten', 'vegan', 'vegetarian', 'dairy', 'nut', 'ingredient',
+        'spicy', 'mild', 'recommend', 'suggest', 'best', 'popular', 'favorite',
+        'price', 'cost', 'expensive', 'cheap', 'budget',
+        'don\'t like', 'avoid', 'without', 'no ', 'free from',
+        'show', 'filter', 'only', 'menu', 'options', 'dishes',
+        '?'  # Questions
+    ]
+    
+    filtered_messages = []
+    
+    for msg in messages:
+        message_lower = msg.message.lower().strip()
+        
+        # Always keep AI messages (they contain important context)
+        if msg.sender_type == 'ai':
+            filtered_messages.append(msg)
+            continue
+            
+        # Check if message is non-essential
+        is_non_essential = any(re.match(pattern, message_lower, re.IGNORECASE) for pattern in non_essential_patterns)
+        
+        # Check if message contains essential keywords
+        contains_essential = any(keyword in message_lower for keyword in essential_keywords)
+        
+        # Keep message if it's not non-essential OR if it contains essential keywords
+        if not is_non_essential or contains_essential:
+            filtered_messages.append(msg)
+    
+    return filtered_messages
 
 def format_chat_history_for_openai(chat_history):
     """

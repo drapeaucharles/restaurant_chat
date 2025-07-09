@@ -1,6 +1,7 @@
 # pinecone_utils.py
 
 import os
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 from openai import OpenAI
@@ -245,3 +246,142 @@ def search_menu_items(restaurant_id, query, top_k=10):
             relevant_items.append(item)
     
     return relevant_items
+
+# Search for relevant FAQ items based on user query
+def search_relevant_faqs(restaurant_id, query, faqs, top_k=3):
+    """
+    Find the most relevant FAQ items based on semantic similarity to the query.
+    This avoids sending all FAQs and reduces token usage.
+    
+    Args:
+        restaurant_id: Restaurant identifier
+        query: User's question
+        faqs: List of FAQ dictionaries
+        top_k: Number of FAQs to return
+        
+    Returns:
+        List of most relevant FAQ items
+    """
+    if not faqs:
+        return []
+    
+    # Create embeddings for all FAQs
+    faq_embeddings = []
+    valid_faqs = []
+    
+    for faq in faqs:
+        question = faq.get('question', '')
+        answer = faq.get('answer', '')
+        if question and answer:
+            # Combine question and answer for richer embedding
+            faq_text = f"Q: {question} A: {answer}"
+            try:
+                embedding = create_embedding(faq_text)
+                faq_embeddings.append(embedding)
+                valid_faqs.append(faq)
+            except Exception as e:
+                print(f"Error creating embedding for FAQ: {e}")
+                continue
+    
+    if not faq_embeddings:
+        return []
+    
+    # Create embedding for the query
+    query_embedding = create_embedding(query)
+    
+    # Calculate cosine similarity between query and each FAQ
+    import numpy as np
+    
+    similarities = []
+    for faq_emb in faq_embeddings:
+        # Cosine similarity
+        similarity = np.dot(query_embedding, faq_emb) / (np.linalg.norm(query_embedding) * np.linalg.norm(faq_emb))
+        similarities.append(similarity)
+    
+    # Get indices of top-k most similar FAQs
+    top_indices = np.argsort(similarities)[-top_k:][::-1]
+    
+    # Return only FAQs with similarity above threshold (0.7)
+    relevant_faqs = []
+    for idx in top_indices:
+        if similarities[idx] > 0.7:  # Relevance threshold
+            relevant_faqs.append(valid_faqs[idx])
+    
+    return relevant_faqs
+
+# Cache restaurant context in Pinecone for faster retrieval
+def cache_restaurant_context(restaurant_id, context_data):
+    """
+    Cache the restaurant's context (name, basic info) in Pinecone.
+    This reduces the need to rebuild context for every request.
+    
+    Args:
+        restaurant_id: Restaurant identifier
+        context_data: Dictionary with restaurant context
+    """
+    import hashlib
+    
+    # Create a unique ID for the context
+    context_id = f"context_{restaurant_id}_{hashlib.md5(str(context_data).encode()).hexdigest()[:8]}"
+    
+    # Create text representation of context
+    context_text = f"""
+    Restaurant: {context_data.get('name', 'Unknown')}
+    Type: Restaurant Context Cache
+    Categories: {', '.join(context_data.get('categories', []))}
+    Total Items: {context_data.get('item_count', 0)}
+    Has FAQ: {'Yes' if context_data.get('has_faq') else 'No'}
+    """
+    
+    # Create embedding
+    embedding = create_embedding(context_text)
+    
+    # Store in Pinecone with metadata
+    metadata = {
+        "restaurant_id": restaurant_id,
+        "type": "context_cache",
+        "name": context_data.get('name', ''),
+        "categories": context_data.get('categories', []),
+        "item_count": context_data.get('item_count', 0),
+        "has_faq": context_data.get('has_faq', False),
+        "cached_at": datetime.utcnow().isoformat()
+    }
+    
+    index.upsert(vectors=[{
+        "id": context_id,
+        "values": embedding,
+        "metadata": metadata
+    }])
+    
+    return context_id
+
+# Retrieve cached restaurant context
+def get_cached_context(restaurant_id):
+    """
+    Retrieve cached restaurant context from Pinecone.
+    
+    Args:
+        restaurant_id: Restaurant identifier
+        
+    Returns:
+        Context metadata if found, None otherwise
+    """
+    # Query for context cache
+    results = index.query(
+        vector=[0] * 1536,  # Dummy vector for metadata-only query
+        top_k=1,
+        include_metadata=True,
+        filter={
+            "restaurant_id": {"$eq": restaurant_id},
+            "type": {"$eq": "context_cache"}
+        }
+    )
+    
+    if results.matches:
+        metadata = results.matches[0].metadata
+        # Check if cache is still fresh (24 hours)
+        cached_at = datetime.fromisoformat(metadata.get('cached_at'))
+        if datetime.utcnow() - cached_at < timedelta(hours=24):
+            return metadata
+    
+    return None
