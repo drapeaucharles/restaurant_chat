@@ -13,16 +13,24 @@ from services.chat_service import (
 )
 from services.response_cache import response_cache
 from services.intent_classifier import IntentClassifier
+from services.menu_validation_logger import menu_validation_logger
 
 structured_system_prompt = """
 You are an AI restaurant assistant focused on helpful, natural interactions. Respond ONLY with valid JSON.
 
-CRITICAL RULE: Only recommend items that ACTUALLY EXIST in the menu provided. Never invent dish names.
+🚨 CRITICAL RULES - ABSOLUTELY NO EXCEPTIONS:
+1. You MUST ONLY recommend menu items that EXACTLY match the names provided in the menu
+2. NEVER create, invent, modify, or guess dish names (e.g., no "Mac and Cheese" if it's not in the menu)
+3. Copy dish names EXACTLY as they appear - character for character, including capitalization
+4. If no items match a preference, say so clearly instead of making up items
+5. When you receive "All items:" list, those are the ONLY valid item names you can use
+
+VALIDATION REQUIREMENT: Before including any item in recommended_items, verify it exists in the provided menu list.
 
 Format (use ALL fields, don't use legacy show_items/hide_items/highlight_items):
 {
   "menu_update": {
-    "recommended_items": [],      // ALL items matching preference (no limit)
+    "recommended_items": [],      // ONLY exact menu item names from the provided list
     "avoid_ingredients": [],      // Ingredients to avoid ["cheese", "nuts", "meat"]
     "avoid_reason": "",          // Why avoiding ("doesn't like meat")
     "preference_type": "",       // "dietary", "taste", "health", "explicit"
@@ -33,6 +41,12 @@ Format (use ALL fields, don't use legacy show_items/hide_items/highlight_items):
     "custom_message": ""        // Your conversational response
   }
 }
+
+MENU ITEM RULES:
+- recommended_items MUST contain ONLY exact names from the menu provided
+- If you think an item like "Mac and Cheese" exists but it's not in the menu, DO NOT include it
+- If the menu has "Macaroni and Cheese", use that exact name, not "Mac and Cheese"
+- Empty recommended_items is better than invented items
 
 IMPORTANT UX PRINCIPLES:
 1. DEFAULT to dimming items, NOT hiding (unless explicitly asked to hide)
@@ -45,13 +59,13 @@ IMPORTANT UX PRINCIPLES:
 Example responses:
 
 "I like cheese":
-- recommended_items: [ALL items from the menu that contain cheese - use EXACT names, no limit]
+- recommended_items: [ONLY items from the provided menu that contain cheese - use EXACT names]
 - avoid_ingredients: []
 - preference_type: "taste"
 - custom_message: "Great to hear you enjoy cheese! I've highlighted all our cheese dishes for you to enjoy."
 
 "I don't like meat":
-- recommended_items: ["Caesar Salad", "Margherita Pizza", "Pasta Primavera", "Vegetable Soup"]
+- recommended_items: [ONLY EXACT item names from the menu that don't contain meat]
 - avoid_ingredients: ["meat", "beef", "chicken", "pork", "lamb", "steak", "bacon", "ham", "turkey", "duck", "veal", "sausage", "prosciutto", "salami", "pepperoni"]
 - avoid_reason: "doesn't like meat"
 - preference_type: "taste"
@@ -61,11 +75,12 @@ Example responses:
 
 IMPORTANT: 
 - For broad categories like "meat", include ALL related ingredients (beef, chicken, steak, etc.)
-- For recommended_items, ONLY use items that exist in the menu provided above
-- NEVER invent or guess dish names - use EXACT names from the menu
+- For recommended_items, ONLY use EXACT item names that appear in the menu
+- NEVER invent dish names like "Mac and Cheese" if they don't exist
+- If unsure whether an item exists, DO NOT include it
 
 "I'm allergic to nuts":
-- avoid_ingredients: ["nuts", "peanuts", "almonds", "cashews"]
+- avoid_ingredients: ["nuts", "peanuts", "almonds", "cashews", "walnuts", "pecans", "hazelnuts", "pistachios", "macadamia"]
 - avoid_reason: "nut allergy"
 - preference_type: "dietary"
 - custom_message: "I've marked all nut-free dishes as safe for you. Items containing nuts are clearly marked but still visible. Please always confirm with staff about allergens."
@@ -75,8 +90,45 @@ IMPORTANT:
 - filter_description: "Vegetarian only"
 - custom_message: "I'm showing only vegetarian options. You can see the full menu again by saying 'show all items'."
 
-Be natural, helpful, and maintain user control.
+Be natural, helpful, and maintain user control. NEVER invent menu items.
 """
+
+def validate_menu_items_exist(recommended_items: list, all_menu_items: list) -> tuple[list, list]:
+    """
+    Validate that recommended items actually exist in the menu.
+    
+    Args:
+        recommended_items: List of item names recommended by AI
+        all_menu_items: List of all menu item dictionaries
+        
+    Returns:
+        Tuple of (valid_items, invalid_items)
+    """
+    # Create a set of all valid menu item names (case-insensitive for comparison)
+    valid_names = set()
+    name_mapping = {}  # Maps lowercase to actual case
+    
+    for item in all_menu_items:
+        # Get the item name (handle multiple possible fields)
+        item_name = item.get('title') or item.get('dish') or item.get('name', '')
+        if item_name:
+            valid_names.add(item_name.lower())
+            name_mapping[item_name.lower()] = item_name
+    
+    valid_items = []
+    invalid_items = []
+    
+    for recommended in recommended_items:
+        if isinstance(recommended, str):
+            # Check if the item exists (case-insensitive)
+            if recommended.lower() in valid_names:
+                # Use the correct case from the actual menu
+                valid_items.append(name_mapping[recommended.lower()])
+            else:
+                invalid_items.append(recommended)
+                print(f"⚠️ WARNING: AI recommended non-existent item: '{recommended}'")
+    
+    return valid_items, invalid_items
 
 def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     """Handle chat requests with structured menu filtering responses."""
@@ -197,6 +249,9 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         
         # Create list of all item names for show/hide operations
         all_item_names = [item.get('title') or item.get('dish', '') for item in all_menu_items if item.get('title') or item.get('dish')]
+        
+        # CRITICAL: Create explicit menu validation context
+        menu_validation_context = f"\n🚨 IMPORTANT: The ONLY valid menu items you can recommend are:\n{', '.join(['\"' + name + '\"' for name in all_item_names])}\n\nNEVER recommend items not in this list!"
 
         # Get relevant FAQ items based on the query
         all_faqs = data.get('faq', [])
@@ -212,6 +267,10 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         # Prepare user prompt - COMPRESSED VERSION
         # Only include necessary context based on intent
         prompt_parts = [f'Query: "{req.message}"']
+        
+        # ALWAYS include the menu validation context for preference/filter queries
+        if intent_type in ['preference', 'filter'] or any(word in req.message.lower() for word in ['like', 'love', 'want', 'show', 'hide', 'only']):
+            prompt_parts.append(menu_validation_context)
         
         if needs_full_menu and menu_context:
             prompt_parts.append(menu_context)
@@ -294,6 +353,48 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             
             # Debug logging
             print(f"🔍 Raw AI response: {json.dumps(menu_update, indent=2)}")
+            
+            # Validate recommended items exist in the menu
+            recommended_items_raw = menu_update.get('recommended_items', menu_update.get('highlight_items', []))
+            if recommended_items_raw:
+                valid_items, invalid_items = validate_menu_items_exist(recommended_items_raw, all_menu_items)
+                
+                if invalid_items:
+                    print(f"❌ AI tried to recommend non-existent items: {invalid_items}")
+                    print(f"✅ Valid items found: {valid_items}")
+                    
+                    # Log this validation error
+                    menu_validation_logger.log_invalid_items(
+                        restaurant_id=req.restaurant_id,
+                        client_id=req.client_id,
+                        user_message=req.message,
+                        invalid_items=invalid_items,
+                        valid_items=valid_items,
+                        ai_response=menu_update
+                    )
+                    
+                    # Update the menu_update with only valid items
+                    menu_update['recommended_items'] = valid_items
+                    if 'highlight_items' in menu_update:
+                        menu_update['highlight_items'] = valid_items
+                    
+                    # Log this as a critical error
+                    print(f"🚨 CRITICAL: AI invented menu items despite explicit instructions!")
+                    print(f"🚨 Invalid items: {invalid_items}")
+                    print(f"🚨 This should not happen - prompt may need further refinement")
+            
+            # Also validate show_items and hide_items if present
+            if menu_update.get('show_items'):
+                valid_show, invalid_show = validate_menu_items_exist(menu_update['show_items'], all_menu_items)
+                if invalid_show:
+                    print(f"❌ AI tried to show non-existent items: {invalid_show}")
+                    menu_update['show_items'] = valid_show
+            
+            if menu_update.get('hide_items'):
+                valid_hide, invalid_hide = validate_menu_items_exist(menu_update['hide_items'], all_menu_items)
+                if invalid_hide:
+                    print(f"❌ AI tried to hide non-existent items: {invalid_hide}")
+                    menu_update['hide_items'] = valid_hide
             
             # Ensure all required fields exist (support both old and new format)
             menu_update_obj = MenuUpdate(

@@ -16,11 +16,14 @@ You are a helpful, friendly, and professional restaurant staff member. You assis
 
 You must:
 - Answer based only on the provided restaurant information (menu, story, hours, etc.)
+- CRITICAL: When mentioning menu items, use ONLY the EXACT names provided in the menu. Never create or modify dish names (e.g., don't say "Mac and Cheese" if the menu says "Macaroni and Cheese")
 - Use your knowledge of food, allergies, and dietary terms to give helpful replies
 - Be honest — if something is not clear or missing, suggest asking the staff
 - Never invent fake details or answer beyond the known context
 - Never say you are an AI, unless the customer explicitly asks
 - You can say "Hi" or "Welcome" if the message is casual like "hello", and you should always try to be helpful even when information is limited.
+
+MENU ITEM RULE: Always use the exact dish names from the menu. If unsure about a dish name, describe it generally rather than inventing a name.
 
 You sound like a real person working at the restaurant, not a robot. Keep answers short, clear, and polite.
 """
@@ -198,10 +201,13 @@ def format_menu(menu_items):
         return "No menu items available."
     
     formatted_items = []
+    all_names = []  # Track all menu item names for validation reminder
+    
     for item in menu_items:
         try:
             # Ensure all required fields exist with fallbacks
             name = item.get('name') or item.get('dish', 'Unknown Dish')
+            all_names.append(name)  # Collect names
             description = item.get('description', 'No description available')
             ingredients = item.get('ingredients', [])
             allergens = item.get('allergens', [])
@@ -219,7 +225,12 @@ def format_menu(menu_items):
             # Add a fallback item to prevent complete failure
             formatted_items.append(f"Menu item (details unavailable): {str(item)[:100]}")
     
-    return "\n\n".join(formatted_items)
+    menu_text = "\n\n".join(formatted_items)
+    
+    # Add validation reminder
+    validation_note = f"\n\nIMPORTANT: When referring to menu items, use ONLY these exact names: {', '.join(['\"' + name + '\"' for name in all_names])}"
+    
+    return menu_text + validation_note
 
 def format_faq(faq_items):
     """Format FAQ items for OpenAI prompt with defensive checks."""
