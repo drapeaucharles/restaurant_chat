@@ -17,17 +17,17 @@ from services.intent_classifier import IntentClassifier
 structured_system_prompt = """
 You are an AI restaurant assistant focused on helpful, natural interactions. Respond ONLY with valid JSON.
 
-Format:
+Format (use ALL fields, don't use legacy show_items/hide_items/highlight_items):
 {
   "menu_update": {
-    "recommended_items": [],      // Top 3-5 recommendations
-    "avoid_ingredients": [],      // Ingredients to avoid ["cheese", "nuts"]
-    "avoid_reason": "",          // Why avoiding ("lactose intolerant", "doesn't like")
+    "recommended_items": [],      // Top 3-5 recommendations based on preferences
+    "avoid_ingredients": [],      // Ingredients to avoid ["cheese", "nuts", "meat"]
+    "avoid_reason": "",          // Why avoiding ("doesn't like meat")
     "preference_type": "",       // "dietary", "taste", "health", "explicit"
     "reorder": false,           // Should reorder menu
     "dim_avoided": true,        // Dim items (true) or hide (false)
     "filter_active": false,     // Is filtering active
-    "filter_description": "",   // "Avoiding cheese"
+    "filter_description": "",   // "Avoiding meat"
     "custom_message": ""        // Your conversational response
   }
 }
@@ -42,12 +42,22 @@ IMPORTANT UX PRINCIPLES:
 
 Example responses:
 
-"I don't like cheese":
-- avoid_ingredients: ["cheese"]
-- avoid_reason: "doesn't like cheese"
+"I like cheese":
+- recommended_items: ["Cheese Pizza", "Mac & Cheese", "Caprese Salad", "Cheesecake"]
+- avoid_ingredients: []
+- preference_type: "taste"
+- custom_message: "Great to hear you enjoy cheese! I've highlighted some of our best cheese dishes for you to enjoy."
+
+"I don't like meat":
+- recommended_items: ["Caesar Salad", "Margherita Pizza", "Pasta Primavera", "Vegetable Soup"]
+- avoid_ingredients: ["meat", "beef", "chicken", "pork", "lamb", "steak", "bacon", "ham", "turkey", "duck", "veal", "sausage", "prosciutto", "salami", "pepperoni"]
+- avoid_reason: "doesn't like meat"
 - preference_type: "taste"
 - dim_avoided: true
-- custom_message: "I understand you'd prefer to avoid cheese. I've highlighted some delicious cheese-free options and dimmed items containing cheese. You can still see all items if you change your mind."
+- filter_description: "Avoiding meat"
+- custom_message: "I understand you'd prefer to avoid meat. I've highlighted some delicious vegetarian options and dimmed items containing meat. You can still see all items if you change your mind."
+
+IMPORTANT: For broad categories like "meat", include ALL related ingredients (beef, chicken, steak, etc.)
 
 "I'm allergic to nuts":
 - avoid_ingredients: ["nuts", "peanuts", "almonds", "cashews"]
@@ -272,6 +282,9 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             json_response = json.loads(json_text)
             menu_update = json_response.get('menu_update', {})
             
+            # Debug logging
+            print(f"🔍 Raw AI response: {json.dumps(menu_update, indent=2)}")
+            
             # Ensure all required fields exist (support both old and new format)
             menu_update_obj = MenuUpdate(
                 # Legacy fields
@@ -300,7 +313,8 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             db.add(new_message)
             db.commit()
             
-            print(f"✅ Structured response: show={menu_update_obj.show_items}, hide={menu_update_obj.hide_items}, highlight={menu_update_obj.highlight_items}")
+            print(f"✅ Structured response (legacy): show={menu_update_obj.show_items}, hide={menu_update_obj.hide_items}, highlight={menu_update_obj.highlight_items}")
+            print(f"✅ Structured response (new): avoid={menu_update_obj.avoid_ingredients}, recommend={menu_update_obj.recommended_items}, dim={menu_update_obj.dim_avoided}")
             
             # Cache the response for common queries
             response_data = {
