@@ -14,6 +14,11 @@ from services.chat_service import (
 from services.response_cache import response_cache
 from services.intent_classifier import IntentClassifier
 from services.menu_validation_logger import menu_validation_logger
+from services.ingredient_search import (
+    search_items_by_ingredient,
+    get_items_avoiding_ingredients,
+    enhance_search_with_ingredients
+)
 
 structured_system_prompt = """
 You are an AI restaurant assistant focused on helpful, natural interactions. Respond ONLY with valid JSON.
@@ -24,6 +29,13 @@ You are an AI restaurant assistant focused on helpful, natural interactions. Res
 3. Copy dish names EXACTLY as they appear - character for character, including capitalization
 4. If no items match a preference, say so clearly instead of making up items
 5. When you receive "All items:" list, those are the ONLY valid item names you can use
+6. For ingredient preferences (cheese, meat, etc.), CAREFULLY check the ingredients list provided
+
+INGREDIENT CHECKING RULES:
+- When user says "I like cheese" - recommend ALL items that contain cheese-based ingredients
+- Check for: cheese, mozzarella, parmesan, feta, ricotta, gorgonzola, gruyere, etc.
+- When user says "no meat" - avoid ALL meat items including beef, chicken, pork, lamb, etc.
+- Always check the [Ingredients: ...] data when provided
 
 VALIDATION REQUIREMENT: Before including any item in recommended_items, verify it exists in the provided menu list.
 
@@ -198,12 +210,27 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         else:
             required_data = ['all']  # Single pass gets standard data
         
+        # Get all menu items for complete context (needed for show/hide operations)
+        all_menu_items = data.get("menu", [])
+        if all_menu_items:
+            all_menu_items = apply_menu_fallbacks(all_menu_items)
+        
         # Use semantic search to find relevant menu items based on the query
         # For preference queries, we ALWAYS need menu items to recommend
         if intent_type == 'preference' or 'like' in req.message.lower() or 'love' in req.message.lower():
             # Always search menu for preferences to get actual items
             print(f"🔍 Searching menu for preference query")
-            relevant_items = search_menu_items(req.restaurant_id, req.message, top_k=50)  # Increased to get all matching items
+            semantic_results = search_menu_items(req.restaurant_id, req.message, top_k=50)  # Increased to get all matching items
+            
+            # Enhance with ingredient-based search to ensure we don't miss items
+            relevant_items = enhance_search_with_ingredients(
+                req.restaurant_id, 
+                req.message, 
+                all_menu_items,
+                semantic_results
+            )
+            
+            print(f"📊 Found {len(semantic_results)} semantic matches, enhanced to {len(relevant_items)} total items")
             needs_full_menu = True  # Override to ensure we have menu context
         elif intent_type == 'simple' or not needs_full_menu:
             # Skip menu search for truly simple queries
@@ -213,22 +240,36 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             # Adjust top_k based on complexity
             top_k = 20 if intent_type == 'filter' else (15 if is_complex else 10)
             print(f"🔍 Searching for relevant menu items (top_k={top_k})")
-            relevant_items = search_menu_items(req.restaurant_id, req.message, top_k=top_k)
-        
-        # Get all menu items for complete context (needed for show/hide operations)
-        all_menu_items = data.get("menu", [])
-        if all_menu_items:
-            all_menu_items = apply_menu_fallbacks(all_menu_items)
+            semantic_results = search_menu_items(req.restaurant_id, req.message, top_k=top_k)
+            
+            # Enhance with ingredient search for filter/dietary queries
+            if any(term in req.message.lower() for term in ['cheese', 'meat', 'seafood', 'vegetarian', 'vegan', 'allerg']):
+                relevant_items = enhance_search_with_ingredients(
+                    req.restaurant_id, 
+                    req.message, 
+                    all_menu_items,
+                    semantic_results
+                )
+                print(f"📊 Enhanced search: {len(semantic_results)} → {len(relevant_items)} items")
+            else:
+                relevant_items = semantic_results
         
         # Format relevant items for context - OPTIMIZED BASED ON REQUIRED DATA
         menu_context = ""
         if relevant_items and needs_full_menu:
             menu_lines = []
-            for item in relevant_items[:15]:  # Show more items for better coverage
+            # For preference queries, show more items and ALWAYS include ingredients
+            items_to_show = 25 if intent_type == 'preference' else 15
+            
+            for item in relevant_items[:items_to_show]:  # Show more items for better coverage
                 line = f"- {item['title']}"
                 
+                # For preference/filter queries, ALWAYS include ingredients
+                if intent_type in ['preference', 'filter'] or any(term in req.message.lower() for term in ['cheese', 'meat', 'vegetarian']):
+                    if item.get('ingredients'):
+                        line += f" [Ingredients: {', '.join(item['ingredients'])}]"
                 # Include data based on what's actually needed
-                if 'ingredients' in required_data and item.get('ingredients'):
+                elif 'ingredients' in required_data and item.get('ingredients'):
                     line += f" [Ingredients: {', '.join(item['ingredients'])}]"
                 
                 if 'allergens' in required_data and item.get('allergens'):
@@ -275,13 +316,15 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         if needs_full_menu and menu_context:
             prompt_parts.append(menu_context)
         
-        # For filter operations, include items with required data
-        if intent_type == 'filter' or 'show' in req.message.lower() or 'hide' in req.message.lower():
-            # Build item list with only required data
-            if 'ingredients' in required_data:
+        # For filter operations AND preference queries, include items with required data
+        if intent_type in ['filter', 'preference'] or any(word in req.message.lower() for word in ['show', 'hide', 'like', 'love', 'cheese', 'meat']):
+            # Build item list with ingredients - ALWAYS for preference queries
+            if intent_type == 'preference' or 'ingredients' in required_data or any(term in req.message.lower() for term in ['cheese', 'meat', 'vegetarian']):
                 # Create a compact format with ingredients
                 items_with_data = []
-                for item in all_menu_items[:50]:  # Limit to prevent token explosion
+                # For preference queries, include ALL items to ensure nothing is missed
+                items_limit = len(all_menu_items) if intent_type == 'preference' else 50
+                for item in all_menu_items[:items_limit]:
                     item_name = item.get('title') or item.get('dish', '')
                     ingredients = item.get('ingredients', [])
                     if ingredients:
