@@ -15,34 +15,52 @@ from services.response_cache import response_cache
 from services.intent_classifier import IntentClassifier
 
 structured_system_prompt = """
-You are an AI restaurant assistant. Respond ONLY with valid JSON in this format:
+You are an AI restaurant assistant focused on helpful, natural interactions. Respond ONLY with valid JSON.
+
+Format:
 {
   "menu_update": {
-    "show_items": [],
-    "hide_items": [],
-    "highlight_items": [],
-    "custom_message": ""
+    "recommended_items": [],      // Top 3-5 recommendations
+    "avoid_ingredients": [],      // Ingredients to avoid ["cheese", "nuts"]
+    "avoid_reason": "",          // Why avoiding ("lactose intolerant", "doesn't like")
+    "preference_type": "",       // "dietary", "taste", "health", "explicit"
+    "reorder": false,           // Should reorder menu
+    "dim_avoided": true,        // Dim items (true) or hide (false)
+    "filter_active": false,     // Is filtering active
+    "filter_description": "",   // "Avoiding cheese"
+    "custom_message": ""        // Your conversational response
   }
 }
 
-Rules:
-- show_items: ONLY for explicit filtering requests ("show me only X", "filter by X")
-- hide_items: For dislikes/allergies ("I don't eat X", "allergic to X")  
-- highlight_items: For preferences (max 3-5 items, only positive preferences)
-- custom_message: Your response (always required)
+IMPORTANT UX PRINCIPLES:
+1. DEFAULT to dimming items, NOT hiding (unless explicitly asked to hide)
+2. Be conversational and explain what you're doing
+3. Give users control - mention they can change preferences
+4. For "I don't like X" → dim items with X, highlight alternatives
+5. For "I'm allergic to X" → strongly highlight safe options, dim dangerous ones
+6. For "Show me only X" → use filter_active=true, hide others
 
-CRITICAL for "show me items with X" queries:
-- ONLY include items that ACTUALLY contain ingredient X
-- Check the ingredients list provided [ingredient1,ingredient2,...]
-- Do NOT guess or assume ingredients
-- If an item has no ingredients listed, do NOT include it
+Example responses:
 
-Key distinctions:
-- "What is X?" = informational query → no filtering
-- "Show me items with X" = filter by ingredient → use show_items ONLY for items containing X
-- "I don't like X" = preference → use hide_items
+"I don't like cheese":
+- avoid_ingredients: ["cheese"]
+- avoid_reason: "doesn't like cheese"
+- preference_type: "taste"
+- dim_avoided: true
+- custom_message: "I understand you'd prefer to avoid cheese. I've highlighted some delicious cheese-free options and dimmed items containing cheese. You can still see all items if you change your mind."
 
-Use EXACT item names from the lists provided.
+"I'm allergic to nuts":
+- avoid_ingredients: ["nuts", "peanuts", "almonds", "cashews"]
+- avoid_reason: "nut allergy"
+- preference_type: "dietary"
+- custom_message: "I've marked all nut-free dishes as safe for you. Items containing nuts are clearly marked but still visible. Please always confirm with staff about allergens."
+
+"Show me only vegetarian":
+- filter_active: true
+- filter_description: "Vegetarian only"
+- custom_message: "I'm showing only vegetarian options. You can see the full menu again by saying 'show all items'."
+
+Be natural, helpful, and maintain user control.
 """
 
 def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
@@ -254,12 +272,22 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             json_response = json.loads(json_text)
             menu_update = json_response.get('menu_update', {})
             
-            # Ensure all required fields exist
+            # Ensure all required fields exist (support both old and new format)
             menu_update_obj = MenuUpdate(
+                # Legacy fields
                 show_items=menu_update.get('show_items', []),
                 hide_items=menu_update.get('hide_items', []),
-                highlight_items=menu_update.get('highlight_items', []),
-                custom_message=menu_update.get('custom_message', 'I can help you explore our menu!')
+                highlight_items=menu_update.get('highlight_items', menu_update.get('recommended_items', [])),
+                custom_message=menu_update.get('custom_message', 'I can help you explore our menu!'),
+                # New fields
+                recommended_items=menu_update.get('recommended_items', menu_update.get('highlight_items', [])),
+                avoid_ingredients=menu_update.get('avoid_ingredients', []),
+                avoid_reason=menu_update.get('avoid_reason'),
+                preference_type=menu_update.get('preference_type'),
+                reorder=menu_update.get('reorder', False),
+                dim_avoided=menu_update.get('dim_avoided', True),
+                filter_active=menu_update.get('filter_active', False),
+                filter_description=menu_update.get('filter_description')
             )
             
             # Save to database
