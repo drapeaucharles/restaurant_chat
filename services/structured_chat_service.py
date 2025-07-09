@@ -27,16 +27,22 @@ You are an AI restaurant assistant. Respond ONLY with valid JSON in this format:
 
 Rules:
 - show_items: ONLY for explicit filtering requests ("show me only X", "filter by X")
-- hide_items: For dislikes/allergies ("I don't eat X", "allergic to X")
+- hide_items: For dislikes/allergies ("I don't eat X", "allergic to X")  
 - highlight_items: For preferences (max 3-5 items, only positive preferences)
 - custom_message: Your response (always required)
 
+CRITICAL for "show me items with X" queries:
+- ONLY include items that ACTUALLY contain ingredient X
+- Check the ingredients list provided [ingredient1,ingredient2,...]
+- Do NOT guess or assume ingredients
+- If an item has no ingredients listed, do NOT include it
+
 Key distinctions:
 - "What is X?" = informational query → no filtering
-- "Show me only X" = filter request → use show_items
+- "Show me items with X" = filter by ingredient → use show_items ONLY for items containing X
 - "I don't like X" = preference → use hide_items
 
-Use EXACT item names from the complete list provided.
+Use EXACT item names from the lists provided.
 """
 
 def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
@@ -93,11 +99,20 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     intent_type, is_complex, features = IntentClassifier.classify_intent(req.message)
     recommended_model = IntentClassifier.get_model_recommendation(intent_type, is_complex)
     needs_full_menu = IntentClassifier.needs_full_menu_context(intent_type, req.message)
+    needs_two_pass = IntentClassifier.needs_two_pass_processing(req.message, intent_type, is_complex)
     
     print(f"🎯 Intent: {intent_type}, Complex: {is_complex}, Model: {recommended_model}")
     print(f"📋 Features: {features}, Needs full menu: {needs_full_menu}")
+    print(f"🔄 Two-pass needed: {needs_two_pass}")
 
     try:
+        # For two-pass processing, first detect what data is needed
+        if needs_two_pass:
+            required_data = IntentClassifier.detect_required_data(req.message)
+            print(f"📊 Two-pass mode: Required data: {required_data}")
+        else:
+            required_data = ['all']  # Single pass gets standard data
+        
         # Use semantic search to find relevant menu items based on the query
         # Adjust search based on intent type
         if intent_type == 'simple' or not needs_full_menu:
@@ -115,24 +130,32 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         if all_menu_items:
             all_menu_items = apply_menu_fallbacks(all_menu_items)
         
-        # Format relevant items for context - COMPRESSED VERSION
+        # Format relevant items for context - OPTIMIZED BASED ON REQUIRED DATA
         menu_context = ""
         if relevant_items and needs_full_menu:
-            # Only include essential info to reduce tokens
             menu_lines = []
-            for item in relevant_items[:12]:  # Limit items further
+            for item in relevant_items[:15]:  # Show more items for better coverage
                 line = f"- {item['title']}"
-                # Only add critical info based on query intent
-                if 'allerg' in req.message.lower() and item.get('allergens'):
-                    line += f" [A: {','.join(item['allergens'])}]"
-                elif 'ingredient' in req.message.lower() and item.get('ingredients'):
-                    line += f" [I: {','.join(item['ingredients'][:3])}]"
-                elif 'price' in req.message.lower() or 'cost' in req.message.lower():
+                
+                # Include data based on what's actually needed
+                if 'ingredients' in required_data and item.get('ingredients'):
+                    line += f" [Ingredients: {', '.join(item['ingredients'])}]"
+                
+                if 'allergens' in required_data and item.get('allergens'):
+                    line += f" [Allergens: {','.join(item['allergens'])}]"
+                
+                if 'prices' in required_data:
                     line += f" [{item.get('price', 'N/A')}]"
+                
+                if 'descriptions' in required_data and item.get('description'):
+                    # Add truncated description for context
+                    desc = item['description'][:50] + '...' if len(item['description']) > 50 else item['description']
+                    line += f" - {desc}"
+                
                 menu_lines.append(line)
             
             if menu_lines:
-                menu_context = "Relevant items:\n" + '\n'.join(menu_lines) + "\n"
+                menu_context = "Relevant menu items:\n" + '\n'.join(menu_lines) + "\n"
         
         # Create list of all item names for show/hide operations
         all_item_names = [item.get('title') or item.get('dish', '') for item in all_menu_items if item.get('title') or item.get('dish')]
@@ -155,9 +178,34 @@ def structured_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         if needs_full_menu and menu_context:
             prompt_parts.append(menu_context)
         
-        # Only include full item list for filter operations
+        # For filter operations, include items with required data
         if intent_type == 'filter' or 'show' in req.message.lower() or 'hide' in req.message.lower():
-            prompt_parts.append(f"All items: {', '.join(all_item_names)}")
+            # Build item list with only required data
+            if 'ingredients' in required_data:
+                # Create a compact format with ingredients
+                items_with_data = []
+                for item in all_menu_items[:50]:  # Limit to prevent token explosion
+                    item_name = item.get('title') or item.get('dish', '')
+                    ingredients = item.get('ingredients', [])
+                    if ingredients:
+                        items_with_data.append(f"{item_name}[{','.join(ingredients)}]")
+                    else:
+                        items_with_data.append(item_name)
+                prompt_parts.append(f"All items with ingredients: {'; '.join(items_with_data)}")
+            elif 'allergens' in required_data:
+                # Format with allergens
+                items_with_data = []
+                for item in all_menu_items[:50]:
+                    item_name = item.get('title') or item.get('dish', '')
+                    allergens = item.get('allergens', [])
+                    if allergens:
+                        items_with_data.append(f"{item_name}[A:{','.join(allergens)}]")
+                    else:
+                        items_with_data.append(item_name)
+                prompt_parts.append(f"All items with allergens: {'; '.join(items_with_data)}")
+            else:
+                # Just names for simple operations
+                prompt_parts.append(f"All items: {', '.join(all_item_names)}")
         
         if faq_text:
             prompt_parts.append(f"FAQ:\n{faq_text}")

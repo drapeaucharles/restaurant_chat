@@ -125,3 +125,91 @@ class IntentClassifier:
         
         # Use GPT-4 for complex queries, filters, and preference handling
         return 'gpt-4'
+    
+    @classmethod
+    def needs_two_pass_processing(cls, query: str, intent_type: str, is_complex: bool) -> bool:
+        """
+        Determine if query needs two-pass processing for optimal token usage.
+        
+        Two-pass is beneficial for:
+        - Complex multi-criteria filters
+        - Queries needing multiple data types
+        - Long queries with multiple requirements
+        
+        Single-pass is better for:
+        - Simple yes/no questions
+        - Basic information queries
+        - Single-criterion searches
+        """
+        query_lower = query.lower()
+        
+        # Patterns that benefit from two-pass
+        two_pass_patterns = [
+            r'show me all.*and.*and',  # Multiple criteria
+            r'list everything.*with.*without',  # Complex filters
+            r'filter by.*and.*under',  # Multi-filter
+            r'.*multiple.*requirements',
+            r'.*various.*options.*with',
+        ]
+        
+        # Always use single-pass for these
+        single_pass_patterns = [
+            r'^is (it|the|this)',  # "Is it fried?"
+            r'^does (it|the|this) have',  # "Does it have nuts?"
+            r'^what is',  # "What is calamari?"
+            r'^how much',  # "How much is..."
+            r'^when',  # "When are you open?"
+            r'^where',  # "Where are you located?"
+        ]
+        
+        # Check single-pass patterns first (higher priority)
+        for pattern in single_pass_patterns:
+            if re.match(pattern, query_lower):
+                return False
+        
+        # Check two-pass patterns
+        for pattern in two_pass_patterns:
+            if re.search(pattern, query_lower):
+                return True
+        
+        # Use two-pass for very complex queries
+        if is_complex and len(query.split()) > 20:
+            return True
+        
+        # Use two-pass for complex filter intents with multiple criteria
+        if intent_type == 'filter' and query_lower.count(' and ') > 1:
+            return True
+        
+        # Default to single-pass for speed
+        return False
+    
+    @classmethod
+    def detect_required_data(cls, query: str) -> List[str]:
+        """
+        Quickly detect what data types are needed for the query.
+        Used for two-pass processing optimization.
+        """
+        query_lower = query.lower()
+        required_data = []
+        
+        # Check for ingredient-related queries
+        if any(word in query_lower for word in ['with', 'contain', 'has', 'ingredient', 'made of', 'includes']):
+            required_data.append('ingredients')
+        
+        # Check for allergen-related queries
+        if any(word in query_lower for word in ['allerg', 'gluten', 'nut', 'dairy', 'vegan', 'vegetarian']):
+            required_data.append('allergens')
+        
+        # Check for price-related queries
+        if any(word in query_lower for word in ['price', 'cost', 'expensive', 'cheap', 'budget', 'under', 'over', '$']):
+            required_data.append('prices')
+        
+        # Check for description needs
+        if any(word in query_lower for word in ['describe', 'what is', 'tell me about', 'explain']):
+            required_data.append('descriptions')
+        
+        # If no specific data detected but it's a complex query, include basics
+        if not required_data and len(query.split()) > 10:
+            required_data.append('descriptions')
+        
+        return required_data
