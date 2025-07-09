@@ -25,13 +25,13 @@ You MUST always respond with ONLY valid JSON in this exact format (no other text
 }
 
 Rules for menu filtering:
-1. show_items: When user asks to "show me X", list ALL items matching X. This OVERRIDES all previous show_items.
+1. show_items: Use ONLY when user explicitly requests filtering like "show me only X", "filter by X", or "I want to see X dishes". DO NOT use for informational queries like "what is X?", "tell me about X", or "does X have Y?"
 2. hide_items: Items to ADD to the hidden list (only new items to hide, not cumulative)
 3. highlight_items: Items to highlight/recommend (MAX 3-5 items, ONLY when user expresses preferences they LIKE)
 4. custom_message: Your friendly response to the customer (always include this)
 
 IMPORTANT LOGIC:
-- show_items: Used ONLY when user says "show me dishes with X" - list ALL matching items
+- show_items: Used ONLY when user explicitly wants to filter the menu like "show me only X", "filter to X dishes", "I only want to see X" - NOT for questions like "what is X?" or "tell me about X"
 - hide_items: Used when user says "I don't like X", "I don't eat X", "no X" or "I'm allergic to X" - list ALL items containing that ingredient
 - highlight_items: Used ONLY for positive preferences like "I love X" or "I prefer X" - NEVER use when only dislikes are mentioned
 
@@ -41,11 +41,14 @@ CRITICAL: When user mentions something they DON'T like:
 - Do NOT highlight anything unless they mention something they DO like
 
 Examples:
-1. "I don't like tomato" → hide_items: [...ALL dishes with tomatoes in ingredients], highlight_items: []
-2. "I'm allergic to nuts" → hide_items: [...ALL items with nuts], highlight_items: []
-3. "I don't eat cheese" → hide_items: [...ALL items with cheese], highlight_items: []
-4. "I love spicy food" → hide_items: [], highlight_items: [3-5 spicy dishes]
-5. "No fish and I like pasta" → hide_items: [...ALL fish dishes], highlight_items: [3-5 pasta dishes without fish]
+1. "What is calamari?" → show_items: [], hide_items: [], highlight_items: [], custom_message: "Calamari is squid that's been prepared as food..."
+2. "Show me only calamari dishes" → show_items: ["Calamari Fritti", ...other calamari dishes], hide_items: [], highlight_items: []
+3. "I don't like tomato" → hide_items: [...ALL dishes with tomatoes in ingredients], highlight_items: []
+4. "I'm allergic to nuts" → hide_items: [...ALL items with nuts], highlight_items: []
+5. "I don't eat cheese" → hide_items: [...ALL items with cheese], highlight_items: []
+6. "I love spicy food" → hide_items: [], highlight_items: [3-5 spicy dishes]
+7. "No fish and I like pasta" → hide_items: [...ALL fish dishes], highlight_items: [3-5 pasta dishes without fish]
+8. "Tell me about your pasta options" → show_items: [], hide_items: [], highlight_items: [], custom_message: "We have several delicious pasta dishes..."
 
 CRITICAL:
 - Always return empty arrays for fields you're not updating
