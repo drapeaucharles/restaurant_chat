@@ -24,7 +24,13 @@ class IntentClassifier:
     PREFERENCE_KEYWORDS = [
         "don't like", "hate", "avoid", "allergic", "intolerant", "can't eat",
         "no ", "without", "free from", "love", "prefer", "favorite", "like",
-        "want", "looking for", "craving", "mood for"
+        "want", "looking for", "craving", "mood for", "enjoy", "adore"
+    ]
+    
+    INGREDIENT_KEYWORDS = [
+        "cheese", "meat", "seafood", "fish", "vegetarian", "vegan", "nuts",
+        "dairy", "gluten", "eggs", "soy", "shellfish", "chicken", "beef",
+        "pork", "lamb", "contains", "with", "without"
     ]
     
     SIMPLE_QUERIES = [
@@ -70,8 +76,16 @@ class IntentClassifier:
                 preference_score += 1
                 detected_features.append(f'preference:{keyword.strip()}')
         
-        if preference_score > 0:
-            is_complex = preference_score > 1 or any(ind in query_lower for ind in cls.COMPLEX_INDICATORS)
+        # Check for ingredient mentions (strong indicator of preference)
+        ingredient_mentions = 0
+        for keyword in cls.INGREDIENT_KEYWORDS:
+            if keyword in query_lower:
+                ingredient_mentions += 1
+                detected_features.append(f'ingredient:{keyword}')
+        
+        # If query mentions ingredients with preference keywords, it's definitely a preference
+        if preference_score > 0 or (ingredient_mentions > 0 and any(word in query_lower for word in ['like', 'love', 'want', 'enjoy'])):
+            is_complex = preference_score > 1 or ingredient_mentions > 1 or any(ind in query_lower for ind in cls.COMPLEX_INDICATORS)
             return ('preference', is_complex, detected_features)
         
         # Check for informational queries
@@ -193,7 +207,9 @@ class IntentClassifier:
         required_data = []
         
         # Check for ingredient-related queries
-        if any(word in query_lower for word in ['with', 'contain', 'has', 'ingredient', 'made of', 'includes']):
+        ingredient_indicators = ['with', 'contain', 'has', 'ingredient', 'made of', 'includes', 
+                                'cheese', 'meat', 'seafood', 'vegetarian', 'vegan', 'like', 'love', 'enjoy']
+        if any(word in query_lower for word in ingredient_indicators):
             required_data.append('ingredients')
         
         # Check for allergen-related queries

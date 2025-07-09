@@ -5,8 +5,6 @@ ensuring accurate results for dietary preferences and restrictions.
 """
 
 from typing import List, Dict, Set, Optional
-from sqlalchemy.orm import Session
-import models
 
 # Common cheese types and cheese-related terms
 CHEESE_TERMS = {
@@ -14,7 +12,9 @@ CHEESE_TERMS = {
     'ricotta', 'gorgonzola', 'brie', 'camembert', 'swiss', 'provolone',
     'gruyere', 'pecorino', 'romano', 'mascarpone', 'cream cheese',
     'blue cheese', 'cottage cheese', 'halloumi', 'manchego', 'asiago',
-    'fontina', 'gouda', 'edam', 'raclette', 'taleggio', 'burrata'
+    'fontina', 'gouda', 'edam', 'raclette', 'taleggio', 'burrata',
+    'pecorino romano', 'parmigiano', 'queso', 'monterey jack', 'colby',
+    'havarti', 'emmental', 'jarlsberg', 'stilton', 'roquefort'
 }
 
 # Common meat types and meat-related terms
