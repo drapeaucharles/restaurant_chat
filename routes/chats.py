@@ -270,19 +270,31 @@ def get_latest_logs_grouped_by_client(
         if client.preferences:
             ai_enabled = client.preferences.get("ai_enabled", True)
         
-        # Process each of the last 2 messages
-        for i, message in enumerate(last_messages):
-            print(f"   Message {i+1}: [{message.sender_type}] {message.message[:30]}...")
-            
-            result.append({
+        # Get the most recent message for the main entry
+        most_recent = last_messages[0]
+        
+        # Create client entry with all messages
+        client_entry = {
+            "client_id": str(client.id),
+            "table_id": "",  # ChatMessage doesn't have table_id
+            "message": most_recent.message,
+            "answer": "",  # Legacy field for compatibility
+            "timestamp": most_recent.timestamp,
+            "ai_enabled": ai_enabled,
+            "sender_type": most_recent.sender_type,
+            "allMessages": []  # All messages for this client
+        }
+        
+        # Add all messages to allMessages array
+        for message in last_messages:
+            client_entry["allMessages"].append({
                 "client_id": str(message.client_id),
-                "table_id": "",  # ChatMessage doesn't have table_id
                 "message": message.message,
-                "answer": "",  # Legacy field for compatibility
                 "timestamp": message.timestamp,
-                "ai_enabled": ai_enabled,
                 "sender_type": message.sender_type
             })
+        
+        result.append(client_entry)
     
     # Sort result by timestamp DESC to show most recent conversations first
     result.sort(key=lambda x: x["timestamp"], reverse=True)
