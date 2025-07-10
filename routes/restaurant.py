@@ -68,7 +68,8 @@ def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
         "menu": process_menu_for_response(restaurant.data.get("menu", [])),
         "faq": restaurant.data.get("faq", []),
         "opening_hours": restaurant.data.get("opening_hours"),
-        "whatsapp_number": restaurant.whatsapp_number
+        "whatsapp_number": restaurant.whatsapp_number,
+        "restaurant_category": restaurant.restaurant_category
     }
 
 
@@ -84,7 +85,8 @@ def list_restaurants(db: Session = Depends(get_db)):
             "menu": process_menu_for_response(r.data.get("menu", [])),
             "faq": r.data.get("faq", []),
             "opening_hours": r.data.get("opening_hours"),
-            "whatsapp_number": r.whatsapp_number
+            "whatsapp_number": r.whatsapp_number,
+            "restaurant_category": r.restaurant_category
         }
         for r in restaurants
     ]
