@@ -135,7 +135,8 @@ def get_restaurant_profile(
         "menu": process_menu_for_response(current_restaurant.data.get("menu", [])),
         "faq": current_restaurant.data.get("faq", []),
         "opening_hours": current_restaurant.data.get("opening_hours"),
-        "whatsapp_number": current_restaurant.whatsapp_number
+        "whatsapp_number": current_restaurant.whatsapp_number,
+        "restaurant_category": current_restaurant.restaurant_category
     }
 
 
@@ -170,6 +171,10 @@ def update_restaurant_profile_new(
     # Update WhatsApp number if provided
     if payload.whatsapp_number:
         current_owner.whatsapp_number = payload.whatsapp_number
+    
+    # Update restaurant category if provided
+    if hasattr(payload, 'restaurant_category'):
+        current_owner.restaurant_category = payload.restaurant_category
     
     # Commit changes to database
     db.commit()

@@ -222,6 +222,16 @@ def get_chat_messages(
     ]
 
 
+@router.get("/logs/grouped")
+def get_logs_grouped(
+    restaurant_id: str,
+    current_restaurant: models.Restaurant = Depends(get_current_restaurant),
+    db: Session = Depends(get_db)
+):
+    """Get logs grouped by client - alias for /logs/latest for frontend compatibility."""
+    return get_latest_logs_grouped_by_client(restaurant_id, current_restaurant, db)
+
+
 @router.get("/logs/latest")
 def get_latest_logs_grouped_by_client(
     restaurant_id: str,

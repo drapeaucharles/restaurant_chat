@@ -157,4 +157,5 @@ class RestaurantProfileUpdate(BaseModel):
     menu: List[MenuItem]
     faq: Optional[List[FAQItem]] = None
     whatsapp_number: Optional[str] = None
+    restaurant_category: Optional[str] = None
 
