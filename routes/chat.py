@@ -62,13 +62,9 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     db.refresh(client_message)
     print(f"✅ Client message saved: ID={client_message.id}, sender_type='{client_message.sender_type}'")
     
-    # Call appropriate chat service based on structured_response flag
-    if getattr(req, 'structured_response', False):
-        print(f"📊 Using structured chat service")
-        result = structured_chat_service(req, db)
-    else:
-        print(f"💬 Using regular chat service")
-        result = chat_service(req, db)
+    # Always use regular chat service (no more structured responses)
+    print(f"💬 Using regular chat service")
+    result = chat_service(req, db)
     
     # 🔧 NEW FIX: If this is a restaurant message and client has phone number, forward to WhatsApp
     if req.sender_type == "restaurant":

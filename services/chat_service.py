@@ -10,22 +10,18 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 # Import the fallback function from restaurant service
 from services.restaurant_service import apply_menu_fallbacks
+from services.simple_response_cache import response_cache
 
 system_prompt = """
-You are a helpful, friendly, and professional restaurant staff member. You assist customers via chat with questions about food, ingredients, dietary needs, reservations, opening hours, and anything related to the restaurant.
+You are a friendly restaurant assistant. The customer is viewing our complete menu on their screen.
 
-You must:
-- Answer based only on the provided restaurant information (menu, story, hours, etc.)
-- CRITICAL: When mentioning menu items, use ONLY the EXACT names provided in the menu. Never create or modify dish names (e.g., don't say "Mac and Cheese" if the menu says "Macaroni and Cheese")
-- Use your knowledge of food, allergies, and dietary terms to give helpful replies
-- Be honest — if something is not clear or missing, suggest asking the staff
-- Never invent fake details or answer beyond the known context
-- Never say you are an AI, unless the customer explicitly asks
-- You can say "Hi" or "Welcome" if the message is casual like "hello", and you should always try to be helpful even when information is limited.
-
-MENU ITEM RULE: Always use the exact dish names from the menu. If unsure about a dish name, describe it generally rather than inventing a name.
-
-You sound like a real person working at the restaurant, not a robot. Keep answers short, clear, and polite.
+CRITICAL RULES:
+1. If an item is NOT in the provided context, it's NOT on our menu - say "We don't have [item], but..."
+2. When something isn't available, suggest a similar item from the context if possible
+3. ONLY mention items explicitly provided in the context - these are our actual menu items
+4. They can see the menu, so don't list everything
+5. Be concise and helpful - max 2-3 sentences
+6. For ingredients/allergens: only answer if you have the specific info, otherwise say you'll check
 """
 
 def fetch_recent_chat_history(db: Session, client_id: str, restaurant_id: str):
@@ -195,42 +191,62 @@ def validate_menu_item(item):
     
     return True
 
-def format_menu(menu_items):
-    """Format menu items for OpenAI prompt with defensive checks."""
+def format_menu_for_context(menu_items, query):
+    """Format only relevant menu items based on the query with exact names."""
     if not menu_items:
-        return "No menu items available."
+        return "Menu data unavailable."
     
-    formatted_items = []
-    all_names = []  # Track all menu item names for validation reminder
+    query_lower = query.lower()
+    relevant_items = []
+    all_item_names = []  # Track all actual menu items
     
+    # First, collect all menu item names for validation
+    for item in menu_items:
+        name = item.get('name') or item.get('dish') or item.get('title', '')
+        if name:
+            all_item_names.append(name)
+    
+    # Find items relevant to the query
     for item in menu_items:
         try:
-            # Ensure all required fields exist with fallbacks
-            name = item.get('name') or item.get('dish', 'Unknown Dish')
-            all_names.append(name)  # Collect names
-            description = item.get('description', 'No description available')
+            name = item.get('name') or item.get('dish') or item.get('title', '')
+            if not name:
+                continue
+                
+            name_lower = name.lower()
             ingredients = item.get('ingredients', [])
-            allergens = item.get('allergens', [])
-            price = item.get('price', 'Price not available')
             
-            # Format ingredients and allergens safely
-            ingredients_str = ', '.join(ingredients) if ingredients else 'Not specified'
-            allergens_str = ', '.join(allergens) if allergens else 'None listed'
+            # Check if this item is relevant to the query
+            is_relevant = (
+                name_lower in query_lower or
+                any(word in name_lower for word in query_lower.split() if len(word) > 3) or
+                any(ing.lower() in query_lower for ing in ingredients if len(ing) > 3)
+            )
             
-            formatted_item = f"{name}: {description} | Ingredients: {ingredients_str} | Allergens: {allergens_str} | Price: {price}"
-            formatted_items.append(formatted_item)
-            
+            if is_relevant:
+                allergens = item.get('allergens', [])
+                # Use EXACT name with ingredients
+                item_info = f"[EXACT: {name}]: {', '.join(ingredients[:5])}"
+                if allergens and allergens[0] != 'none':
+                    item_info += f" (Allergens: {', '.join(allergens)})"
+                relevant_items.append(item_info)
+                
         except Exception as e:
-            print(f"Warning: Error formatting menu item {item}: {e}")
-            # Add a fallback item to prevent complete failure
-            formatted_items.append(f"Menu item (details unavailable): {str(item)[:100]}")
+            continue
     
-    menu_text = "\n\n".join(formatted_items)
+    # Build context with validation reminder
+    context_parts = []
     
-    # Add validation reminder
-    validation_note = f"\n\nIMPORTANT: When referring to menu items, use ONLY these exact names: {', '.join(['\"' + name + '\"' for name in all_names])}"
+    if relevant_items:
+        context_parts.append("Relevant menu items: " + "; ".join(relevant_items[:5]))
     
-    return menu_text + validation_note
+    # Add validation note about available items (only if asking for recommendations)
+    if any(word in query_lower for word in ['recommend', 'suggest', 'good', 'best', 'popular', 'try']):
+        # Only mention a few items to validate against
+        sample_names = all_item_names[:10] if len(all_item_names) > 10 else all_item_names
+        context_parts.append(f"VALIDATION: Only these items exist: {', '.join(sample_names)}...")
+    
+    return "\n".join(context_parts) if context_parts else ""
 
 def format_faq(faq_items):
     """Format FAQ items for OpenAI prompt with defensive checks."""
@@ -311,6 +327,21 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         return ChatResponse(answer="")
     
     print(f"✅ AI RESPONSE ALLOWED: sender_type='{req.sender_type}', no recent staff match")
+    
+    # Check cache for common queries
+    cached_response = response_cache.get(req.restaurant_id, req.message)
+    if cached_response:
+        print(f"✅ Using cached response for common query")
+        # Still need to save to database
+        new_message = models.ChatMessage(
+            restaurant_id=req.restaurant_id,
+            client_id=req.client_id,
+            sender_type="ai",
+            message=cached_response
+        )
+        db.add(new_message)
+        db.commit()
+        return ChatResponse(answer=cached_response)
 
     # ✅ Check AI state BEFORE processing - get ai_enabled from Client.preferences
     print(f"🔍 Checking AI enabled state...")
@@ -361,50 +392,88 @@ def chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         faq_items = data.get("faq", [])
         print(f"Found {len(faq_items)} FAQ items")
 
-        user_prompt = f"""
-Customer message: "{req.message}"
+        # Optimize context - user is viewing menu, only provide specific info needed
+        query_lower = req.message.lower()
+        
+        # Check what specific info is needed
+        needs_hours = any(term in query_lower for term in ['open', 'close', 'hour', 'when', 'time'])
+        needs_contact = any(term in query_lower for term in ['phone', 'call', 'contact', 'email', 'address', 'location'])
+        needs_specific_item_info = any(term in query_lower for term in ['ingredient', 'allerg', 'contain', 'made', 'what is', 'tell me about'])
+        asking_for_specific_item = any(term in query_lower for term in ['do you have', 'is there', 'any ', 'looking for', 'want '])
+        
+        # Build minimal context
+        context_parts = [f'Customer asks: "{req.message}"']
+        context_parts.append("(Customer is viewing the complete menu on their screen)")
+        context_parts.append("RULE: Items NOT in this context are NOT on the menu. Suggest similar items when appropriate.")
+        
+        # Only add specific context if needed
+        if needs_hours:
+            context_parts.append(f"Hours: {data.get('opening_hours', 'Check with staff')}")
+            
+        if needs_contact:
+            context_parts.append(f"Contact: {data.get('contact_info', 'Ask staff')}")
+        
+        # Only include specific menu items if asked about them
+        if needs_specific_item_info:
+            menu_context = format_menu_for_context(validated_menu, req.message)
+            if menu_context:
+                context_parts.append(menu_context)
+        
+        # For recommendations or specific item queries, provide relevant menu items
+        if any(word in query_lower for word in ['recommend', 'suggest', 'what should', 'what do you', 'best', 'popular', 'favorite', 'good']) or asking_for_specific_item:
+            # Provide more menu items for better context
+            menu_items_with_category = []
+            categories_seen = set()
+            
+            for item in validated_menu[:20]:  # More items for better alternatives
+                name = item.get('name') or item.get('dish', '')
+                category = item.get('category', 'Other')
+                if name and len(menu_items_with_category) < 15:  # Limit to 15 items
+                    if category not in categories_seen:
+                        menu_items_with_category.append(f"[{category}] {name}")
+                        categories_seen.add(category)
+                    else:
+                        menu_items_with_category.append(name)
+            
+            if menu_items_with_category:
+                context_parts.append(f"Menu items: {', '.join(menu_items_with_category)}")
+                context_parts.append("If asked item isn't listed above, we don't have it.")
+        
+        # Check for relevant FAQ
+        for faq in faq_items[:5]:  # Check first 5 FAQs
+            if any(word in query_lower for word in str(faq.get('question', '')).lower().split() if len(word) > 4):
+                context_parts.append(f"Info: {faq.get('answer', '')}")
+                break  # Only add most relevant FAQ
+        
+        user_prompt = "\n".join(context_parts)
 
-Restaurant Info:
-- Name: {data.get("name", "Restaurant name not available")}
-- Story: {data.get("story", "No story available")}
-- Opening Hours: {data.get("opening_hours", "Hours not available")}
-- Contact Info: {data.get("contact_info", "Contact info not available")}
-
-Menu:
-{format_menu(validated_menu)}
-
-Frequently Asked Questions:
-{format_faq(faq_items)}
-"""
-
-        # 🆕 NEW: Fetch and format recent chat history for context
-        print(f"🔍 Fetching recent chat history for context...")
+        # Fetch recent chat history
         recent_history = fetch_recent_chat_history(db, req.client_id, req.restaurant_id)
         
-        # Prepare messages for OpenAI API
         messages = [{"role": "system", "content": system_prompt}]
         
-        # Add chat history if available
+        # Only include essential recent context (last 3-5 messages)
         if recent_history:
-            print(f"📋 Adding {len(recent_history)} historical messages to context")
-            history_messages = format_chat_history_for_openai(recent_history)
-            messages.extend(history_messages)
-        else:
-            print(f"📋 No recent chat history found - using current behavior")
+            filtered_history = filter_essential_messages(recent_history[-6:])  # Last 6 messages max
+            if filtered_history:
+                history_messages = format_chat_history_for_openai(filtered_history)
+                messages.extend(history_messages)
         
-        # Add the current user message
         messages.append({"role": "user", "content": user_prompt})
-        
-        print(f"🤖 Sending {len(messages)} messages to OpenAI (1 system + {len(recent_history)} history + 1 current)")
 
         response = openai.chat.completions.create(
             model="gpt-4",
             messages=messages,
             temperature=0.7,
-            max_tokens=200
+            max_tokens=150
         )
 
         answer = response.choices[0].message.content.strip()
+        
+        # Cache the response for common queries
+        query_type = response_cache.get_query_type(req.message)
+        if query_type in ['hours', 'location', 'contact', 'wifi', 'parking', 'payment']:
+            response_cache.set(req.restaurant_id, req.message, answer)
 
     except Exception as e:
         print("OpenAI API ERROR:", str(e))
