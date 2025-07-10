@@ -6,7 +6,7 @@ from datetime import timedelta
 from typing import List, Optional
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header
 from sqlalchemy.orm import Session
 
 from auth import get_current_restaurant, get_current_owner, ACCESS_TOKEN_EXPIRE_MINUTES
@@ -49,6 +49,33 @@ def process_menu_for_response(menu_data):
 
 
 router = APIRouter(prefix="/restaurant", tags=["restaurant"])
+
+
+@router.get("/test-auth")
+def test_auth(authorization: str = Header(None)):
+    """Test endpoint to debug authentication without dependencies."""
+    from auth import decode_token
+    
+    if not authorization:
+        return {"error": "No Authorization header"}
+    
+    if not authorization.startswith("Bearer "):
+        return {"error": "Authorization must start with 'Bearer '"}
+    
+    token = authorization.split(" ")[1]
+    
+    try:
+        payload = decode_token(token)
+        if payload:
+            return {
+                "status": "Token valid",
+                "payload": payload,
+                "token_preview": token[:20] + "..."
+            }
+        else:
+            return {"error": "Token decode returned None"}
+    except Exception as e:
+        return {"error": f"Token decode error: {type(e).__name__}: {str(e)}"}
 
 
 @router.get("/info")
@@ -130,6 +157,7 @@ def get_restaurant_profile(
     current_restaurant: models.Restaurant = Depends(get_current_restaurant)
 ):
     """Get current restaurant's profile (protected endpoint) with processed menu."""
+    print(f"Profile accessed by restaurant: {current_restaurant.restaurant_id}")
     return {
         "restaurant_id": current_restaurant.restaurant_id,
         "name": current_restaurant.data.get("name"),
