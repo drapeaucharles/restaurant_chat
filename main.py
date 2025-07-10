@@ -229,7 +229,7 @@ def healthcheck():
 @app.get("/health")
 def health_check():
     """Health check endpoint."""
-    return {"status": "healthy"}
+    return {"status": "healthy", "version": "1.0.1"}
 
 @app.get("/whatsapp/service/status")
 def whatsapp_service_status():
