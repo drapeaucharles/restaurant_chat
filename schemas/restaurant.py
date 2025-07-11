@@ -22,6 +22,9 @@ class MenuItem(BaseModel):
     # Photo URL field
     photo_url: Optional[str] = Field(None, description="URL of the menu item photo")
     
+    # Restaurant-defined category
+    restaurant_category: Optional[str] = Field(None, description="Restaurant-defined category like Pasta, Pizza, Salads")
+    
     @root_validator(pre=True)
     def handle_legacy_fields(cls, values):
         """Handle legacy field mapping before validation."""
@@ -157,5 +160,5 @@ class RestaurantProfileUpdate(BaseModel):
     menu: List[MenuItem]
     faq: Optional[List[FAQItem]] = None
     whatsapp_number: Optional[str] = None
-    restaurant_category: Optional[str] = None
+    restaurant_categories: Optional[List[str]] = None
 
