@@ -32,8 +32,8 @@ class Restaurant(Base):
     # WhatsApp integration fields
     whatsapp_number = Column(String, nullable=True)  # WhatsApp phone number for this restaurant
     whatsapp_session_id = Column(String, nullable=True)  # Session ID for open-wa
-    # Restaurant categories
-    restaurant_categories = Column(JSON, nullable=True, default=list)  # Array of custom categories for this restaurant
+    # Restaurant categories - PENDING MIGRATION
+    # restaurant_categories = Column(JSON, nullable=True, default=list)  # Array of custom categories for this restaurant
 
 # ✅ REMOVED: ChatLog model - migrated to ChatMessage only
 # ChatLog table preserved in database for rollback safety but removed from Python code

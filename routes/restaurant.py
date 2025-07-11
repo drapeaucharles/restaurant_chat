@@ -96,7 +96,7 @@ def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
         "faq": restaurant.data.get("faq", []),
         "opening_hours": restaurant.data.get("opening_hours"),
         "whatsapp_number": restaurant.whatsapp_number,
-        "restaurant_categories": restaurant.restaurant_categories or []
+        "restaurant_categories": getattr(restaurant, 'restaurant_categories', None) or []
     }
 
 
@@ -113,7 +113,7 @@ def list_restaurants(db: Session = Depends(get_db)):
             "faq": r.data.get("faq", []),
             "opening_hours": r.data.get("opening_hours"),
             "whatsapp_number": r.whatsapp_number,
-            "restaurant_categories": r.restaurant_categories or []
+            "restaurant_categories": getattr(r, 'restaurant_categories', None) or []
         }
         for r in restaurants
     ]
@@ -166,7 +166,7 @@ def get_restaurant_profile(
         "faq": current_restaurant.data.get("faq", []),
         "opening_hours": current_restaurant.data.get("opening_hours"),
         "whatsapp_number": current_restaurant.whatsapp_number,
-        "restaurant_categories": current_restaurant.restaurant_categories or []
+        "restaurant_categories": getattr(current_restaurant, 'restaurant_categories', None) or []
     }
 
 
@@ -202,8 +202,8 @@ def update_restaurant_profile_new(
     if payload.whatsapp_number:
         current_owner.whatsapp_number = payload.whatsapp_number
     
-    # Update restaurant categories if provided
-    if hasattr(payload, 'restaurant_categories'):
+    # Update restaurant categories if provided (when column exists)
+    if hasattr(payload, 'restaurant_categories') and hasattr(current_owner, 'restaurant_categories'):
         current_owner.restaurant_categories = payload.restaurant_categories
     
     # Commit changes to database
