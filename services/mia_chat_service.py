@@ -29,8 +29,8 @@ You are a friendly restaurant assistant helping customers with menu questions.
 CRITICAL RULES:
 1. ONLY mention dishes that are explicitly listed in the context below
 2. Be direct and helpful - don't mention what you don't have unless specifically asked
-3. For specific queries (like "pasta"), just list the relevant items we DO have
-4. Keep responses concise (2-3 sentences max)
+3. For specific queries (like "pasta"), list ALL the relevant items provided in the context
+4. Keep responses concise but complete - if there are 6 pasta dishes, list all 6
 5. Don't categorize by course unless the context shows it that way
 6. Always respond in the same language as the customer's message
 """
@@ -154,7 +154,7 @@ def format_menu_for_context(menu_items, query):
     else:
         found_items = []
         
-        # Search ALL menu items for relevance
+        # Search ALL menu items for relevance - no limit
         for item in menu_items:
             name = item.get('name') or item.get('dish', '')
             if not name:
@@ -171,6 +171,11 @@ def format_menu_for_context(menu_items, query):
             if 'vegetarian' in query_lower or 'vegan' in query_lower:
                 meat_keywords = ['beef', 'pork', 'chicken', 'duck', 'lamb', 'veal', 'bacon', 'guanciale']
                 if not any(meat in str(ingredients).lower() for meat in meat_keywords):
+                    relevant = True
+            # Special handling for pasta queries
+            elif 'pasta' in query_lower:
+                pasta_keywords = ['pasta', 'spaghetti', 'linguine', 'penne', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine', 'rigatoni', 'tagliatelle']
+                if any(keyword in name_lower or keyword in description for keyword in pasta_keywords):
                     relevant = True
             # Check if query words appear in name, description, or ingredients
             else:
@@ -192,12 +197,17 @@ def format_menu_for_context(menu_items, query):
                     'category': item.get('subcategory', 'main')
                 })
         
+        # Log findings for pasta queries
+        if 'pasta' in query_lower:
+            logger.info(f"Found {len(found_items)} pasta items")
+        
         # Format found items
         if found_items:
-            # Group by category if multiple items
-            if len(found_items) > 3:
+            # For pasta queries and similar, show all items without too much detail
+            if 'pasta' in query_lower or len(found_items) > 5:
+                # Group by category
                 by_category = {}
-                for item in found_items[:8]:  # Limit to 8 items
+                for item in found_items[:15]:  # Increased limit
                     cat = item['category']
                     if cat not in by_category:
                         by_category[cat] = []
@@ -207,7 +217,7 @@ def format_menu_for_context(menu_items, query):
                     context_lines.append(f"{cat.title()}: {', '.join(items)}")
             else:
                 # Show detailed info for few items
-                for item in found_items:
+                for item in found_items[:5]:
                     context_lines.append(f"{item['name']} ({item['price']}): {item['desc']}")
         
         # If nothing found, provide helpful context
