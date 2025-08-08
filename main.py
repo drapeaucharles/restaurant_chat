@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 
 from database import engine
 import models
-from routes import auth, restaurant, chat, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories
+from routes import auth, restaurant, chat, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug
 
 # Load environment variables
 load_dotenv()
@@ -214,6 +214,7 @@ app.include_router(speech.router)  # Speech-to-text routes
 app.include_router(smartlamp.router)  # Smart Lamp audio routes
 app.include_router(update_subcategories.router)  # Admin endpoint for subcategory updates
 app.include_router(restaurant_categories.router)  # Restaurant categories endpoint
+app.include_router(debug.router)  # Debug endpoints
 
 # Health check endpoints
 @app.get("/")
