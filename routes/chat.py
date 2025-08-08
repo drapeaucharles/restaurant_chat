@@ -13,6 +13,7 @@ from schemas.client import ClientCreateRequest
 from services.chat_service import chat_service
 from services.structured_chat_service import structured_chat_service
 from services.client_service import create_or_update_client_service
+from config import get_chat_provider_info
 
 router = APIRouter(tags=["chat"])
 
@@ -169,3 +170,9 @@ def get_chat_logs(
                 })
     
     return result
+
+
+@router.get("/chat-provider-info")
+def get_provider_info():
+    """Get information about the current chat provider."""
+    return get_chat_provider_info()
