@@ -16,8 +16,13 @@ from services.restaurant_service import apply_menu_fallbacks
 from services.simple_response_cache import response_cache
 import os
 import logging
+from functools import lru_cache
+import hashlib
 
 logger = logging.getLogger(__name__)
+
+# Global cache for categorized menus
+_menu_cache = {}
 
 # MIA Backend URL - can be configured via environment variable
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
@@ -198,55 +203,152 @@ def get_or_create_client(db: Session, client_id: str, restaurant_id: str, phone_
             db.refresh(client)
     return client
 
-def format_menu_for_context(menu_items, query):
-    """Format only relevant menu items based on the query."""
+def categorize_menu_items(menu_items):
+    """Categorize menu items - this is cached for performance."""
+    categories = {}
+    dietary_items = {
+        'vegetarian': [],
+        'vegan': [],
+        'gluten_free': [],
+        'dairy_free': []
+    }
+    
+    # Single pass through menu items for categorization
+    for item in menu_items:
+        name = item.get('name') or item.get('dish') or item.get('title', '')
+        if not name:
+            continue
+            
+        # Add to category
+        category = item.get('subcategory', 'main')
+        if category not in categories:
+            categories[category] = []
+        categories[category].append(item)
+        
+        # Check dietary restrictions
+        ingredients = item.get('ingredients', [])
+        allergens = item.get('allergens', [])
+        ingredients_lower = [ing.lower() for ing in ingredients]
+        
+        # Vegetarian check (no meat)
+        meat_keywords = ['beef', 'pork', 'chicken', 'duck', 'lamb', 'veal', 'bacon', 'guanciale', 'pancetta']
+        if not any(meat in ingredients_lower for meat in meat_keywords):
+            if not any(seafood in ingredients_lower for seafood in ['fish', 'shrimp', 'lobster', 'scallop', 'calamari', 'oyster']):
+                dietary_items['vegetarian'].append(item)
+                # Vegan check (no animal products)
+                if not any(dairy in ingredients_lower for dairy in ['cheese', 'cream', 'butter', 'milk', 'egg', 'mozzarella', 'parmesan']):
+                    dietary_items['vegan'].append(item)
+        
+        # Gluten-free check
+        if 'gluten' not in allergens:
+            dietary_items['gluten_free'].append(item)
+        
+        # Dairy-free check
+        if 'dairy' not in allergens:
+            dietary_items['dairy_free'].append(item)
+    
+    return categories, dietary_items
+
+def format_menu_for_context(menu_items, query, restaurant_id=None):
+    """Format menu items for context - optimized for performance and relevance."""
     if not menu_items:
         return "Menu data unavailable."
     
     query_lower = query.lower()
-    relevant_items = []
-    all_item_names = []
     
-    for item in menu_items:
-        name = item.get('name') or item.get('dish') or item.get('title', '')
-        if name:
-            all_item_names.append(name)
+    # Try to get cached categorization for performance
+    cache_key = None
+    if restaurant_id:
+        # Create a hash of menu items for cache invalidation
+        menu_str = str([(item.get('name', ''), item.get('ingredients', [])) for item in menu_items[:5]])
+        menu_hash = hashlib.md5(menu_str.encode()).hexdigest()[:8]
+        cache_key = f"{restaurant_id}_{menu_hash}"
+        
+        if cache_key in _menu_cache:
+            categories, dietary_items = _menu_cache[cache_key]
+        else:
+            categories, dietary_items = categorize_menu_items(menu_items)
+            _menu_cache[cache_key] = (categories, dietary_items)
+            # Keep cache size reasonable
+            if len(_menu_cache) > 100:
+                _menu_cache.clear()
+    else:
+        categories, dietary_items = categorize_menu_items(menu_items)
     
-    for item in menu_items:
-        try:
-            name = item.get('name') or item.get('dish') or item.get('title', '')
-            if not name:
-                continue
-                
+    # Build context based on query type
+    context_parts = []
+    
+    # Check for dietary queries
+    if any(diet in query_lower for diet in ['vegetarian', 'vegan']):
+        veg_items = dietary_items['vegetarian'][:8]  # Limit for performance
+        if veg_items:
+            veg_list = []
+            for item in veg_items:
+                name = item.get('name') or item.get('dish', '')
+                desc = item.get('description', '')[:50]
+                veg_list.append(f"{name} - {desc}")
+            context_parts.append("Vegetarian options:\n" + "\n".join(veg_list))
+    
+    elif 'gluten' in query_lower:
+        gf_items = dietary_items['gluten_free'][:8]
+        if gf_items:
+            gf_list = [item.get('name') or item.get('dish', '') for item in gf_items]
+            context_parts.append("Gluten-free options: " + ", ".join(gf_list))
+    
+    # Check for category queries
+    elif any(cat in query_lower for cat in ['starter', 'appetizer', 'dessert', 'main']):
+        for cat_name, cat_items in categories.items():
+            if cat_name.lower() in query_lower:
+                items_info = []
+                for item in cat_items[:6]:  # Limit items per category
+                    name = item.get('name') or item.get('dish', '')
+                    price = item.get('price', '')
+                    items_info.append(f"{name} ({price})")
+                context_parts.append(f"{cat_name.title()} dishes: " + ", ".join(items_info))
+    
+    # Check for general menu queries
+    elif any(word in query_lower for word in ['menu', 'serve', 'offer', 'have', 'dishes']):
+        # Provide menu overview
+        overview = []
+        for cat_name, cat_items in categories.items():
+            sample_items = [item.get('name') or item.get('dish', '') for item in cat_items[:3]]
+            overview.append(f"{cat_name.title()} ({len(cat_items)} items): {', '.join(sample_items)}")
+        context_parts.append("Menu Overview:\n" + "\n".join(overview))
+    
+    # Specific item search
+    else:
+        # Look for specific items mentioned in query
+        relevant_items = []
+        query_words = [w for w in query_lower.split() if len(w) > 3]
+        
+        for item in menu_items[:30]:  # Limit search for performance
+            name = item.get('name') or item.get('dish', '')
             name_lower = name.lower()
             ingredients = item.get('ingredients', [])
             
-            is_relevant = (
-                name_lower in query_lower or
-                any(word in name_lower for word in query_lower.split() if len(word) > 3) or
-                any(ing.lower() in query_lower for ing in ingredients if len(ing) > 3)
-            )
-            
-            if is_relevant:
+            # Check if item is relevant
+            if any(word in name_lower for word in query_words) or \
+               any(word in ing.lower() for ing in ingredients for word in query_words):
+                price = item.get('price', '')
+                ing_list = ', '.join(ingredients[:4])
                 allergens = item.get('allergens', [])
-                item_info = f"[EXACT: {name}]: {', '.join(ingredients[:5])}"
-                if allergens and allergens[0] != 'none':
-                    item_info += f" (Allergens: {', '.join(allergens)})"
-                relevant_items.append(item_info)
-                
-        except Exception as e:
-            continue
+                allergen_info = f" (Allergens: {', '.join(allergens)})" if allergens and allergens[0] != 'none' else ""
+                relevant_items.append(f"{name} ({price}): {ing_list}{allergen_info}")
+        
+        if relevant_items:
+            context_parts.append("Relevant items:\n" + "\n".join(relevant_items[:5]))
+        else:
+            # If no specific matches, provide popular items from different categories
+            popular = []
+            for cat_name, cat_items in categories.items():
+                if cat_items:
+                    item = cat_items[0]
+                    name = item.get('name') or item.get('dish', '')
+                    popular.append(f"{name} ({cat_name})")
+            if popular:
+                context_parts.append("Popular dishes: " + ", ".join(popular[:6]))
     
-    context_parts = []
-    
-    if relevant_items:
-        context_parts.append("Relevant menu items: " + "; ".join(relevant_items[:5]))
-    
-    if any(word in query_lower for word in ['recommend', 'suggest', 'good', 'best', 'popular', 'try']):
-        sample_names = all_item_names[:10] if len(all_item_names) > 10 else all_item_names
-        context_parts.append(f"VALIDATION: Only these items exist: {', '.join(sample_names)}...")
-    
-    return "\n".join(context_parts) if context_parts else ""
+    return "\n".join(context_parts) if context_parts else "Please ask about specific dishes, categories, or dietary preferences."
 
 def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     """Handle chat requests using MIA backend."""
@@ -308,16 +410,37 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         logger.info("AI is disabled for this conversation")
         return ChatResponse(answer="")
     
-    data = restaurant.data or {}
+    # Handle different data structures efficiently
+    menu_items = []
+    opening_hours = None
+    contact_info = None
     
-    try:
-        # Prepare context
+    # First try the database JSON structure
+    if restaurant.data:
+        data = restaurant.data
         menu_items = data.get("menu", [])
-        if menu_items:
-            try:
-                menu_items = apply_menu_fallbacks(menu_items)
-            except Exception as e:
-                logger.warning(f"Error applying menu fallbacks: {e}")
+        opening_hours = data.get("opening_hours")
+        contact_info = data.get("contact_info")
+    
+    # If no menu in data field, fetch from restaurant info endpoint for fresh data
+    if not menu_items:
+        try:
+            # Get fresh restaurant info from the API endpoint
+            from routes.restaurant import get_restaurant_info_service
+            restaurant_info = get_restaurant_info_service(req.restaurant_id, db)
+            if restaurant_info:
+                menu_items = restaurant_info.get("menu", [])
+                opening_hours = restaurant_info.get("opening_hours")
+                contact_info = restaurant_info.get("contact_info", {})
+        except Exception as e:
+            logger.warning(f"Could not fetch restaurant info: {e}")
+    
+    # Apply menu fallbacks if we have items
+    if menu_items:
+        try:
+            menu_items = apply_menu_fallbacks(menu_items)
+        except Exception as e:
+            logger.warning(f"Error applying menu fallbacks: {e}")
         
         validated_menu = []
         for item in menu_items:
@@ -344,14 +467,18 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         needs_hours = any(term in query_lower for term in ['open', 'close', 'hour', 'when', 'time'])
         needs_contact = any(term in query_lower for term in ['phone', 'call', 'contact', 'email', 'address'])
         
-        if needs_hours:
-            context_parts.append(f"Hours: {data.get('opening_hours', 'Check with staff')}")
+        if needs_hours and opening_hours:
+            if isinstance(opening_hours, dict):
+                hours_text = "\n".join([f"{day}: {hours}" for day, hours in opening_hours.items()])
+                context_parts.append(f"Opening Hours:\n{hours_text}")
+            else:
+                context_parts.append(f"Hours: {opening_hours}")
             
-        if needs_contact:
-            context_parts.append(f"Contact: {data.get('contact_info', 'Ask staff')}")
+        if needs_contact and contact_info:
+            context_parts.append(f"Contact: {contact_info}")
         
         # Add menu context if relevant
-        menu_context = format_menu_for_context(validated_menu, req.message)
+        menu_context = format_menu_for_context(validated_menu, req.message, req.restaurant_id)
         if menu_context:
             context_parts.append(menu_context)
         
