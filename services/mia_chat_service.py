@@ -28,11 +28,13 @@ You are a friendly restaurant assistant helping customers with menu questions.
 
 CRITICAL RULES:
 1. ONLY mention dishes that are explicitly listed in the context below
-2. Be direct and helpful - don't mention what you don't have unless specifically asked
-3. For specific queries (like "pasta"), list ALL the relevant items provided in the context
-4. Keep responses concise but complete - if there are 6 pasta dishes, list all 6
-5. Don't categorize by course unless the context shows it that way
+2. When asked about a category (like "pasta"), you MUST list ALL items shown in the context
+3. NEVER truncate or shorten the list - if context shows 6 pasta dishes, mention all 6 by name
+4. Format: "We have [list all items]" - be complete, not selective
+5. Don't add extra commentary or descriptions unless specifically asked
 6. Always respond in the same language as the customer's message
+
+IMPORTANT: Customers want to know ALL their options. List every single item provided in the context.
 """
 
 def get_mia_response_direct(prompt: str, max_tokens: int = 150) -> str:
@@ -305,10 +307,15 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         
         # Final prompt
         full_prompt = "\n".join(context_parts)
+        
+        # Add explicit instruction for category queries
+        if any(cat in req.message.lower() for cat in ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'appetizer']):
+            full_prompt += "\n\nREMINDER: List ALL items from the context above - do not truncate or select just a few."
+        
         full_prompt += f"\n\nCustomer: {req.message}\nAssistant:"
         
-        # Get response from MIA
-        answer = get_mia_response_direct(full_prompt, max_tokens=150)
+        # Get response from MIA - increased tokens for complete lists
+        answer = get_mia_response_direct(full_prompt, max_tokens=250)
         
     except Exception as e:
         logger.error(f"Error in MIA chat service: {e}")
