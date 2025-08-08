@@ -422,15 +422,9 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         opening_hours = data.get("opening_hours")
         contact_info = data.get("contact_info")
     
-    # If no menu in data field, try to construct from restaurant model
-    if not menu_items and hasattr(restaurant, '__dict__'):
-        # Check if restaurant has these as direct attributes (from API response)
-        restaurant_dict = restaurant.__dict__
-        menu_items = restaurant_dict.get('menu', [])
-        if not opening_hours:
-            opening_hours = restaurant_dict.get('opening_hours')
-        if not contact_info:
-            contact_info = restaurant_dict.get('contact_info')
+    # If no menu found, log warning but continue
+    if not menu_items:
+        logger.warning(f"No menu items found for restaurant {req.restaurant_id}")
     
     # Apply menu fallbacks if we have items
     if menu_items:
