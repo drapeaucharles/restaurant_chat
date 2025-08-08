@@ -422,18 +422,15 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         opening_hours = data.get("opening_hours")
         contact_info = data.get("contact_info")
     
-    # If no menu in data field, fetch from restaurant info endpoint for fresh data
-    if not menu_items:
-        try:
-            # Get fresh restaurant info from the API endpoint
-            from routes.restaurant import get_restaurant_info_service
-            restaurant_info = get_restaurant_info_service(req.restaurant_id, db)
-            if restaurant_info:
-                menu_items = restaurant_info.get("menu", [])
-                opening_hours = restaurant_info.get("opening_hours")
-                contact_info = restaurant_info.get("contact_info", {})
-        except Exception as e:
-            logger.warning(f"Could not fetch restaurant info: {e}")
+    # If no menu in data field, try to construct from restaurant model
+    if not menu_items and hasattr(restaurant, '__dict__'):
+        # Check if restaurant has these as direct attributes (from API response)
+        restaurant_dict = restaurant.__dict__
+        menu_items = restaurant_dict.get('menu', [])
+        if not opening_hours:
+            opening_hours = restaurant_dict.get('opening_hours')
+        if not contact_info:
+            contact_info = restaurant_dict.get('contact_info')
     
     # Apply menu fallbacks if we have items
     if menu_items:
