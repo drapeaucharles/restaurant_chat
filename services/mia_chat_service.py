@@ -132,6 +132,9 @@ def format_menu_for_context(menu_items, query):
     if not menu_items:
         return "Menu data unavailable."
     
+    # Log total menu items for debugging
+    logger.info(f"format_menu_for_context: Total menu items: {len(menu_items)}")
+    
     query_lower = query.lower()
     context_lines = []
     
@@ -154,8 +157,12 @@ def format_menu_for_context(menu_items, query):
     else:
         found_items = []
         
+        # Log search details for debugging
+        if 'pasta' in query_lower:
+            logger.info(f"Searching for pasta in {len(menu_items)} menu items")
+        
         # Search ALL menu items for relevance - no limit
-        for item in menu_items:
+        for idx, item in enumerate(menu_items):
             name = item.get('name') or item.get('dish', '')
             if not name:
                 continue
@@ -175,8 +182,12 @@ def format_menu_for_context(menu_items, query):
             # Special handling for pasta queries
             elif 'pasta' in query_lower:
                 pasta_keywords = ['pasta', 'spaghetti', 'linguine', 'penne', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine', 'rigatoni', 'tagliatelle']
-                if any(keyword in name_lower or keyword in description for keyword in pasta_keywords):
+                # Check name, description AND ingredients for pasta keywords
+                item_text = f"{name_lower} {description} {' '.join(str(i).lower() for i in ingredients)}"
+                if any(keyword in item_text for keyword in pasta_keywords):
                     relevant = True
+                    if 'pasta' in query_lower:
+                        logger.info(f"  Found pasta item at index {idx}: {name}")
             # Check if query words appear in name, description, or ingredients
             else:
                 query_words = [w for w in query_lower.split() if len(w) > 2]  # Changed from > 3
@@ -199,7 +210,10 @@ def format_menu_for_context(menu_items, query):
         
         # Log findings for pasta queries
         if 'pasta' in query_lower:
-            logger.info(f"Found {len(found_items)} pasta items")
+            logger.info(f"Found {len(found_items)} pasta items from search")
+            # Log what was found
+            for item in found_items[:10]:
+                logger.info(f"  - {item['name']}")
         
         # Format found items
         if found_items:
@@ -207,7 +221,10 @@ def format_menu_for_context(menu_items, query):
             if 'pasta' in query_lower or len(found_items) > 5:
                 # Group by category
                 by_category = {}
-                for item in found_items[:15]:  # Increased limit
+                # For pasta, show ALL items, not limited
+                limit = None if 'pasta' in query_lower else 15
+                items_to_show = found_items if limit is None else found_items[:limit]
+                for item in items_to_show:
                     cat = item['category']
                     if cat not in by_category:
                         by_category[cat] = []
@@ -222,7 +239,20 @@ def format_menu_for_context(menu_items, query):
         
         # If nothing found, provide helpful context
         if not context_lines:
-            context_lines.append("I couldn't find specific items matching your query in our menu.")
+            # Special fallback for pasta - ensure we always find pasta dishes
+            if 'pasta' in query_lower:
+                logger.warning("No pasta found in regular search, trying fallback")
+                pasta_dishes = []
+                for item in menu_items:
+                    name = item.get('name', '').lower()
+                    if any(p in name for p in ['pasta', 'spaghetti', 'linguine', 'penne', 'ravioli', 'lasagna', 'gnocchi']):
+                        pasta_dishes.append(f"{item.get('name')} ({item.get('price', '')})")
+                if pasta_dishes:
+                    context_lines.append(f"Pasta dishes: {', '.join(pasta_dishes)}")
+                else:
+                    context_lines.append("I couldn't find pasta dishes in our menu.")
+            else:
+                context_lines.append("I couldn't find specific items matching your query in our menu.")
     
     return "\n".join(context_lines) if context_lines else ""
 
