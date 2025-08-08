@@ -24,16 +24,15 @@ MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8001")
 
 # System prompt
 system_prompt = """
-You are a friendly restaurant assistant. The customer is viewing our complete menu on their screen.
+You are a friendly restaurant assistant helping customers with menu questions.
 
 CRITICAL RULES:
-1. If an item is NOT in the provided context, it's NOT on our menu - say "We don't have [item], but..."
-2. When something isn't available, suggest a similar item from the context if possible
-3. ONLY mention items explicitly provided in the context - these are our actual menu items
-4. They can see the menu, so don't list everything
-5. Be concise and helpful - max 2-3 sentences
-6. For ingredients/allergens: only answer if you have the specific info, otherwise say you'll check
-7. Always respond in the same language as the customer's message
+1. ONLY mention dishes that are explicitly listed in the context below
+2. Be direct and helpful - don't mention what you don't have unless specifically asked
+3. For specific queries (like "pasta"), just list the relevant items we DO have
+4. Keep responses concise (2-3 sentences max)
+5. Don't categorize by course unless the context shows it that way
+6. Always respond in the same language as the customer's message
 """
 
 def get_mia_response_direct(prompt: str, max_tokens: int = 150) -> str:
@@ -129,7 +128,7 @@ def get_or_create_client(db: Session, client_id: str, restaurant_id: str, phone_
     return client
 
 def format_menu_for_context(menu_items, query):
-    """Format menu items for context - simple version"""
+    """Format menu items for context - improved version"""
     if not menu_items:
         return "Menu data unavailable."
     
@@ -153,31 +152,67 @@ def format_menu_for_context(menu_items, query):
     
     # For specific queries, find relevant items
     else:
-        for item in menu_items[:20]:  # Limit search
+        found_items = []
+        
+        # Search ALL menu items for relevance
+        for item in menu_items:
             name = item.get('name') or item.get('dish', '')
             if not name:
                 continue
                 
             name_lower = name.lower()
             ingredients = item.get('ingredients', [])
+            description = item.get('description', '').lower()
             
-            # Check relevance
+            # Check relevance - improved matching
             relevant = False
+            
+            # Special handling for dietary queries
             if 'vegetarian' in query_lower or 'vegan' in query_lower:
-                meat_keywords = ['beef', 'pork', 'chicken', 'duck', 'lamb', 'veal', 'bacon']
+                meat_keywords = ['beef', 'pork', 'chicken', 'duck', 'lamb', 'veal', 'bacon', 'guanciale']
                 if not any(meat in str(ingredients).lower() for meat in meat_keywords):
                     relevant = True
-            elif any(word in name_lower for word in query_lower.split() if len(word) > 3):
-                relevant = True
-            elif any(word in str(ingredients).lower() for word in query_lower.split() if len(word) > 3):
-                relevant = True
+            # Check if query words appear in name, description, or ingredients
+            else:
+                query_words = [w for w in query_lower.split() if len(w) > 2]  # Changed from > 3
+                for word in query_words:
+                    if (word in name_lower or 
+                        word in description or
+                        any(word in ing.lower() for ing in ingredients)):
+                        relevant = True
+                        break
             
             if relevant:
                 price = item.get('price', '')
-                desc = item.get('description', '')[:50]
-                context_lines.append(f"{name} ({price}): {desc}")
-                if len(context_lines) >= 5:  # Limit results
-                    break
+                desc = item.get('description', '')[:80]  # Show more description
+                found_items.append({
+                    'name': name,
+                    'price': price,
+                    'desc': desc,
+                    'category': item.get('subcategory', 'main')
+                })
+        
+        # Format found items
+        if found_items:
+            # Group by category if multiple items
+            if len(found_items) > 3:
+                by_category = {}
+                for item in found_items[:8]:  # Limit to 8 items
+                    cat = item['category']
+                    if cat not in by_category:
+                        by_category[cat] = []
+                    by_category[cat].append(f"{item['name']} ({item['price']})")
+                
+                for cat, items in by_category.items():
+                    context_lines.append(f"{cat.title()}: {', '.join(items)}")
+            else:
+                # Show detailed info for few items
+                for item in found_items:
+                    context_lines.append(f"{item['name']} ({item['price']}): {item['desc']}")
+        
+        # If nothing found, provide helpful context
+        if not context_lines:
+            context_lines.append("I couldn't find specific items matching your query in our menu.")
     
     return "\n".join(context_lines) if context_lines else ""
 
