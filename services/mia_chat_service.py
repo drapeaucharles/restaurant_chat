@@ -147,11 +147,20 @@ def format_menu_for_context(menu_items, query):
     query_lower = query.lower()
     context_lines = []
     
-    # For general menu queries, show categories
-    # Skip this if asking about specific food categories
-    is_specific_category = any(cat in query_lower for cat in ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'seafood', 'appetizer', 'starter'])
+    # Check if this is a food-related query
+    food_keywords = ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'seafood', 'appetizer', 'starter', 
+                    'main', 'entree', 'drink', 'beverage', 'food', 'eat', 'menu', 'dish', 'meal',
+                    'lunch', 'dinner', 'breakfast']
     
-    if not is_specific_category and any(word in query_lower for word in ['menu', 'serve', 'offer']):
+    is_food_query = any(keyword in query_lower for keyword in food_keywords)
+    
+    # Skip menu building for non-food queries (greetings, thanks, etc.)
+    if not is_food_query:
+        # Return empty context for greetings and general conversation
+        return ""
+    
+    # For general menu queries, show categories
+    if any(word in query_lower for word in ['menu', 'serve', 'offer', 'list', 'show']) and not any(cat in query_lower for cat in ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'seafood']):
         categories = {}
         for item in menu_items[:30]:  # Limit for performance
             cat = item.get('subcategory', 'main')
@@ -165,7 +174,7 @@ def format_menu_for_context(menu_items, query):
             if items:
                 context_lines.append(f"{cat.title()}: {', '.join(items[:5])}")
     
-    # For specific queries, find relevant items
+    # For specific food queries, find relevant items
     else:
         found_items = []
         
