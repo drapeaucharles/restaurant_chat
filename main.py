@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 
 from database import engine
 import models
-from routes import auth, restaurant, chat, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug
+from routes import auth, restaurant, chat, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version
 
 # Load environment variables
 load_dotenv()
@@ -215,12 +215,32 @@ app.include_router(smartlamp.router)  # Smart Lamp audio routes
 app.include_router(update_subcategories.router)  # Admin endpoint for subcategory updates
 app.include_router(restaurant_categories.router)  # Restaurant categories endpoint
 app.include_router(debug.router)  # Debug endpoints
+app.include_router(version.router)  # Version endpoint
 
 # Health check endpoints
 @app.get("/")
 def root():
-    """Root endpoint."""
-    return {"message": "Restaurant Management API", "status": "running"}
+    """Root endpoint with deployment info."""
+    import subprocess
+    try:
+        commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()[:8]
+        branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], text=True).strip()
+    except:
+        commit = "unknown"
+        branch = "unknown"
+    
+    return {
+        "message": "Restaurant Management API",
+        "status": "running",
+        "deployment": {
+            "branch": branch,
+            "commit": commit,
+            "version": "v3-fixes-9312e8e",
+            "has_pasta_fixes": True,
+            "mia_chat_service": "updated",
+            "deployment_timestamp": "2025-01-09-2230"
+        }
+    }
 
 @app.get("/healthcheck")
 def healthcheck():
