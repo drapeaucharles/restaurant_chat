@@ -83,3 +83,41 @@ def get_code_version():
         "mia_chat_service_exists": os.path.exists(mia_path),
         "deployment_check": "v3-291e0cc"
     }
+
+@router.get("/debug/test-pasta-context/{restaurant_id}")
+def test_pasta_context(restaurant_id: str):
+    """Test pasta context building directly"""
+    from sqlalchemy.orm import Session
+    from database import get_db
+    import models
+    from services.mia_chat_service import format_menu_for_context
+    
+    db = next(get_db())
+    
+    restaurant = db.query(models.Restaurant).filter(
+        models.Restaurant.restaurant_id == restaurant_id
+    ).first()
+    
+    if not restaurant:
+        return {"error": "Restaurant not found"}
+    
+    data = restaurant.data or {}
+    menu_items = data.get("menu", [])
+    
+    # Build context for pasta query
+    pasta_context = format_menu_for_context(menu_items, "what pasta do you have")
+    
+    # Also manually check pasta items
+    pasta_found = []
+    for i, item in enumerate(menu_items):
+        name = item.get('name') or item.get('dish', '')
+        if any(p in name.lower() for p in ['pasta', 'spaghetti', 'linguine', 'penne', 'ravioli', 'lasagna', 'gnocchi']):
+            pasta_found.append(f"{i}: {name}")
+    
+    return {
+        "total_menu_items": len(menu_items),
+        "pasta_context": pasta_context,
+        "pasta_items_found": len(pasta_found),
+        "pasta_items": pasta_found[:10],
+        "first_10_items": [f"{i}: {item.get('name') or item.get('dish', 'NO NAME')}" for i, item in enumerate(menu_items[:10])]
+    }
