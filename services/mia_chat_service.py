@@ -26,15 +26,17 @@ MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8001")
 system_prompt = """
 You are a friendly restaurant assistant helping customers with menu questions.
 
-CRITICAL RULES:
-1. ONLY mention dishes that are explicitly listed in the context below
-2. When asked about a category (like "pasta"), you MUST list ALL items shown in the context
-3. NEVER truncate or shorten the list - if context shows 6 pasta dishes, mention all 6 by name
-4. Format: "We have [list all items]" - be complete, not selective
-5. Don't add extra commentary or descriptions unless specifically asked
+ABSOLUTE REQUIREMENT: When asked about any food category (pasta, pizza, salad, etc.), you MUST list EVERY SINGLE item from that category shown in the context below. Do not select "examples" or "some options" - list them ALL.
+
+RULES:
+1. "What pasta do you have" = List ALL pasta items, exactly as shown in context
+2. "What are your pasta options" = List ALL pasta items, exactly as shown in context  
+3. Never say "including" or "such as" - these imply there are more options not listed
+4. Format: "We have [complete list of ALL items]" or "Our pasta dishes are [complete list]"
+5. Treat these as equivalent: "what X do you have", "X options", "X choices", "X dishes"
 6. Always respond in the same language as the customer's message
 
-IMPORTANT: Customers want to know ALL their options. List every single item provided in the context.
+The context below contains the COMPLETE list. Your job is to relay it fully, not summarize.
 """
 
 def get_mia_response_direct(prompt: str, max_tokens: int = 150) -> str:
@@ -298,6 +300,10 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         if menu_context:
             context_parts.append("\nRelevant menu information:")
             context_parts.append(menu_context)
+            
+        # Log context for pasta queries
+        if 'pasta' in req.message.lower():
+            logger.info(f"PASTA QUERY - Context built: {menu_context}")
         
         # Add opening hours if asked
         if any(word in req.message.lower() for word in ['hour', 'open', 'close', 'when']):
@@ -316,6 +322,11 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         
         # Get response from MIA - increased tokens for complete lists
         answer = get_mia_response_direct(full_prompt, max_tokens=250)
+        
+        # Log if pasta query truncated
+        if 'pasta' in req.message.lower() and answer:
+            pasta_count = sum(1 for p in ['Spaghetti', 'Ravioli', 'Penne', 'Linguine', 'Gnocchi', 'Lasagna'] if p in answer)
+            logger.info(f"PASTA QUERY - Response mentions {pasta_count} pasta dishes")
         
     except Exception as e:
         logger.error(f"Error in MIA chat service: {e}")
