@@ -1,5 +1,5 @@
 """
-MIA Chat Service - Simplified version that works
+MIA Chat Service - Clean simplified version
 """
 import requests
 import re
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 # MIA Backend URL - can be configured via environment variable
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
-MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8001")
+MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
 # System prompt
 system_prompt = """
@@ -96,6 +96,143 @@ def get_mia_response_direct(prompt: str, max_tokens: int = 150) -> str:
         logger.error(f"Error getting MIA response: {e}")
         return "I'm experiencing technical difficulties. Please try again or ask our staff for help."
 
+def format_menu_for_context(menu_items, query):
+    """
+    Simple context builder - let the AI figure out what's relevant
+    """
+    if not menu_items:
+        return ""
+    
+    query_lower = query.lower()
+    
+    # For general menu requests, show a sample
+    if any(word in query_lower for word in ['menu', 'offer', 'serve']):
+        categories = {}
+        for item in menu_items[:30]:
+            cat = item.get('subcategory', 'main')
+            if cat not in categories:
+                categories[cat] = []
+            name = item.get('name') or item.get('dish', '')
+            if name:
+                categories[cat].append(name)
+        
+        lines = []
+        for cat, items in categories.items():
+            if items:
+                lines.append(f"{cat.title()}: {', '.join(items[:5])}")
+        return "\n".join(lines)
+    
+    # For specific queries, find relevant items
+    found_items = []
+    
+    # Get meaningful words from query (skip common words)
+    query_words = [w for w in query_lower.split() if len(w) > 2 and w not in ['what', 'have', 'you', 'the', 'are', 'your', 'our', 'any', 'some', 'can', 'get']]
+    
+    if query_words:  # Only search if there are meaningful words
+        for item in menu_items:
+            name = item.get('name') or item.get('dish', '')
+            if not name:
+                continue
+                
+            # Check if any query word matches the item
+            item_text = f"{name} {item.get('description', '')} {' '.join(item.get('ingredients', []))}".lower()
+            
+            if any(word in item_text for word in query_words):
+                found_items.append({
+                    'name': name,
+                    'price': item.get('price', ''),
+                    'category': item.get('subcategory', 'main')
+                })
+    
+    # Format found items
+    if found_items:
+        by_category = {}
+        for item in found_items[:30]:  # Reasonable limit
+            cat = item['category']
+            if cat not in by_category:
+                by_category[cat] = []
+            by_category[cat].append(f"{item['name']} ({item['price']})")
+        
+        lines = []
+        for cat, items in by_category.items():
+            lines.append(f"{cat.title()}: {', '.join(items)}")
+        return "\n".join(lines)
+    
+    return ""  # No relevant context
+
+def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
+    """Handle chat requests using MIA backend"""
+    
+    logger.info(f"MIA CHAT SERVICE - Restaurant: {req.restaurant_id}, Client: {req.client_id}")
+    logger.info(f"Query: '{req.message}'")
+    
+    restaurant = db.query(models.Restaurant).filter(
+        models.Restaurant.restaurant_id == req.restaurant_id
+    ).first()
+    
+    if not restaurant:
+        logger.error(f"Restaurant not found: {req.restaurant_id}")
+        return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
+    
+    # Check if this is a restaurant staff message
+    if req.sender_type == 'restaurant':
+        logger.info("Blocking AI response for restaurant staff message")
+        return ChatResponse(answer="")
+    
+    # Get restaurant data
+    data = restaurant.data or {}
+    
+    try:
+        # Get menu items
+        menu_items = data.get("menu", [])
+        if menu_items:
+            try:
+                menu_items = apply_menu_fallbacks(menu_items)
+            except Exception as e:
+                logger.warning(f"Error applying menu fallbacks: {e}")
+        
+        # Build context
+        context_parts = [system_prompt]
+        context_parts.append(f"\nRestaurant: {restaurant.restaurant_id}")
+        
+        # Add menu context if relevant
+        menu_context = format_menu_for_context(menu_items, req.message)
+        if menu_context:
+            context_parts.append("\nRelevant menu information:")
+            context_parts.append(menu_context)
+        
+        # Add opening hours if asked
+        if any(word in req.message.lower() for word in ['hour', 'open', 'close', 'when']):
+            hours = data.get('opening_hours', {})
+            if hours:
+                context_parts.append(f"\nOpening hours: {hours}")
+        
+        # Final prompt
+        full_prompt = "\n".join(context_parts)
+        full_prompt += f"\n\nCustomer: {req.message}\nAssistant:"
+        
+        # Get response from MIA
+        answer = get_mia_response_direct(full_prompt, max_tokens=250)
+        
+    except Exception as e:
+        logger.error(f"Error in MIA chat service: {e}")
+        answer = "I'm experiencing technical difficulties. Please try again later."
+    
+    # Save AI response
+    new_message = models.ChatMessage(
+        restaurant_id=req.restaurant_id,
+        client_id=req.client_id,
+        sender_type="ai",
+        message=answer
+    )
+    db.add(new_message)
+    db.commit()
+    
+    logger.info("MIA response processed successfully")
+    
+    return ChatResponse(answer=answer)
+
+# Helper functions
 def fetch_recent_chat_history(db: Session, client_id: str, restaurant_id: str):
     """Fetch recent chat history for context"""
     logger.info(f"Fetching chat history for client {client_id}, restaurant {restaurant_id}")
@@ -135,266 +272,3 @@ def get_or_create_client(db: Session, client_id: str, restaurant_id: str, phone_
             db.commit()
             db.refresh(client)
     return client
-
-def format_menu_for_context(menu_items, query):
-    """Format menu items for context - improved version"""
-    if not menu_items:
-        return "Menu data unavailable."
-    
-    # Log total menu items for debugging
-    logger.info(f"format_menu_for_context: Total menu items: {len(menu_items)}")
-    
-    query_lower = query.lower()
-    context_lines = []
-    
-    # Check if this is a food-related query
-    food_keywords = ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'seafood', 'appetizer', 'starter', 
-                    'main', 'entree', 'drink', 'beverage', 'food', 'eat', 'menu', 'dish', 'meal',
-                    'lunch', 'dinner', 'breakfast']
-    
-    is_food_query = any(keyword in query_lower for keyword in food_keywords)
-    
-    # Skip menu building for non-food queries (greetings, thanks, etc.)
-    if not is_food_query:
-        # Return empty context for greetings and general conversation
-        return ""
-    
-    # For general menu queries, show categories
-    if any(word in query_lower for word in ['menu', 'serve', 'offer', 'list', 'show']) and not any(cat in query_lower for cat in ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'seafood']):
-        categories = {}
-        for item in menu_items[:30]:  # Limit for performance
-            cat = item.get('subcategory', 'main')
-            if cat not in categories:
-                categories[cat] = []
-            name = item.get('name') or item.get('dish', '')
-            if name:
-                categories[cat].append(name)
-        
-        for cat, items in categories.items():
-            if items:
-                context_lines.append(f"{cat.title()}: {', '.join(items[:5])}")
-    
-    # For specific food queries, find relevant items
-    else:
-        found_items = []
-        
-        # Log search details for debugging
-        if 'pasta' in query_lower:
-            logger.info(f"Searching for pasta in {len(menu_items)} menu items")
-        
-        # Search ALL menu items for relevance - no limit
-        for idx, item in enumerate(menu_items):
-            name = item.get('name') or item.get('dish', '')
-            if not name:
-                continue
-                
-            name_lower = name.lower()
-            ingredients = item.get('ingredients', [])
-            description = item.get('description', '').lower()
-            
-            # Check relevance - improved matching
-            relevant = False
-            
-            # Special handling for dietary queries
-            if 'vegetarian' in query_lower or 'vegan' in query_lower:
-                meat_keywords = ['beef', 'pork', 'chicken', 'duck', 'lamb', 'veal', 'bacon', 'guanciale']
-                if not any(meat in str(ingredients).lower() for meat in meat_keywords):
-                    relevant = True
-            # Special handling for specific food categories
-            elif any(cat in query_lower for cat in ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'seafood']):
-                # Define keywords for each category
-                category_keywords = {
-                    'pasta': ['pasta', 'spaghetti', 'linguine', 'penne', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine', 'rigatoni', 'tagliatelle'],
-                    'pizza': ['pizza', 'margherita', 'pepperoni', 'quattro', 'calzone'],
-                    'salad': ['salad', 'caesar', 'greek', 'garden', 'arugula', 'spinach'],
-                    'dessert': ['dessert', 'cake', 'tiramisu', 'gelato', 'panna cotta', 'chocolate', 'cheesecake', 'tart', 'ice cream'],
-                    'wine': ['wine', 'red', 'white', 'rosé', 'sparkling', 'prosecco', 'champagne'],
-                    'seafood': ['seafood', 'fish', 'salmon', 'tuna', 'shrimp', 'lobster', 'crab', 'scallop', 'mussel', 'oyster', 'calamari']
-                }
-                
-                # Find which category we're looking for
-                for cat, keywords in category_keywords.items():
-                    if cat in query_lower:
-                        # Check name, description AND ingredients for category keywords
-                        item_text = f"{name_lower} {description} {' '.join(str(i).lower() for i in ingredients)} {item.get('subcategory', '').lower()}"
-                        if any(keyword in item_text for keyword in keywords):
-                            relevant = True
-                            logger.debug(f"Found {cat} item at index {idx}: {name}")
-                        break
-            # Check if query words appear in name, description, or ingredients
-            else:
-                # Extract meaningful words from query
-                query_words = [w for w in query_lower.split() if len(w) > 2 and w not in ['what', 'have', 'you', 'the', 'are', 'your', 'our', 'any', 'some']]
-                
-                # Check each word against item details
-                for word in query_words:
-                    # Check name, description, and ingredients
-                    if (word in name_lower or 
-                        word in description or
-                        any(word in str(ing).lower() for ing in ingredients) or
-                        # Check subcategory too (e.g., "dessert", "appetizer")
-                        word in item.get('subcategory', '').lower()):
-                        relevant = True
-                        if idx < 50:  # Log first 50 for debugging
-                            logger.debug(f"Found {word} in item {idx}: {name}")
-                        break
-            
-            if relevant:
-                price = item.get('price', '')
-                desc = item.get('description', '')[:80]  # Show more description
-                found_items.append({
-                    'name': name,
-                    'price': price,
-                    'desc': desc,
-                    'category': item.get('subcategory', 'main')
-                })
-        
-        # Log findings for pasta queries
-        if 'pasta' in query_lower:
-            logger.info(f"Found {len(found_items)} pasta items from search")
-            # Log what was found
-            for item in found_items[:10]:
-                logger.info(f"  - {item['name']}")
-        
-        # Format found items
-        if found_items:
-            # For pasta queries and similar, show all items without too much detail
-            if 'pasta' in query_lower or len(found_items) > 5:
-                # Group by category
-                by_category = {}
-                # For pasta, show ALL items, not limited
-                limit = None if 'pasta' in query_lower else 15
-                items_to_show = found_items if limit is None else found_items[:limit]
-                for item in items_to_show:
-                    cat = item['category']
-                    if cat not in by_category:
-                        by_category[cat] = []
-                    by_category[cat].append(f"{item['name']} ({item['price']})")
-                
-                for cat, items in by_category.items():
-                    context_lines.append(f"{cat.title()}: {', '.join(items)}")
-            else:
-                # Show detailed info for few items
-                for item in found_items[:5]:
-                    context_lines.append(f"{item['name']} ({item['price']}): {item['desc']}")
-        
-        # If nothing found, provide helpful context
-        if not context_lines:
-            # Special fallback for pasta - ensure we always find pasta dishes
-            if 'pasta' in query_lower:
-                logger.warning("No pasta found in regular search, trying fallback")
-                pasta_dishes = []
-                for item in menu_items:
-                    name = item.get('name', '').lower()
-                    if any(p in name for p in ['pasta', 'spaghetti', 'linguine', 'penne', 'ravioli', 'lasagna', 'gnocchi']):
-                        pasta_dishes.append(f"{item.get('name')} ({item.get('price', '')})")
-                if pasta_dishes:
-                    context_lines.append(f"Pasta dishes: {', '.join(pasta_dishes)}")
-                else:
-                    context_lines.append("I couldn't find pasta dishes in our menu.")
-            else:
-                context_lines.append("I couldn't find specific items matching your query in our menu.")
-    
-    return "\n".join(context_lines) if context_lines else ""
-
-def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
-    """Handle chat requests using MIA backend - simplified version"""
-    
-    logger.info(f"MIA CHAT SERVICE v3-291e0cc - Restaurant: {req.restaurant_id}, Client: {req.client_id}")
-    logger.info(f"Query: '{req.message}'")
-    
-    restaurant = db.query(models.Restaurant).filter(
-        models.Restaurant.restaurant_id == req.restaurant_id
-    ).first()
-    
-    if not restaurant:
-        logger.error(f"Restaurant not found: {req.restaurant_id}")
-        return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
-    
-    # Check if this is a restaurant staff message
-    if req.sender_type == 'restaurant':
-        logger.info("Blocking AI response for restaurant staff message")
-        return ChatResponse(answer="")
-    
-    # Get restaurant data
-    data = restaurant.data or {}
-    
-    try:
-        # Get menu items
-        menu_items = data.get("menu", [])
-        if menu_items:
-            try:
-                menu_items = apply_menu_fallbacks(menu_items)
-            except Exception as e:
-                logger.warning(f"Error applying menu fallbacks: {e}")
-        
-        # Build context
-        context_parts = [system_prompt]
-        context_parts.append(f"\nRestaurant: {restaurant.restaurant_id}")
-        context_parts.append(f"Customer asks: '{req.message}'")
-        
-        # Add menu context
-        menu_context = format_menu_for_context(menu_items, req.message)
-        if menu_context:
-            context_parts.append("\nRelevant menu information:")
-            context_parts.append(menu_context)
-            
-        # Log context for pasta queries
-        if 'pasta' in req.message.lower():
-            logger.info(f"PASTA QUERY - Context built: {menu_context}")
-            logger.info(f"PASTA QUERY - Menu items count: {len(menu_items)}")
-            logger.info(f"PASTA QUERY - Full prompt length: {len(full_prompt)}")
-        
-        # Add opening hours if asked
-        if any(word in req.message.lower() for word in ['hour', 'open', 'close', 'when']):
-            hours = data.get('opening_hours', {})
-            if hours:
-                context_parts.append(f"\nOpening hours: {hours}")
-        
-        # Final prompt
-        full_prompt = "\n".join(context_parts)
-        
-        # Add explicit instruction for category queries
-        query_lower = req.message.lower()
-        # Common food category words
-        food_categories = ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'appetizer', 'starter', 
-                          'main', 'entree', 'side', 'soup', 'sandwich', 'burger', 'steak', 
-                          'chicken', 'fish', 'seafood', 'vegetarian', 'vegan', 'beer', 'cocktail',
-                          'beverage', 'drink', 'coffee', 'tea']
-        
-        # Check if asking about a category
-        is_category_query = any(cat in query_lower for cat in food_categories)
-        
-        # Also check for general menu queries
-        is_menu_query = any(word in query_lower for word in ['menu', 'dishes', 'options', 'choices', 'serve', 'offer', 'have'])
-        
-        if is_category_query or is_menu_query:
-            full_prompt += "\n\nCRITICAL: You MUST list EVERY SINGLE item from the context above. Do not summarize, truncate, or give examples - list them ALL."
-        
-        full_prompt += f"\n\nCustomer: {req.message}\nAssistant:"
-        
-        # Get response from MIA - increased tokens for complete lists
-        answer = get_mia_response_direct(full_prompt, max_tokens=250)
-        
-        # Log if pasta query truncated
-        if 'pasta' in req.message.lower() and answer:
-            pasta_count = sum(1 for p in ['Spaghetti', 'Ravioli', 'Penne', 'Linguine', 'Gnocchi', 'Lasagna'] if p in answer)
-            logger.info(f"PASTA QUERY - Response mentions {pasta_count} pasta dishes")
-        
-    except Exception as e:
-        logger.error(f"Error in MIA chat service: {e}")
-        answer = "I'm experiencing technical difficulties. Please try again later."
-    
-    # Save AI response
-    new_message = models.ChatMessage(
-        restaurant_id=req.restaurant_id,
-        client_id=req.client_id,
-        sender_type="ai",
-        message=answer
-    )
-    db.add(new_message)
-    db.commit()
-    
-    logger.info("MIA response processed successfully")
-    
-    return ChatResponse(answer=answer)
