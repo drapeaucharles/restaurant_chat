@@ -283,7 +283,8 @@ def format_menu_for_context(menu_items, query):
 def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     """Handle chat requests using MIA backend - simplified version"""
     
-    logger.info(f"MIA CHAT SERVICE - Restaurant: {req.restaurant_id}, Client: {req.client_id}")
+    logger.info(f"MIA CHAT SERVICE v3-291e0cc - Restaurant: {req.restaurant_id}, Client: {req.client_id}")
+    logger.info(f"Query: '{req.message}'")
     
     restaurant = db.query(models.Restaurant).filter(
         models.Restaurant.restaurant_id == req.restaurant_id
