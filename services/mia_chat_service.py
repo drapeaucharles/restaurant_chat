@@ -183,23 +183,43 @@ def format_menu_for_context(menu_items, query):
                 meat_keywords = ['beef', 'pork', 'chicken', 'duck', 'lamb', 'veal', 'bacon', 'guanciale']
                 if not any(meat in str(ingredients).lower() for meat in meat_keywords):
                     relevant = True
-            # Special handling for pasta queries
-            elif 'pasta' in query_lower:
-                pasta_keywords = ['pasta', 'spaghetti', 'linguine', 'penne', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine', 'rigatoni', 'tagliatelle']
-                # Check name, description AND ingredients for pasta keywords
-                item_text = f"{name_lower} {description} {' '.join(str(i).lower() for i in ingredients)}"
-                if any(keyword in item_text for keyword in pasta_keywords):
-                    relevant = True
-                    if 'pasta' in query_lower:
-                        logger.info(f"  Found pasta item at index {idx}: {name}")
+            # Special handling for specific food categories
+            elif any(cat in query_lower for cat in ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'seafood']):
+                # Define keywords for each category
+                category_keywords = {
+                    'pasta': ['pasta', 'spaghetti', 'linguine', 'penne', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine', 'rigatoni', 'tagliatelle'],
+                    'pizza': ['pizza', 'margherita', 'pepperoni', 'quattro', 'calzone'],
+                    'salad': ['salad', 'caesar', 'greek', 'garden', 'arugula', 'spinach'],
+                    'dessert': ['dessert', 'cake', 'tiramisu', 'gelato', 'panna cotta', 'chocolate', 'cheesecake', 'tart', 'ice cream'],
+                    'wine': ['wine', 'red', 'white', 'rosé', 'sparkling', 'prosecco', 'champagne'],
+                    'seafood': ['seafood', 'fish', 'salmon', 'tuna', 'shrimp', 'lobster', 'crab', 'scallop', 'mussel', 'oyster', 'calamari']
+                }
+                
+                # Find which category we're looking for
+                for cat, keywords in category_keywords.items():
+                    if cat in query_lower:
+                        # Check name, description AND ingredients for category keywords
+                        item_text = f"{name_lower} {description} {' '.join(str(i).lower() for i in ingredients)} {item.get('subcategory', '').lower()}"
+                        if any(keyword in item_text for keyword in keywords):
+                            relevant = True
+                            logger.debug(f"Found {cat} item at index {idx}: {name}")
+                        break
             # Check if query words appear in name, description, or ingredients
             else:
-                query_words = [w for w in query_lower.split() if len(w) > 2]  # Changed from > 3
+                # Extract meaningful words from query
+                query_words = [w for w in query_lower.split() if len(w) > 2 and w not in ['what', 'have', 'you', 'the', 'are', 'your', 'our', 'any', 'some']]
+                
+                # Check each word against item details
                 for word in query_words:
+                    # Check name, description, and ingredients
                     if (word in name_lower or 
                         word in description or
-                        any(word in ing.lower() for ing in ingredients)):
+                        any(word in str(ing).lower() for ing in ingredients) or
+                        # Check subcategory too (e.g., "dessert", "appetizer")
+                        word in item.get('subcategory', '').lower()):
                         relevant = True
+                        if idx < 50:  # Log first 50 for debugging
+                            logger.debug(f"Found {word} in item {idx}: {name}")
                         break
             
             if relevant:
@@ -315,8 +335,21 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         full_prompt = "\n".join(context_parts)
         
         # Add explicit instruction for category queries
-        if any(cat in req.message.lower() for cat in ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'appetizer']):
-            full_prompt += "\n\nREMINDER: List ALL items from the context above - do not truncate or select just a few."
+        query_lower = req.message.lower()
+        # Common food category words
+        food_categories = ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'appetizer', 'starter', 
+                          'main', 'entree', 'side', 'soup', 'sandwich', 'burger', 'steak', 
+                          'chicken', 'fish', 'seafood', 'vegetarian', 'vegan', 'beer', 'cocktail',
+                          'beverage', 'drink', 'coffee', 'tea']
+        
+        # Check if asking about a category
+        is_category_query = any(cat in query_lower for cat in food_categories)
+        
+        # Also check for general menu queries
+        is_menu_query = any(word in query_lower for word in ['menu', 'dishes', 'options', 'choices', 'serve', 'offer', 'have'])
+        
+        if is_category_query or is_menu_query:
+            full_prompt += "\n\nCRITICAL: You MUST list EVERY SINGLE item from the context above. Do not summarize, truncate, or give examples - list them ALL."
         
         full_prompt += f"\n\nCustomer: {req.message}\nAssistant:"
         
