@@ -42,26 +42,31 @@ The context below contains the COMPLETE list. Your job is to relay it fully, not
 def get_mia_response_direct(prompt: str, max_tokens: int = 150) -> str:
     """Get response from MIA using direct API endpoint"""
     try:
-        # First try local MIA instance
-        try:
-            response = requests.post(
-                f"{MIA_LOCAL_URL}/generate",
-                json={
-                    "prompt": prompt,
-                    "max_tokens": max_tokens,
-                    "temperature": 0.7,
-                    "restaurant_mode": True
-                },
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                return result.get("text", "I'm having trouble understanding. Could you please rephrase?")
-        except:
-            logger.info("Local MIA not available, trying remote")
+        # TEMPORARILY DISABLED: Local MIA not following instructions properly
+        # Skip local and go straight to remote MIA backend which works correctly
+        skip_local = True  # Set to False to re-enable local MIA
         
-        # Try remote MIA backend
+        if not skip_local:
+            # First try local MIA instance
+            try:
+                response = requests.post(
+                    f"{MIA_LOCAL_URL}/generate",
+                    json={
+                        "prompt": prompt,
+                        "max_tokens": max_tokens,
+                        "temperature": 0.7,
+                        "restaurant_mode": True
+                    },
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("text", "I'm having trouble understanding. Could you please rephrase?")
+            except:
+                logger.info("Local MIA not available, trying remote")
+        
+        # Try remote MIA backend (this works correctly)
         response = requests.post(
             f"{MIA_BACKEND_URL}/api/generate",
             json={
