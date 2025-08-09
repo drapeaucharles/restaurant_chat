@@ -148,7 +148,10 @@ def format_menu_for_context(menu_items, query):
     context_lines = []
     
     # For general menu queries, show categories
-    if any(word in query_lower for word in ['menu', 'serve', 'offer', 'have', 'dishes']):
+    # Skip this if asking about specific food categories
+    is_specific_category = any(cat in query_lower for cat in ['pasta', 'pizza', 'salad', 'dessert', 'wine', 'seafood', 'appetizer', 'starter'])
+    
+    if not is_specific_category and any(word in query_lower for word in ['menu', 'serve', 'offer']):
         categories = {}
         for item in menu_items[:30]:  # Limit for performance
             cat = item.get('subcategory', 'main')
@@ -330,6 +333,8 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         # Log context for pasta queries
         if 'pasta' in req.message.lower():
             logger.info(f"PASTA QUERY - Context built: {menu_context}")
+            logger.info(f"PASTA QUERY - Menu items count: {len(menu_items)}")
+            logger.info(f"PASTA QUERY - Full prompt length: {len(full_prompt)}")
         
         # Add opening hours if asked
         if any(word in req.message.lower() for word in ['hour', 'open', 'close', 'when']):
