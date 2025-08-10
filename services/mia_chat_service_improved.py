@@ -23,24 +23,9 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
-# More flexible system prompt that allows natural conversation
-system_prompt = """You are a helpful restaurant assistant with a warm, conversational personality. 
-
-Your role is to:
-- Greet customers warmly when they say hello, WITHOUT immediately listing menu items
-- Answer customer questions naturally and helpfully
-- Only provide menu information when specifically asked about food, dishes, or the menu
-- Be conversational and engaging, not robotic
-- Adapt your language style to match the customer's tone
-- Respond in the same language as the customer
-- When listing items (only when asked), present them in an appealing way
-
-Important: 
-- For greetings like "hi" or "hello", respond with a friendly greeting and ask how you can help
-- Don't mention specific dishes unless the customer asks about food
-- Wait for the customer to express what they're looking for before offering menu information
-
-Remember: You're representing our restaurant, so be professional yet friendly. Make customers feel welcome."""
+# Simple, flexible system prompt
+system_prompt = """You are a friendly restaurant assistant. Be natural, helpful, and conversational. 
+Respond in the customer's language and adapt to their tone. You have access to our full menu and restaurant information below."""
 
 def format_menu_context_structured(menu_items, restaurant_data):
     """Format all restaurant data as structured context that AI can understand better"""
@@ -110,28 +95,6 @@ def is_factual_query(message):
     message_lower = message.lower()
     return any(keyword in message_lower for keyword in factual_keywords)
 
-def enhance_response(response, query, menu_data):
-    """Post-process response to ensure completeness and helpfulness"""
-    response_lower = response.lower()
-    query_lower = query.lower()
-    
-    # Check if the response might be incomplete for category queries
-    category_words = ['pasta', 'pizza', 'salad', 'appetizer', 'dessert', 'wine', 'drink']
-    
-    for category in category_words:
-        if category in query_lower and category in response_lower:
-            # Count how many items are mentioned (rough estimate)
-            item_count = response.count(',') + response.count('\n-') + response.count('•')
-            
-            # If very few items mentioned, add a helpful note
-            if item_count < 3 and 'all' not in response_lower and 'complete' not in response_lower:
-                response += f"\n\nI'd be happy to tell you more about any of our {category} options or help you explore other menu items!"
-    
-    # Add helpful suggestions based on context
-    if 'recommend' in query_lower and len(response) < 100:
-        response += "\n\nWould you like me to know more about your preferences to make a better recommendation?"
-    
-    return response
 
 def get_mia_response_improved(prompt: str, temperature: float = 0.7, max_tokens: int = 400) -> str:
     """Get response from MIA with improved parameters"""
@@ -195,21 +158,6 @@ def get_mia_response_improved(prompt: str, temperature: float = 0.7, max_tokens:
         logger.error(f"Error getting MIA response: {e}")
         return "I'm experiencing technical difficulties. Please try again or ask our staff for help."
 
-def is_greeting(message):
-    """Check if message is a greeting"""
-    greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 
-                 'greetings', 'bonjour', 'hola', 'ciao', 'salut', 'buongiorno']
-    message_lower = message.lower().strip()
-    # Check if message is just a greeting (no other substantial content)
-    return any(message_lower == greet or message_lower.startswith(greet + ' ') for greet in greetings) and len(message_lower.split()) <= 3
-
-def is_menu_query(message):
-    """Check if message is asking about menu items"""
-    menu_keywords = ['menu', 'food', 'dish', 'eat', 'serve', 'have', 'offer', 'pasta', 'pizza', 
-                     'salad', 'appetizer', 'dessert', 'drink', 'wine', 'special']
-    message_lower = message.lower()
-    return any(keyword in message_lower for keyword in menu_keywords)
-
 def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     """Improved chat service with better context handling and natural responses"""
     
@@ -245,25 +193,15 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             except Exception as e:
                 logger.warning(f"Error applying menu fallbacks: {e}")
         
-        # Build context based on query type
+        # Build context - simple and complete
         context_parts = []
         
-        # 1. System instruction (flexible and natural)
+        # 1. System instruction (simple and flexible)
         context_parts.append(system_prompt)
         
-        # 2. Only include menu context if relevant to the query
-        if is_menu_query(req.message) and not is_greeting(req.message):
-            restaurant_context = format_menu_context_structured(menu_items, data)
-            context_parts.append(restaurant_context)
-        else:
-            # For non-menu queries, just include basic restaurant info
-            basic_info = {
-                "restaurant_name": data.get('restaurant_name', restaurant.restaurant_id),
-                "cuisine_type": data.get('cuisine_type', ''),
-                "description": data.get('description', '')
-            }
-            if any(basic_info.values()):
-                context_parts.append(f"Restaurant Info: {json.dumps(basic_info, ensure_ascii=False)}")
+        # 2. Full restaurant context (let AI decide what's relevant)
+        restaurant_context = format_menu_context_structured(menu_items, data)
+        context_parts.append(restaurant_context)
         
         # 3. Recent conversation history for continuity
         recent_messages = fetch_recent_chat_history(db, req.client_id, req.restaurant_id)
@@ -271,9 +209,9 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         if conv_context:
             context_parts.append(conv_context)
         
-        # 4. Current query with clear formatting
-        context_parts.append(f"\nCurrent customer message: {req.message}")
-        context_parts.append("\nYour helpful response:")
+        # 4. Current query
+        context_parts.append(f"\nCustomer: {req.message}")
+        context_parts.append("\nAssistant:")
         
         # Combine all context with clear separation
         full_prompt = "\n\n".join(context_parts)
@@ -283,9 +221,6 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         
         # Get AI response with improved parameters
         answer = get_mia_response_improved(full_prompt, temperature=temperature, max_tokens=400)
-        
-        # Enhance response if needed
-        answer = enhance_response(answer, req.message, data)
         
         # Save user message
         user_message = models.ChatMessage(
