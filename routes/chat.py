@@ -71,8 +71,15 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     # Use improved service if enabled, otherwise regular
     if USE_IMPROVED_CHAT:
         print(f"💬 Using IMPROVED chat service")
-        from services.mia_chat_service_improved import mia_chat_service
-        result = mia_chat_service(req, db)
+        try:
+            from services.mia_chat_service_improved import mia_chat_service
+            print(f"✅ Successfully imported improved service")
+            result = mia_chat_service(req, db)
+            print(f"✅ Improved service executed successfully")
+        except Exception as e:
+            print(f"❌ ERROR using improved service: {e}")
+            print(f"❌ Falling back to regular service")
+            result = chat_service(req, db)
     else:
         print(f"💬 Using regular chat service")
         result = chat_service(req, db)

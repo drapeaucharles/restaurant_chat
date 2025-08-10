@@ -254,6 +254,39 @@ def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "version": "1.0.1"}
 
+@app.get("/debug/test-chat-import")
+def test_chat_import():
+    """Test importing the improved chat service."""
+    results = {}
+    
+    # Test importing improved service
+    try:
+        from services.mia_chat_service_improved import mia_chat_service
+        results["import_improved"] = "SUCCESS"
+        
+        # Check if it has the right attributes
+        import inspect
+        results["improved_source_file"] = inspect.getfile(mia_chat_service)
+        results["improved_function_name"] = mia_chat_service.__name__
+    except Exception as e:
+        results["import_improved"] = f"FAILED: {str(e)}"
+    
+    # Test importing regular MIA service
+    try:
+        from services.mia_chat_service import mia_chat_service as regular_mia
+        results["import_regular_mia"] = "SUCCESS"
+    except Exception as e:
+        results["import_regular_mia"] = f"FAILED: {str(e)}"
+    
+    # Test chat route flag
+    try:
+        from routes.chat import USE_IMPROVED_CHAT
+        results["USE_IMPROVED_CHAT"] = USE_IMPROVED_CHAT
+    except Exception as e:
+        results["USE_IMPROVED_CHAT"] = f"FAILED: {str(e)}"
+    
+    return results
+
 @app.get("/debug/chat-config")
 def debug_chat_config():
     """Debug endpoint to check chat configuration."""
@@ -280,6 +313,41 @@ def debug_chat_config():
         "expected_behavior": "Should greet without pasta" if route_flag else "Will show pasta",
         "files_in_services": os.listdir("services") if os.path.exists("services") else "services_dir_not_found"
     }
+
+@app.post("/debug/test-improved-direct")
+def test_improved_direct(message: str = "hello"):
+    """Test the improved service directly."""
+    from database import get_db
+    from schemas.chat import ChatRequest
+    
+    try:
+        from services.mia_chat_service_improved import mia_chat_service
+        
+        # Create test request
+        req = ChatRequest(
+            restaurant_id="bella_vista_restaurant",
+            client_id="550e8400-e29b-41d4-a716-446655440000",
+            sender_type="client",
+            message=message
+        )
+        
+        # Get DB session
+        db = next(get_db())
+        
+        # Call improved service
+        result = mia_chat_service(req, db)
+        
+        return {
+            "success": True,
+            "answer": result.answer,
+            "has_pasta": "pasta" in result.answer.lower()
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "type": type(e).__name__
+        }
 
 @app.get("/whatsapp/service/status")
 def whatsapp_service_status():
