@@ -254,6 +254,33 @@ def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "version": "1.0.1"}
 
+@app.get("/debug/chat-config")
+def debug_chat_config():
+    """Debug endpoint to check chat configuration."""
+    import os
+    from pathlib import Path
+    
+    # Check if improved service file exists
+    improved_exists = Path("services/mia_chat_service_improved.py").exists()
+    
+    # Check environment variable
+    use_improved = os.getenv("USE_IMPROVED_CHAT", "not_set")
+    
+    # Import the flag from chat.py
+    try:
+        from routes.chat import USE_IMPROVED_CHAT
+        route_flag = USE_IMPROVED_CHAT
+    except:
+        route_flag = "import_failed"
+    
+    return {
+        "improved_service_file_exists": improved_exists,
+        "USE_IMPROVED_CHAT_env": use_improved,
+        "USE_IMPROVED_CHAT_in_route": route_flag,
+        "expected_behavior": "Should greet without pasta" if route_flag else "Will show pasta",
+        "files_in_services": os.listdir("services") if os.path.exists("services") else "services_dir_not_found"
+    }
+
 @app.get("/whatsapp/service/status")
 def whatsapp_service_status():
     """Check WhatsApp service status."""
