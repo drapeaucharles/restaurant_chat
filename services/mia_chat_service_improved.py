@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
-# Simple, flexible system prompt
-system_prompt = """You are a friendly restaurant assistant. Be natural, helpful, and conversational. 
-Respond to what the customer is actually asking. Don't offer information they didn't request.
-If they say hello, greet them warmly. If they ask about food, tell them about food.
-Adapt to their language and tone."""
+# Context-aware system prompt
+system_prompt = """You are a friendly restaurant assistant at a digital menu interface.
+When customers greet you, welcome them and offer to help them explore our menu, find specific dishes, or answer questions about dietary options.
+Be concise, helpful, and natural. Respond in their language.
+Example greeting response: "Hello! Welcome to our menu. I can help you find specific dishes, answer questions about ingredients, or suggest options based on your preferences. What are you looking for today?" """
 
 def format_menu_context_structured(menu_items, restaurant_data):
     """Format all restaurant data as structured context that AI can understand better"""
