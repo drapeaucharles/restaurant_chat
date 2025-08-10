@@ -14,6 +14,10 @@ from services.chat_service import chat_service
 from services.structured_chat_service import structured_chat_service
 from services.client_service import create_or_update_client_service
 from config import get_chat_provider_info
+import os
+
+# Check if we should use improved chat service
+USE_IMPROVED_CHAT = os.getenv("USE_IMPROVED_CHAT", "false").lower() == "true"
 
 router = APIRouter(tags=["chat"])
 
@@ -63,9 +67,14 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     db.refresh(client_message)
     print(f"✅ Client message saved: ID={client_message.id}, sender_type='{client_message.sender_type}'")
     
-    # Always use regular chat service (no more structured responses)
-    print(f"💬 Using regular chat service")
-    result = chat_service(req, db)
+    # Use improved service if enabled, otherwise regular
+    if USE_IMPROVED_CHAT:
+        print(f"💬 Using IMPROVED chat service")
+        from services.mia_chat_service_improved import mia_chat_service
+        result = mia_chat_service(req, db)
+    else:
+        print(f"💬 Using regular chat service")
+        result = chat_service(req, db)
     
     # 🔧 NEW FIX: If this is a restaurant message and client has phone number, forward to WhatsApp
     if req.sender_type == "restaurant":
