@@ -185,7 +185,8 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         return ChatResponse(answer="")
     
     # Get or create client
-    client = get_or_create_client(db, req.client_id, req.restaurant_id, req.phone_number)
+    phone_number = getattr(req, 'phone_number', None)
+    client = get_or_create_client(db, req.client_id, req.restaurant_id, phone_number)
     
     try:
         # Get restaurant data
