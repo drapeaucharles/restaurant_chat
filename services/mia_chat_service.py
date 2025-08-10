@@ -22,19 +22,8 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
-# System prompt - UPDATED to be context-aware and accurate
-system_prompt = """
-You are a friendly restaurant assistant at a restaurant's digital menu interface.
-
-For greetings: Welcome customers and immediately offer specific help like "Hello! I can help you explore our menu, find specific dishes, or answer questions about ingredients and dietary options. What are you looking for today?"
-
-Important: Be accurate about food categories:
-- Pasta dishes are made with pasta (spaghetti, penne, linguine, etc.)
-- Risotto is made with rice, NOT pasta
-- Don't mix categories when answering
-
-Keep responses helpful and concise. Respond in the customer's language.
-"""
+# System prompt - Super simple
+system_prompt = """You are a friendly restaurant assistant. Be helpful and concise. Respond in the customer's language."""
 
 def get_mia_response_direct(prompt: str, max_tokens: int = 150) -> str:
     """Get response from MIA using direct API endpoint"""
@@ -95,64 +84,35 @@ def get_mia_response_direct(prompt: str, max_tokens: int = 150) -> str:
 
 def format_menu_for_context(menu_items, query):
     """
-    Simple context builder - let the AI figure out what's relevant
+    Simple menu context builder
     """
     if not menu_items:
         return ""
     
     query_lower = query.lower()
+    query_words = [w for w in query_lower.split() if len(w) > 2]
     
-    # For general menu requests, show a sample
-    if any(word in query_lower for word in ['menu', 'offer', 'serve']):
-        categories = {}
-        for item in menu_items[:30]:
-            cat = item.get('subcategory', 'main')
-            if cat not in categories:
-                categories[cat] = []
-            name = item.get('name') or item.get('dish', '')
-            if name:
-                categories[cat].append(name)
-        
-        lines = []
-        for cat, items in categories.items():
-            if items:
-                lines.append(f"{cat.title()}: {', '.join(items[:5])}")
-        return "\n".join(lines)
-    
-    # For specific queries, find relevant items
+    # Find relevant items by searching text
     found_items = []
-    
-    # Get meaningful words from query (skip common words)
-    query_words = [w for w in query_lower.split() if len(w) > 2 and w not in ['what', 'have', 'you', 'the', 'are', 'your', 'our', 'any', 'some', 'can', 'get']]
-    
-    if query_words:  # Only search if there are meaningful words
-        for item in menu_items:
-            name = item.get('name') or item.get('dish', '')
-            if not name:
-                continue
-                
-            # Check if any query word matches the item
-            item_text = f"{name} {item.get('description', '')} {' '.join(item.get('ingredients', []))}".lower()
-            
-            if any(word in item_text for word in query_words):
-                found_items.append({
-                    'name': name,
-                    'price': item.get('price', ''),
-                    'category': item.get('subcategory', 'main')
-                })
+    for item in menu_items:
+        name = item.get('name') or item.get('dish', '')
+        if not name:
+            continue
+        
+        item_text = f"{name} {item.get('description', '')} {' '.join(item.get('ingredients', []))}".lower()
+        
+        if any(word in item_text for word in query_words):
+            found_items.append({
+                'name': name,
+                'price': item.get('price', ''),
+                'category': item.get('subcategory', 'main')
+            })
     
     # Format found items
     if found_items:
-        by_category = {}
-        for item in found_items[:30]:  # Reasonable limit
-            cat = item['category']
-            if cat not in by_category:
-                by_category[cat] = []
-            by_category[cat].append(f"{item['name']} ({item['price']})")
-        
         lines = []
-        for cat, items in by_category.items():
-            lines.append(f"{cat.title()}: {', '.join(items)}")
+        for item in found_items[:20]:  # Limit results
+            lines.append(f"{item['name']} ({item['price']}) - {item['category']}")
         return "\n".join(lines)
     
     return ""  # No relevant context

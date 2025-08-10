@@ -23,62 +23,25 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
-# Context-aware system prompt with food accuracy
-system_prompt = """You are a friendly restaurant assistant at a digital menu interface.
-
-For greetings: Always respond with something like "Hello! I can help you explore our menu, find specific dishes, or answer questions about ingredients and dietary options. What are you looking for today?"
-
-Important food category accuracy:
-- Pasta: Only dishes made with actual pasta (spaghetti, fettuccine, penne, linguine, etc.)
-- Risotto is a rice dish, NOT pasta
-- Pizza is not pasta
-- Be precise about food categories
-
-Be helpful, concise, and respond in the customer's language."""
+# Super simple system prompt
+system_prompt = """You are a friendly restaurant assistant. Be helpful and concise. Respond in the customer's language."""
 
 def format_menu_context_structured(menu_items, restaurant_data):
-    """Format all restaurant data as structured context that AI can understand better"""
+    """Simple menu formatting"""
     
-    # Group menu by categories
-    menu_by_category = {}
-    for item in menu_items:
+    # Just list menu items simply
+    lines = []
+    lines.append(f"Restaurant: {restaurant_data.get('restaurant_name', '')}")
+    lines.append("\nMenu:")
+    
+    for item in menu_items[:30]:  # Limit items
+        name = item.get('dish') or item.get('name', '')
+        price = item.get('price', '')
         category = item.get('subcategory', 'main')
-        if category not in menu_by_category:
-            menu_by_category[category] = []
-        
-        item_info = {
-            'name': item.get('dish') or item.get('name', ''),
-            'price': item.get('price', ''),
-            'description': item.get('description', '')
-        }
-        
-        # Only add ingredients if they exist and are meaningful
-        ingredients = item.get('ingredients', [])
-        if ingredients and isinstance(ingredients, list):
-            item_info['ingredients'] = ingredients
-            
-        menu_by_category[category].append(item_info)
+        if name:
+            lines.append(f"- {name} ({price}) [{category}]")
     
-    # Build structured context
-    context = {
-        "restaurant_info": {
-            "name": restaurant_data.get('restaurant_name', restaurant_data.get('name', '')),
-            "cuisine_type": restaurant_data.get('cuisine_type', ''),
-            "description": restaurant_data.get('description', ''),
-            "specialties": restaurant_data.get('specialties', [])
-        },
-        "menu_categories": menu_by_category,
-        "opening_hours": restaurant_data.get('opening_hours', {}),
-        "location": restaurant_data.get('location', restaurant_data.get('address', '')),
-        "contact": {
-            "phone": restaurant_data.get('phone', ''),
-            "email": restaurant_data.get('email', ''),
-            "website": restaurant_data.get('website', '')
-        }
-    }
-    
-    # Format as readable JSON
-    return f"Restaurant Information:\n{json.dumps(context, indent=2, ensure_ascii=False)}"
+    return "\n".join(lines)
 
 def format_conversation_context(recent_messages):
     """Format recent conversation history for better continuity"""
@@ -98,15 +61,6 @@ def format_conversation_context(recent_messages):
         return "Previous messages in THIS conversation:\n" + "\n".join(conversation)
     return ""
 
-def is_factual_query(message):
-    """Determine if a query is asking for specific factual information"""
-    factual_keywords = [
-        'price', 'cost', 'how much', 'ingredients', 'contains', 'hours', 
-        'open', 'close', 'address', 'location', 'phone', 'gluten', 
-        'vegan', 'vegetarian', 'allergy', 'calories'
-    ]
-    message_lower = message.lower()
-    return any(keyword in message_lower for keyword in factual_keywords)
 
 
 def get_mia_response_improved(prompt: str, temperature: float = 0.7, max_tokens: int = 400) -> str:
@@ -236,8 +190,8 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         # Combine all context with clear separation
         full_prompt = "\n\n".join(context_parts)
         
-        # Determine appropriate temperature based on query type
-        temperature = 0.3 if is_factual_query(req.message) else 0.7
+        # Use consistent temperature
+        temperature = 0.7
         
         # Get AI response with improved parameters
         answer = get_mia_response_improved(full_prompt, temperature=temperature, max_tokens=400)

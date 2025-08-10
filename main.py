@@ -345,10 +345,13 @@ def debug_menu_data(restaurant_id: str):
                 "ingredients": item.get('ingredients', [])
             })
         
-        if subcategory == 'pasta' or 'pasta' in name.lower():
+        # Check various pasta types
+        pasta_keywords = ['spaghetti', 'penne', 'linguine', 'fettuccine', 'ravioli', 'lasagna', 'gnocchi', 'tagliatelle', 'pappardelle']
+        if subcategory == 'pasta' or any(keyword in name.lower() for keyword in pasta_keywords):
             pasta_items.append({
                 "name": name,
-                "subcategory": subcategory
+                "subcategory": subcategory,
+                "is_actual_pasta": True
             })
     
     return {
