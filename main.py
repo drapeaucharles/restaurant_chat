@@ -314,6 +314,50 @@ def debug_chat_config():
         "files_in_services": os.listdir("services") if os.path.exists("services") else "services_dir_not_found"
     }
 
+@app.get("/debug/menu-data/{restaurant_id}")
+def debug_menu_data(restaurant_id: str):
+    """Debug endpoint to inspect menu categorization"""
+    from database import get_db
+    db = next(get_db())
+    
+    restaurant = db.query(models.Restaurant).filter(
+        models.Restaurant.restaurant_id == restaurant_id
+    ).first()
+    
+    if not restaurant:
+        return {"error": "Restaurant not found"}
+    
+    data = restaurant.data or {}
+    menu_items = data.get("menu", [])
+    
+    # Find risotto and pasta items
+    pasta_items = []
+    risotto_items = []
+    
+    for item in menu_items:
+        name = item.get('dish') or item.get('name', '')
+        subcategory = item.get('subcategory', '')
+        
+        if 'risotto' in name.lower():
+            risotto_items.append({
+                "name": name,
+                "subcategory": subcategory,
+                "ingredients": item.get('ingredients', [])
+            })
+        
+        if subcategory == 'pasta' or 'pasta' in name.lower():
+            pasta_items.append({
+                "name": name,
+                "subcategory": subcategory
+            })
+    
+    return {
+        "total_menu_items": len(menu_items),
+        "risotto_items": risotto_items,
+        "pasta_subcategory_items": pasta_items,
+        "all_subcategories": list(set(item.get('subcategory', 'unknown') for item in menu_items))
+    }
+
 @app.post("/debug/test-improved-direct")
 def test_improved_direct(message: str = "hello"):
     """Test the improved service directly."""
