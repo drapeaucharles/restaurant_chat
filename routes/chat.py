@@ -17,7 +17,8 @@ from config import get_chat_provider_info
 import os
 
 # Check if we should use improved chat service
-USE_IMPROVED_CHAT = os.getenv("USE_IMPROVED_CHAT", "false").lower() == "true"
+# TEMPORARY: Force improved chat service until env var is set on Railway
+USE_IMPROVED_CHAT = True  # os.getenv("USE_IMPROVED_CHAT", "false").lower() == "true"
 
 router = APIRouter(tags=["chat"])
 
