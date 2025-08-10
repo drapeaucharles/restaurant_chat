@@ -235,11 +235,12 @@ def root():
         "deployment": {
             "branch": branch,
             "commit": commit,
-            "version": "v3-improved-ai",
+            "version": "v3-improved-ai-FIXED",
             "has_pasta_fixes": True,
-            "mia_chat_service": "improved_natural_responses",
-            "deployment_timestamp": "2025-01-10",
-            "features": ["natural_ai_responses", "conversation_history", "dynamic_temperature"]
+            "mia_chat_service": "improved_natural_responses_DEPLOYED",
+            "deployment_timestamp": "2025-01-10-1450",
+            "features": ["natural_ai_responses", "conversation_history_disabled", "dynamic_temperature"],
+            "latest_fix": "removed_conversation_history_confusion"
         }
     }
 
