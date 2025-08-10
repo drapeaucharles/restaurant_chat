@@ -152,7 +152,12 @@ def get_mia_response_improved(prompt: str, temperature: float = 0.7, max_tokens:
         
         if response.status_code == 200:
             result = response.json()
-            return result.get("text", result.get("response", "I'm having trouble understanding. Could you please rephrase?"))
+            text = result.get("text", result.get("response", ""))
+            logger.info(f"MIA response received: {text[:100]}...")
+            if not text:
+                logger.warning("MIA returned empty response")
+                return "I'm having trouble understanding. Could you please rephrase?"
+            return text
         else:
             logger.error(f"MIA API error: {response.status_code} - {response.text}")
             return "I apologize, but I'm having technical difficulties. Please try again in a moment or ask our staff for assistance."
