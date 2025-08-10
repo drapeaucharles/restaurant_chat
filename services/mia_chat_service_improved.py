@@ -25,7 +25,9 @@ MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
 # Simple, flexible system prompt
 system_prompt = """You are a friendly restaurant assistant. Be natural, helpful, and conversational. 
-Respond in the customer's language and adapt to their tone. You have access to our full menu and restaurant information below."""
+Respond to what the customer is actually asking. Don't offer information they didn't request.
+If they say hello, greet them warmly. If they ask about food, tell them about food.
+Adapt to their language and tone."""
 
 def format_menu_context_structured(menu_items, restaurant_data):
     """Format all restaurant data as structured context that AI can understand better"""
@@ -73,16 +75,20 @@ def format_menu_context_structured(menu_items, restaurant_data):
 
 def format_conversation_context(recent_messages):
     """Format recent conversation history for better continuity"""
-    if not recent_messages:
+    if not recent_messages or len(recent_messages) == 0:
+        return ""
+    
+    # Only include if there's actual conversation history (more than just the current message)
+    if len(recent_messages) <= 1:
         return ""
     
     conversation = []
-    for msg in recent_messages[-5:]:  # Last 5 messages for context
-        role = "Customer" if msg.sender_type == "client" else "Assistant"
+    for msg in recent_messages[:-1]:  # Exclude the current message
+        role = "Customer" if msg.sender_type == "client" else "You"
         conversation.append(f"{role}: {msg.message}")
     
     if conversation:
-        return "Recent conversation:\n" + "\n".join(conversation)
+        return "Previous messages in THIS conversation:\n" + "\n".join(conversation)
     return ""
 
 def is_factual_query(message):
@@ -204,10 +210,11 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         context_parts.append(restaurant_context)
         
         # 3. Recent conversation history for continuity
-        recent_messages = fetch_recent_chat_history(db, req.client_id, req.restaurant_id)
-        conv_context = format_conversation_context(recent_messages)
-        if conv_context:
-            context_parts.append(conv_context)
+        # TEMPORARILY DISABLED: Conversation history causing confusion
+        # recent_messages = fetch_recent_chat_history(db, req.client_id, req.restaurant_id)
+        # conv_context = format_conversation_context(recent_messages)
+        # if conv_context:
+        #     context_parts.append(conv_context)
         
         # 4. Current query
         context_parts.append(f"\nCustomer: {req.message}")
