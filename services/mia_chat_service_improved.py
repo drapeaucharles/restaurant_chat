@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
-# Super simple system prompt
-system_prompt = """You are a friendly restaurant assistant. Be helpful and concise. Respond in the customer's language."""
+# System prompt - Prevent hallucination
+system_prompt = """You are a friendly restaurant assistant. IMPORTANT: Only mention items that are actually on the menu provided to you. Never invent or make up menu items. If asked about something not on the menu, say it's not available. Be helpful and concise. Respond in the customer's language."""
 
 def format_menu_context_structured(menu_items, restaurant_data):
     """Simple menu formatting"""
@@ -174,7 +174,15 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         
         # 2. Full restaurant context (let AI decide what's relevant)
         restaurant_context = format_menu_context_structured(menu_items, data)
+        context_parts.append("\nMenu Information (ONLY mention items listed here):")
         context_parts.append(restaurant_context)
+        
+        # Check if asking about beverages when none exist
+        query_lower = req.message.lower()
+        if any(word in query_lower for word in ['wine', 'drink', 'beverage', 'beer', 'juice', 'water', 'coffee', 'tea']):
+            has_beverages = any(item.get('subcategory', '').lower() in ['beverage', 'drink', 'beverages', 'drinks'] for item in menu_items)
+            if not has_beverages:
+                context_parts.append("\nIMPORTANT: This menu does not include any beverages or drinks.")
         
         # 3. Recent conversation history for continuity
         # TEMPORARILY DISABLED: Conversation history causing confusion

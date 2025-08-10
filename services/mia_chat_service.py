@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
-# System prompt - Super simple
-system_prompt = """You are a friendly restaurant assistant. Be helpful and concise. Respond in the customer's language."""
+# System prompt - Prevent hallucination
+system_prompt = """You are a friendly restaurant assistant. IMPORTANT: Only mention items that are actually on the menu provided to you. Never invent or make up menu items. If asked about something not on the menu, say it's not available. Be helpful and concise. Respond in the customer's language."""
 
 def get_mia_response_direct(prompt: str, max_tokens: int = 150) -> str:
     """Get response from MIA using direct API endpoint"""
@@ -155,8 +155,16 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         # Add menu context if relevant
         menu_context = format_menu_for_context(menu_items, req.message)
         if menu_context:
-            context_parts.append("\nRelevant menu information:")
+            context_parts.append("\nRelevant menu information (ONLY mention these items):")
             context_parts.append(menu_context)
+        
+        # If asking about beverages/drinks, be clear if none exist
+        query_lower = req.message.lower()
+        if any(word in query_lower for word in ['wine', 'drink', 'beverage', 'beer', 'juice', 'water', 'coffee', 'tea']):
+            # Check if we have any beverages
+            has_beverages = any(item.get('subcategory', '').lower() in ['beverage', 'drink', 'beverages', 'drinks'] for item in menu_items)
+            if not has_beverages:
+                context_parts.append("\nNOTE: This restaurant's menu does not include beverages/drinks.")
         
         # Add opening hours if asked
         if any(word in req.message.lower() for word in ['hour', 'open', 'close', 'when']):
