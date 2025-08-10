@@ -81,8 +81,9 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             print(f"❌ Error type: {type(e).__name__}")
             import traceback
             print(f"❌ Traceback: {traceback.format_exc()}")
-            # Return error response instead of crashing
-            return ChatResponse(answer=f"Technical error: {str(e)[:100]}")
+            # For now, fall back to regular service but log the error
+            print(f"❌ FALLING BACK to regular service due to error")
+            result = chat_service(req, db)
     else:
         print(f"💬 Using regular chat service")
         result = chat_service(req, db)

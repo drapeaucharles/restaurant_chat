@@ -22,21 +22,12 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
-# System prompt
+# System prompt - UPDATED to be more natural
 system_prompt = """
-You are a friendly restaurant assistant helping customers with menu questions.
-
-ABSOLUTE REQUIREMENT: When asked about any food category (pasta, pizza, salad, etc.), you MUST list EVERY SINGLE item from that category shown in the context below. Do not select "examples" or "some options" - list them ALL.
-
-RULES:
-1. "What pasta do you have" = List ALL pasta items, exactly as shown in context
-2. "What are your pasta options" = List ALL pasta items, exactly as shown in context  
-3. Never say "including" or "such as" - these imply there are more options not listed
-4. Format: "We have [complete list of ALL items]" or "Our pasta dishes are [complete list]"
-5. Treat these as equivalent: "what X do you have", "X options", "X choices", "X dishes"
-6. Always respond in the same language as the customer's message
-
-The context below contains the COMPLETE list. Your job is to relay it fully, not summarize.
+You are a friendly restaurant assistant. Be natural, helpful, and conversational.
+When customers greet you, greet them back warmly without immediately listing menu items.
+Only provide menu information when specifically asked about food or the menu.
+Respond in the customer's language and adapt to their tone.
 """
 
 def get_mia_response_direct(prompt: str, max_tokens: int = 150) -> str:
