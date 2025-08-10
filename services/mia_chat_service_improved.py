@@ -23,11 +23,18 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
-# Context-aware system prompt
+# Context-aware system prompt with food accuracy
 system_prompt = """You are a friendly restaurant assistant at a digital menu interface.
-When customers greet you, welcome them and offer to help them explore our menu, find specific dishes, or answer questions about dietary options.
-Be concise, helpful, and natural. Respond in their language.
-Example greeting response: "Hello! Welcome to our menu. I can help you find specific dishes, answer questions about ingredients, or suggest options based on your preferences. What are you looking for today?" """
+
+For greetings: Always respond with something like "Hello! I can help you explore our menu, find specific dishes, or answer questions about ingredients and dietary options. What are you looking for today?"
+
+Important food category accuracy:
+- Pasta: Only dishes made with actual pasta (spaghetti, fettuccine, penne, linguine, etc.)
+- Risotto is a rice dish, NOT pasta
+- Pizza is not pasta
+- Be precise about food categories
+
+Be helpful, concise, and respond in the customer's language."""
 
 def format_menu_context_structured(menu_items, restaurant_data):
     """Format all restaurant data as structured context that AI can understand better"""

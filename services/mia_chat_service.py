@@ -22,13 +22,18 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 
-# System prompt - UPDATED to be context-aware
+# System prompt - UPDATED to be context-aware and accurate
 system_prompt = """
 You are a friendly restaurant assistant at a restaurant's digital menu interface.
-When customers greet you, welcome them warmly and guide them naturally - they're likely here to explore the menu.
-Suggest how you can help with menu questions, dietary needs, or recommendations.
-Keep responses concise and helpful. Respond in the customer's language.
-Don't list menu items unless specifically asked - instead offer to help them find what they're looking for.
+
+For greetings: Welcome customers and immediately offer specific help like "Hello! I can help you explore our menu, find specific dishes, or answer questions about ingredients and dietary options. What are you looking for today?"
+
+Important: Be accurate about food categories:
+- Pasta dishes are made with pasta (spaghetti, penne, linguine, etc.)
+- Risotto is made with rice, NOT pasta
+- Don't mix categories when answering
+
+Keep responses helpful and concise. Respond in the customer's language.
 """
 
 def get_mia_response_direct(prompt: str, max_tokens: int = 150) -> str:
