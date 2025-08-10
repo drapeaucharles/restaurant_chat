@@ -27,14 +27,20 @@ MIA_LOCAL_URL = os.getenv("MIA_LOCAL_URL", "http://localhost:8000")
 system_prompt = """You are a helpful restaurant assistant with a warm, conversational personality. 
 
 Your role is to:
+- Greet customers warmly when they say hello, WITHOUT immediately listing menu items
 - Answer customer questions naturally and helpfully
-- Provide accurate information about our menu and restaurant
+- Only provide menu information when specifically asked about food, dishes, or the menu
 - Be conversational and engaging, not robotic
 - Adapt your language style to match the customer's tone
 - Respond in the same language as the customer
-- When listing items, present them in an appealing way with brief descriptions when helpful
+- When listing items (only when asked), present them in an appealing way
 
-Remember: You're representing our restaurant, so be professional yet friendly. Make customers feel welcome and help them discover what they might enjoy."""
+Important: 
+- For greetings like "hi" or "hello", respond with a friendly greeting and ask how you can help
+- Don't mention specific dishes unless the customer asks about food
+- Wait for the customer to express what they're looking for before offering menu information
+
+Remember: You're representing our restaurant, so be professional yet friendly. Make customers feel welcome."""
 
 def format_menu_context_structured(menu_items, restaurant_data):
     """Format all restaurant data as structured context that AI can understand better"""
@@ -189,6 +195,21 @@ def get_mia_response_improved(prompt: str, temperature: float = 0.7, max_tokens:
         logger.error(f"Error getting MIA response: {e}")
         return "I'm experiencing technical difficulties. Please try again or ask our staff for help."
 
+def is_greeting(message):
+    """Check if message is a greeting"""
+    greetings = ['hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening', 
+                 'greetings', 'bonjour', 'hola', 'ciao', 'salut', 'buongiorno']
+    message_lower = message.lower().strip()
+    # Check if message is just a greeting (no other substantial content)
+    return any(message_lower == greet or message_lower.startswith(greet + ' ') for greet in greetings) and len(message_lower.split()) <= 3
+
+def is_menu_query(message):
+    """Check if message is asking about menu items"""
+    menu_keywords = ['menu', 'food', 'dish', 'eat', 'serve', 'have', 'offer', 'pasta', 'pizza', 
+                     'salad', 'appetizer', 'dessert', 'drink', 'wine', 'special']
+    message_lower = message.lower()
+    return any(keyword in message_lower for keyword in menu_keywords)
+
 def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     """Improved chat service with better context handling and natural responses"""
     
@@ -224,15 +245,25 @@ def mia_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             except Exception as e:
                 logger.warning(f"Error applying menu fallbacks: {e}")
         
-        # Build comprehensive context
+        # Build context based on query type
         context_parts = []
         
         # 1. System instruction (flexible and natural)
         context_parts.append(system_prompt)
         
-        # 2. Full restaurant context (structured for better AI understanding)
-        restaurant_context = format_menu_context_structured(menu_items, data)
-        context_parts.append(restaurant_context)
+        # 2. Only include menu context if relevant to the query
+        if is_menu_query(req.message) and not is_greeting(req.message):
+            restaurant_context = format_menu_context_structured(menu_items, data)
+            context_parts.append(restaurant_context)
+        else:
+            # For non-menu queries, just include basic restaurant info
+            basic_info = {
+                "restaurant_name": data.get('restaurant_name', restaurant.restaurant_id),
+                "cuisine_type": data.get('cuisine_type', ''),
+                "description": data.get('description', '')
+            }
+            if any(basic_info.values()):
+                context_parts.append(f"Restaurant Info: {json.dumps(basic_info, ensure_ascii=False)}")
         
         # 3. Recent conversation history for continuity
         recent_messages = fetch_recent_chat_history(db, req.client_id, req.restaurant_id)
