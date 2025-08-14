@@ -24,7 +24,26 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 
 # Initialize cache (will use Redis if available, otherwise in-memory)
-cache = HybridCache()
+# Extract Redis connection details from environment
+redis_url = os.getenv("REDIS_URL")
+if redis_url:
+    # Parse Redis URL to get host and port
+    from urllib.parse import urlparse
+    parsed = urlparse(redis_url)
+    cache = HybridCache(
+        redis_host=parsed.hostname or "localhost",
+        redis_port=parsed.port or 6379,
+        redis_db=0,
+        ttl=3600
+    )
+else:
+    # Use individual settings or defaults
+    cache = HybridCache(
+        redis_host=os.getenv("REDIS_HOST", "localhost"),
+        redis_port=int(os.getenv("REDIS_PORT", "6379")),
+        redis_db=int(os.getenv("REDIS_DB", "0")),
+        ttl=3600
+    )
 
 class QueryType(Enum):
     GREETING = "greeting"
@@ -339,13 +358,16 @@ def mia_chat_service_hybrid(req: ChatRequest, db: Session) -> ChatResponse:
         logger.info("Blocking AI response for restaurant staff message")
         return ChatResponse(answer="")
     
+    # Classify query first
+    query_type = HybridQueryClassifier.classify(req.message)
+    logger.info(f"Query classified as: {query_type.value}")
+    
     # Detect language
     language = detect_language(req.message)
     logger.info(f"Detected language: {language}")
     
     # Check cache
-    cache_key = cache.generate_key(req.message, req.restaurant_id, language)
-    cached_response = cache.get(cache_key)
+    cached_response = cache.get(req.message, req.restaurant_id, query_type.value)
     
     if cached_response:
         logger.info("Returning cached response")
@@ -368,10 +390,6 @@ def mia_chat_service_hybrid(req: ChatRequest, db: Session) -> ChatResponse:
     if not restaurant:
         logger.error(f"Restaurant not found: {req.restaurant_id}")
         return ChatResponse(answer="I'm sorry, I cannot find information about this restaurant.")
-    
-    # Classify query
-    query_type = HybridQueryClassifier.classify(req.message)
-    logger.info(f"Query classified as: {query_type.value}")
     
     try:
         # Get restaurant data
@@ -407,8 +425,7 @@ def mia_chat_service_hybrid(req: ChatRequest, db: Session) -> ChatResponse:
         answer = get_mia_response_hybrid(full_prompt, params)
         
         # Cache the response
-        ttl = 86400 if query_type == QueryType.GREETING else 3600  # 24h for greetings, 1h for others
-        cache.set(cache_key, answer, ttl)
+        cache.set(req.message, req.restaurant_id, query_type.value, answer)
         
         # Save to database
         new_message = models.ChatMessage(

@@ -4,6 +4,7 @@ Enhanced response cache with Redis support and in-memory fallback
 import redis
 import json
 import time
+import os
 from typing import Dict, Optional
 from collections import OrderedDict
 from threading import Lock
@@ -57,20 +58,26 @@ class HybridCache:
     """Cache with Redis primary and in-memory fallback"""
     
     def __init__(self, redis_host: str = "localhost", redis_port: int = 6379, 
-                 redis_db: int = 0, ttl: int = 3600):
+                 redis_db: int = 0, ttl: int = 3600, redis_password: str = None):
         self.ttl = ttl
         self.in_memory = InMemoryCache(max_size=500, ttl=ttl)
         
         # Try to connect to Redis
         try:
-            self.redis_client = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                db=redis_db,
-                decode_responses=True,
-                socket_connect_timeout=2,
-                socket_timeout=2
-            )
+            # Check for REDIS_URL first
+            redis_url = os.getenv("REDIS_URL")
+            if redis_url:
+                self.redis_client = redis.from_url(redis_url, decode_responses=True)
+            else:
+                self.redis_client = redis.Redis(
+                    host=redis_host,
+                    port=redis_port,
+                    db=redis_db,
+                    password=redis_password,
+                    decode_responses=True,
+                    socket_connect_timeout=2,
+                    socket_timeout=2
+                )
             # Test connection
             self.redis_client.ping()
             self.redis_available = True
@@ -139,12 +146,29 @@ class HybridCache:
             except Exception as e:
                 logger.error(f"Redis clear error: {e}")
     
+    def clear_pattern(self, pattern: str) -> int:
+        """Clear cache entries matching pattern"""
+        cleared = 0
+        if self.redis_available:
+            try:
+                keys = self.redis_client.keys(f"chat:*{pattern}*")
+                if keys:
+                    self.redis_client.delete(*keys)
+                    cleared = len(keys)
+            except Exception as e:
+                logger.error(f"Redis clear pattern error: {e}")
+        return cleared
+    
+    def clear_all(self):
+        """Clear all cache entries"""
+        self.clear()
+    
     def get_stats(self) -> Dict:
         """Get cache statistics"""
         stats = {
             "redis_available": self.redis_available,
-            "memory_cache_size": len(self.in_memory.cache),
-            "memory_cache_max_size": self.in_memory.max_size
+            "in_memory_entries": len(self.in_memory.cache),
+            "in_memory_size": self.in_memory.max_size
         }
         
         if self.redis_available:
