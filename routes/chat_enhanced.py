@@ -7,7 +7,7 @@ from database import get_db
 import models
 from schemas.chat import ChatRequest, ChatResponse
 from datetime import datetime
-from services.mia_chat_service_enhanced_simple import mia_chat_service_enhanced_simple, get_or_create_client
+from services.mia_chat_service_hybrid import mia_chat_service_hybrid, get_or_create_client
 import logging
 import os
 
@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Use the simplified enhanced service
-chat_service = mia_chat_service_enhanced_simple
+# Use the hybrid service (Maria personality + MIA compatibility)
+chat_service = mia_chat_service_hybrid
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, db: Session = Depends(get_db)):
@@ -58,30 +58,34 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
 async def get_provider_info():
     """Get information about the current chat provider and features"""
     return {
-        "provider": "mia_enhanced_simple",
-        "version": "1.1",
+        "provider": "mia_hybrid",
+        "version": "2.0",
         "features": [
+            "Maria personality assistant",
+            "Redis caching with fallback",
             "Query classification",
-            "Dynamic temperature (simplified)",
-            "Basic caching",
-            "Greeting without menu",
-            "Complete item listings",
-            "Multi-language support"
+            "Dynamic temperature adjustment",
+            "Multi-language support (EN/ES/FR)",
+            "Complete menu listings",
+            "MIA-compatible parameters"
         ],
-        "changes": "Removed advanced parameters for better compatibility"
+        "changes": "Combines Maria personality with MIA compatibility"
     }
 
 @router.get("/cache/stats")
 async def get_cache_stats():
-    """Get cache statistics for simple cache"""
+    """Get cache statistics for hybrid cache"""
     try:
-        from services.mia_chat_service_enhanced_simple import _simple_cache
+        from services.mia_chat_service_hybrid import cache
         
+        stats = cache.get_stats()
         return {
             "status": "enabled",
-            "type": "in-memory",
-            "entries": len(_simple_cache),
-            "message": "Using simple in-memory cache"
+            "type": "hybrid" if stats["redis_available"] else "in-memory",
+            "redis_available": stats["redis_available"],
+            "in_memory_entries": stats["in_memory_entries"],
+            "in_memory_size": stats["in_memory_size"],
+            "message": "Using hybrid cache with Redis + in-memory fallback"
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -90,21 +94,15 @@ async def get_cache_stats():
 async def clear_cache(restaurant_id: str = None):
     """Clear cache for a specific restaurant or all"""
     try:
-        from services.mia_chat_service_enhanced import cache
-        
-        if not cache.enabled:
-            return {"status": "error", "message": "Cache is not enabled"}
+        from services.mia_chat_service_hybrid import cache
         
         if restaurant_id:
             # Clear specific restaurant cache
-            pattern = f"chat:*:{restaurant_id}:*"
-            keys = cache.redis_client.keys(pattern)
-            if keys:
-                cache.redis_client.delete(*keys)
-            return {"status": "success", "cleared": len(keys), "restaurant": restaurant_id}
+            cleared = cache.clear_pattern(f"*:{restaurant_id}:*")
+            return {"status": "success", "cleared": cleared, "restaurant": restaurant_id}
         else:
             # Clear all cache
-            cache.redis_client.flushdb()
+            cache.clear_all()
             return {"status": "success", "message": "All cache cleared"}
             
     except Exception as e:
@@ -129,11 +127,12 @@ async def health_check():
 @router.post("/debug")
 async def debug_chat(req: ChatRequest, db: Session = Depends(get_db)):
     """Debug endpoint to see what's being sent to MIA"""
-    from services.mia_chat_service_enhanced_simple import (
-        SimpleQueryClassifier, 
-        get_simple_system_prompt,
-        get_simple_parameters,
-        build_simple_context
+    from services.mia_chat_service_hybrid import (
+        HybridQueryClassifier, 
+        get_maria_system_prompt,
+        get_hybrid_parameters,
+        build_hybrid_context,
+        detect_language
     )
     
     # Get restaurant
@@ -144,8 +143,11 @@ async def debug_chat(req: ChatRequest, db: Session = Depends(get_db)):
     if not restaurant:
         return {"error": "Restaurant not found"}
     
+    # Detect language
+    language = detect_language(req.message)
+    
     # Classify query
-    query_type = SimpleQueryClassifier.classify(req.message)
+    query_type = HybridQueryClassifier.classify(req.message)
     
     # Get restaurant data
     data = restaurant.data or {}
@@ -153,18 +155,21 @@ async def debug_chat(req: ChatRequest, db: Session = Depends(get_db)):
     menu_items = data.get("menu", [])
     
     # Build prompt
-    system_prompt = get_simple_system_prompt(restaurant_name, query_type)
-    context = build_simple_context(menu_items, query_type, req.message)
+    system_prompt = get_maria_system_prompt(restaurant_name, query_type, language)
+    context = build_hybrid_context(menu_items, query_type, req.message)
     
     full_prompt = system_prompt
     if context:
         full_prompt += "\n" + context
-    full_prompt += f"\n\nCustomer: {req.message}\nAssistant:"
+    persona_name = "Maria" if language == "en" else ("María" if language == "es" else "Marie")
+    full_prompt += f"\n\nCustomer: {req.message}\n{persona_name}:"
     
     # Get parameters
-    params = get_simple_parameters(query_type)
+    params = get_hybrid_parameters(query_type)
     
     return {
+        "language": language,
+        "maria_persona": persona_name,
         "query_type": query_type.value,
         "parameters": params,
         "prompt_length": len(full_prompt),
@@ -208,12 +213,13 @@ async def test_mia_direct():
 @router.post("/test-service")
 async def test_service_flow(req: ChatRequest, db: Session = Depends(get_db)):
     """Test the entire service flow with detailed output"""
-    from services.mia_chat_service_enhanced_simple import (
-        SimpleQueryClassifier,
-        get_simple_system_prompt,
-        get_simple_parameters,
-        build_simple_context,
-        get_mia_response_simple
+    from services.mia_chat_service_hybrid import (
+        HybridQueryClassifier,
+        get_maria_system_prompt,
+        get_hybrid_parameters,
+        build_hybrid_context,
+        get_mia_response_hybrid,
+        detect_language
     )
     
     steps = []
@@ -228,32 +234,37 @@ async def test_service_flow(req: ChatRequest, db: Session = Depends(get_db)):
     
     steps.append({"step": "restaurant_found", "success": True})
     
-    # Step 2: Classify query
-    query_type = SimpleQueryClassifier.classify(req.message)
+    # Step 2: Detect language
+    language = detect_language(req.message)
+    steps.append({"step": "language_detected", "language": language})
+    
+    # Step 3: Classify query
+    query_type = HybridQueryClassifier.classify(req.message)
     steps.append({"step": "query_classified", "type": query_type.value})
     
-    # Step 3: Get data
+    # Step 4: Get data
     data = restaurant.data or {}
     restaurant_name = data.get('restaurant_name', req.restaurant_id)
     menu_items = data.get("menu", [])
     steps.append({"step": "data_loaded", "menu_count": len(menu_items)})
     
-    # Step 4: Build prompt
-    system_prompt = get_simple_system_prompt(restaurant_name, query_type)
-    context = build_simple_context(menu_items, query_type, req.message)
+    # Step 5: Build prompt
+    system_prompt = get_maria_system_prompt(restaurant_name, query_type, language)
+    context = build_hybrid_context(menu_items, query_type, req.message)
     full_prompt = system_prompt
     if context:
         full_prompt += "\n" + context
-    full_prompt += f"\n\nCustomer: {req.message}\nAssistant:"
-    steps.append({"step": "prompt_built", "length": len(full_prompt)})
+    persona_name = "Maria" if language == "en" else ("María" if language == "es" else "Marie")
+    full_prompt += f"\n\nCustomer: {req.message}\n{persona_name}:"
+    steps.append({"step": "prompt_built", "length": len(full_prompt), "maria_persona": persona_name})
     
-    # Step 5: Get parameters
-    params = get_simple_parameters(query_type)
+    # Step 6: Get parameters
+    params = get_hybrid_parameters(query_type)
     steps.append({"step": "params_set", "params": params})
     
-    # Step 6: Call MIA
+    # Step 7: Call MIA
     try:
-        answer = get_mia_response_simple(full_prompt, params)
+        answer = get_mia_response_hybrid(full_prompt, params)
         steps.append({"step": "mia_called", "response_length": len(answer), "response_preview": answer[:100]})
     except Exception as e:
         steps.append({"step": "mia_error", "error": str(e)})

@@ -236,12 +236,13 @@ def root():
         "deployment": {
             "branch": branch,
             "commit": commit,
-            "version": "v4-enhanced-simple-CONNECTED",
+            "version": "v5-maria-hybrid-READY",
             "has_pasta_fixes": True,
-            "mia_chat_service": "enhanced_simple_service_active",
-            "deployment_timestamp": "2025-01-14-1600",
-            "features": ["query_classification", "dynamic_temperature", "simple_caching", "better_error_handling"],
-            "latest_fix": "connected_enhanced_chat_routes"
+            "mia_chat_service": "hybrid_maria_personality",
+            "deployment_timestamp": "2025-01-14-1630",
+            "features": ["maria_personality", "redis_caching_ready", "multi_language", "dynamic_temperature", "mia_compatible"],
+            "latest_fix": "hybrid_service_with_maria",
+            "redis_note": "Add REDIS_HOST env var to enable Redis caching"
         }
     }
 
