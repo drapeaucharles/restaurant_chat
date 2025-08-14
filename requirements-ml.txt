@@ -1,0 +1,5 @@
+# Machine Learning dependencies for RAG
+# Install these separately if you want RAG functionality
+sentence-transformers==2.2.2
+torch>=2.2.0
+transformers>=4.30.0

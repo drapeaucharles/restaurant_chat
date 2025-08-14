@@ -5,11 +5,19 @@ Uses sentence-transformers for free, high-quality embeddings
 import os
 import logging
 from typing import List, Dict, Optional, Tuple
-from sentence_transformers import SentenceTransformer
-import numpy as np
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 import json
+
+# Try to import ML libraries, but don't fail if they're not available
+try:
+    from sentence_transformers import SentenceTransformer
+    import numpy as np
+    ML_AVAILABLE = True
+except ImportError:
+    ML_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("ML libraries not available. RAG features will be disabled.")
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +26,12 @@ class EmbeddingService:
     
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         """Initialize embedding model"""
+        if not ML_AVAILABLE:
+            logger.warning("ML libraries not available, embedding service disabled")
+            self.model = None
+            self.embedding_dim = 384  # Default for all-MiniLM-L6-v2
+            return
+            
         try:
             # Use cache dir to avoid re-downloading
             cache_dir = os.path.join(os.path.dirname(__file__), "..", "model_cache")
