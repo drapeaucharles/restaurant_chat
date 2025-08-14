@@ -17,3 +17,4 @@ pydub
 fastapi[websockets]
 websockets
 numpy
+redis==5.0.1

@@ -7,7 +7,8 @@ ARG CACHEBUST=1
 # Install required tools & Node.js + WhatsApp deps + ffmpeg
 RUN apt-get update && \
     apt-get install -y curl gnupg build-essential git ffmpeg \
-    libglib2.0-0 libnss3 libgconf-2-4 libfontconfig1 libxss1 libasound2 libatk-bridge2.0-0 libgtk-3-0 && \
+    libglib2.0-0 libnss3 libfontconfig1 libxss1 libasound2 libatk-bridge2.0-0 libgtk-3-0 \
+    libxkbcommon0 libgbm1 && \
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
     apt-get clean
