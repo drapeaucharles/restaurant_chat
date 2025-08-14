@@ -7,16 +7,16 @@ from database import get_db
 import models
 from schemas.chat import ChatRequest, ChatResponse
 from datetime import datetime
-from services.mia_chat_service_enhanced import mia_chat_service_enhanced, get_or_create_client
+from services.mia_chat_service_enhanced_simple import mia_chat_service_enhanced_simple, get_or_create_client
 import logging
-import config_enhanced
+import os
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Get the configured chat service
-chat_service = config_enhanced.get_chat_service()
+# Use the simplified enhanced service
+chat_service = mia_chat_service_enhanced_simple
 
 @router.post("/", response_model=ChatResponse)
 async def chat(req: ChatRequest, db: Session = Depends(get_db)):
@@ -57,25 +57,31 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
 @router.get("/provider")
 async def get_provider_info():
     """Get information about the current chat provider and features"""
-    return config_enhanced.get_provider_info()
+    return {
+        "provider": "mia_enhanced_simple",
+        "version": "1.1",
+        "features": [
+            "Query classification",
+            "Dynamic temperature (simplified)",
+            "Basic caching",
+            "Greeting without menu",
+            "Complete item listings",
+            "Multi-language support"
+        ],
+        "changes": "Removed advanced parameters for better compatibility"
+    }
 
 @router.get("/cache/stats")
 async def get_cache_stats():
-    """Get cache statistics (if Redis is enabled)"""
+    """Get cache statistics for simple cache"""
     try:
-        from services.mia_chat_service_enhanced import cache
+        from services.mia_chat_service_enhanced_simple import _simple_cache
         
-        if not cache.enabled:
-            return {"status": "disabled", "message": "Cache is not enabled"}
-        
-        # Get some basic stats
-        info = cache.redis_client.info()
         return {
             "status": "enabled",
-            "used_memory": info.get("used_memory_human", "unknown"),
-            "connected_clients": info.get("connected_clients", 0),
-            "total_commands_processed": info.get("total_commands_processed", 0),
-            "keyspace": info.get("db0", {})
+            "type": "in-memory",
+            "entries": len(_simple_cache),
+            "message": "Using simple in-memory cache"
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -109,11 +115,13 @@ async def health_check():
     """Health check for the enhanced chat service"""
     return {
         "status": "healthy",
-        "provider": config_enhanced.CHAT_PROVIDER,
+        "provider": "mia_enhanced_simple",
+        "version": "1.1",
         "enhanced_features": {
-            "query_analysis": config_enhanced.ENABLE_QUERY_ANALYSIS,
-            "dynamic_temperature": config_enhanced.ENABLE_DYNAMIC_TEMPERATURE,
-            "conversation_memory": config_enhanced.ENABLE_CONVERSATION_MEMORY,
-            "caching": config_enhanced.CACHE_ENABLED
+            "query_analysis": True,
+            "dynamic_temperature": True,
+            "conversation_memory": False,  # Disabled in simple version
+            "caching": True,
+            "simplified": True
         }
     }
