@@ -98,14 +98,19 @@ class EmbeddingService:
             logger.error(f"Failed to create embedding: {e}")
             return None
     
-    def create_embeddings_batch(self, texts: List[str]) -> Optional[np.ndarray]:
+    def create_embeddings_batch(self, texts: List[str]) -> Optional[List[List[float]]]:
         """Create embeddings for multiple texts"""
         if not self.model or not texts:
             return None
         
         try:
-            embeddings = self.model.encode(texts, convert_to_numpy=True, show_progress_bar=True)
-            return embeddings
+            if ML_AVAILABLE:
+                embeddings = self.model.encode(texts, convert_to_numpy=True, show_progress_bar=True)
+                # Convert numpy array to list of lists
+                return embeddings.tolist()
+            else:
+                # Return None if ML not available
+                return None
         except Exception as e:
             logger.error(f"Failed to create batch embeddings: {e}")
             return None
@@ -156,8 +161,8 @@ class EmbeddingService:
         # Insert into database
         for i, (item_data, embedding) in enumerate(zip(items_data, embeddings)):
             try:
-                # Convert numpy array to list for pgvector
-                item_data['embedding'] = embedding.tolist()
+                # embedding is already a list
+                item_data['embedding'] = embedding
                 
                 # Upsert (insert or update)
                 db.execute(text("""
