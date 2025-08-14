@@ -14,16 +14,21 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/migration", tags=["migration"])
 
+from pydantic import BaseModel
+
+class MigrationRequest(BaseModel):
+    secret_key: str
+
 @router.post("/run-pgvector")
 async def run_pgvector_migration(
-    secret_key: str,
+    request: MigrationRequest,
     db: Session = Depends(get_db)
 ):
     """Run pgvector migration - requires secret key"""
     
     # Simple authentication
     expected_key = os.getenv("MIGRATION_SECRET_KEY", "your-secret-migration-key")
-    if secret_key != expected_key:
+    if request.secret_key != expected_key:
         raise HTTPException(status_code=403, detail="Invalid secret key")
     
     try:
