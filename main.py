@@ -204,11 +204,12 @@ app.add_middleware(
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Include routers with proper prefixes to avoid conflicts
+# IMPORTANT: Order matters! Enhanced chat must come before chats to take precedence
 app.include_router(auth.router)
 app.include_router(restaurant.router)
-app.include_router(chat_enhanced.router)  # Enhanced chat with improved AI - handles /chat, /client/create-or-update
+app.include_router(chat_enhanced.router)  # Enhanced chat with improved AI - handles /chat
 app.include_router(clients.router)  # New client management router
-app.include_router(chats.router, prefix="/chat")  # Prefix for chat management - handles /chat/logs/*, /chat/
+app.include_router(chats.router, prefix="/chat")  # Chat management - handles /chat/logs/*, etc
 app.include_router(whatsapp.router)  # WhatsApp integration routes
 app.include_router(speech.router)  # Speech-to-text routes
 app.include_router(smartlamp.router)  # Smart Lamp audio routes

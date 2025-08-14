@@ -18,7 +18,7 @@ from services.chat_service import get_or_create_client
 router = APIRouter(tags=["chat-management"])
 
 
-@router.post("/", response_model=ChatMessageResponse)
+@router.post("/message", response_model=ChatMessageResponse)
 def create_chat_message(
     message_data: ChatMessageCreate,
     db: Session = Depends(get_db)

@@ -18,7 +18,7 @@ router = APIRouter()
 # Use the simplified enhanced service
 chat_service = mia_chat_service_enhanced_simple
 
-@router.post("/", response_model=ChatResponse)
+@router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, db: Session = Depends(get_db)):
     """
     Enhanced chat endpoint with:
