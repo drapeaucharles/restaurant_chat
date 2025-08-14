@@ -31,7 +31,10 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
     try:
         logger.info(f"Enhanced chat request from client {req.client_id} to restaurant {req.restaurant_id}")
         
-        # Create client message
+        # Get or create client FIRST (before creating message)
+        get_or_create_client(db, req.client_id, req.restaurant_id)
+        
+        # Now create client message
         new_message = models.ChatMessage(
             restaurant_id=req.restaurant_id,
             client_id=req.client_id,
@@ -40,9 +43,6 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
         )
         db.add(new_message)
         db.commit()
-        
-        # Get or create client
-        get_or_create_client(db, req.client_id, req.restaurant_id)
         
         # Get AI response using enhanced service
         response = chat_service(req, db)
