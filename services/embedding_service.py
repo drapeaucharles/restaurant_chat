@@ -272,7 +272,7 @@ USE_LIGHTWEIGHT = os.getenv("USE_LIGHTWEIGHT_EMBEDDINGS", "true").lower() == "tr
 
 if USE_LIGHTWEIGHT:
     # Use lightweight service for Railway
-    from services.embedding_service_lite import lightweight_embedding_service
+    from .embedding_service_lite import lightweight_embedding_service
     embedding_service = lightweight_embedding_service
     logger.info("Using lightweight embedding service")
 else:
