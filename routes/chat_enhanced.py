@@ -204,3 +204,63 @@ async def test_mia_direct():
             "error": str(e),
             "type": type(e).__name__
         }
+
+@router.post("/test-service")
+async def test_service_flow(req: ChatRequest, db: Session = Depends(get_db)):
+    """Test the entire service flow with detailed output"""
+    from services.mia_chat_service_enhanced_simple import (
+        SimpleQueryClassifier,
+        get_simple_system_prompt,
+        get_simple_parameters,
+        build_simple_context,
+        get_mia_response_simple
+    )
+    
+    steps = []
+    
+    # Step 1: Get restaurant
+    restaurant = db.query(models.Restaurant).filter(
+        models.Restaurant.restaurant_id == req.restaurant_id
+    ).first()
+    
+    if not restaurant:
+        return {"error": "Restaurant not found", "steps": steps}
+    
+    steps.append({"step": "restaurant_found", "success": True})
+    
+    # Step 2: Classify query
+    query_type = SimpleQueryClassifier.classify(req.message)
+    steps.append({"step": "query_classified", "type": query_type.value})
+    
+    # Step 3: Get data
+    data = restaurant.data or {}
+    restaurant_name = data.get('restaurant_name', req.restaurant_id)
+    menu_items = data.get("menu", [])
+    steps.append({"step": "data_loaded", "menu_count": len(menu_items)})
+    
+    # Step 4: Build prompt
+    system_prompt = get_simple_system_prompt(restaurant_name, query_type)
+    context = build_simple_context(menu_items, query_type, req.message)
+    full_prompt = system_prompt
+    if context:
+        full_prompt += "\n" + context
+    full_prompt += f"\n\nCustomer: {req.message}\nAssistant:"
+    steps.append({"step": "prompt_built", "length": len(full_prompt)})
+    
+    # Step 5: Get parameters
+    params = get_simple_parameters(query_type)
+    steps.append({"step": "params_set", "params": params})
+    
+    # Step 6: Call MIA
+    try:
+        answer = get_mia_response_simple(full_prompt, params)
+        steps.append({"step": "mia_called", "response_length": len(answer), "response_preview": answer[:100]})
+    except Exception as e:
+        steps.append({"step": "mia_error", "error": str(e)})
+        answer = f"Error calling MIA: {e}"
+    
+    return {
+        "steps": steps,
+        "final_answer": answer,
+        "prompt_preview": full_prompt[:300] + "..."
+    }
