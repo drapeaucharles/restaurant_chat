@@ -16,7 +16,7 @@ from services.restaurant_service import apply_menu_fallbacks
 import os
 import logging
 from enum import Enum
-from services.enhanced_response_cache import ResponseCache
+from services.enhanced_response_cache import HybridCache
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 
 # Initialize cache (will use Redis if available, otherwise in-memory)
-cache = ResponseCache()
+cache = HybridCache()
 
 class QueryType(Enum):
     GREETING = "greeting"
