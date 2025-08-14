@@ -42,7 +42,7 @@ async def run_pgvector_migration(
             db.commit()
             logger.info("Created pgvector extension")
         
-        # Create menu_embeddings table
+        # Create menu_embeddings table without vector column
         db.execute(text("""
             CREATE TABLE IF NOT EXISTS menu_embeddings (
                 id SERIAL PRIMARY KEY,
@@ -55,7 +55,7 @@ async def run_pgvector_migration(
                 item_ingredients JSONB,
                 dietary_tags JSONB,
                 full_text TEXT NOT NULL,
-                embedding vector(384),
+                embedding_json TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(restaurant_id, item_id)
@@ -68,10 +68,8 @@ async def run_pgvector_migration(
             ON menu_embeddings(restaurant_id)
         """))
         
-        db.execute(text("""
-            CREATE INDEX IF NOT EXISTS idx_menu_embeddings_embedding 
-            ON menu_embeddings USING ivfflat (embedding vector_cosine_ops)
-        """))
+        # Skip vector index since we're using JSON storage
+        logger.info("Skipping vector index (using JSON storage)")
         
         db.commit()
         
