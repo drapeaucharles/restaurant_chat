@@ -232,14 +232,17 @@ class LightweightEmbeddingService:
             try:
                 item_data['embedding'] = embedding
                 
+                # Convert embedding to JSON string
+                item_data['embedding_json'] = json.dumps(embedding)
+                
                 # Upsert
                 db.execute(text("""
                     INSERT INTO menu_embeddings 
                     (restaurant_id, item_id, item_name, item_description, item_price, 
-                     item_category, item_ingredients, dietary_tags, full_text, embedding)
+                     item_category, item_ingredients, dietary_tags, full_text, embedding_json)
                     VALUES 
                     (:restaurant_id, :item_id, :item_name, :item_description, :item_price,
-                     :item_category, :item_ingredients, :dietary_tags, :full_text, :embedding)
+                     :item_category, :item_ingredients, :dietary_tags, :full_text, :embedding_json)
                     ON CONFLICT (restaurant_id, item_id) 
                     DO UPDATE SET
                         item_name = EXCLUDED.item_name,
@@ -249,7 +252,7 @@ class LightweightEmbeddingService:
                         item_ingredients = EXCLUDED.item_ingredients,
                         dietary_tags = EXCLUDED.dietary_tags,
                         full_text = EXCLUDED.full_text,
-                        embedding = EXCLUDED.embedding,
+                        embedding_json = EXCLUDED.embedding_json,
                         updated_at = CURRENT_TIMESTAMP
                 """), item_data)
                 
@@ -264,13 +267,13 @@ class LightweightEmbeddingService:
     
     def search_similar_items(self, db: Session, restaurant_id: str, query: str, 
                            limit: int = 5, threshold: float = 0.3) -> List[Dict]:
-        """Search for similar menu items using vector similarity"""
+        """Search for similar menu items using JSON embeddings"""
         # Create query embedding
         query_embedding = self.create_embedding(query)
         if not query_embedding:
             return []
         
-        # Search using cosine similarity
+        # Get all items for the restaurant
         results = db.execute(text("""
             SELECT 
                 item_id,
@@ -280,33 +283,55 @@ class LightweightEmbeddingService:
                 item_category,
                 item_ingredients,
                 dietary_tags,
-                1 - (embedding <=> :query_embedding::vector) as similarity
+                embedding_json
             FROM menu_embeddings
             WHERE restaurant_id = :restaurant_id
-                AND 1 - (embedding <=> :query_embedding::vector) > :threshold
-            ORDER BY similarity DESC
-            LIMIT :limit
         """), {
-            'restaurant_id': restaurant_id,
-            'query_embedding': query_embedding,
-            'threshold': threshold,
-            'limit': limit
+            'restaurant_id': restaurant_id
         })
         
-        items = []
+        # Calculate similarities in Python
+        items_with_similarity = []
         for row in results:
-            items.append({
-                'item_id': row.item_id,
-                'name': row.item_name,
-                'description': row.item_description,
-                'price': row.item_price,
-                'category': row.item_category,
-                'ingredients': row.item_ingredients or [],
-                'dietary_tags': row.dietary_tags or [],
-                'similarity': float(row.similarity)
-            })
+            if row.embedding_json:
+                try:
+                    # Load embedding from JSON
+                    item_embedding = json.loads(row.embedding_json)
+                    
+                    # Calculate cosine similarity
+                    similarity = self._cosine_similarity(query_embedding, item_embedding)
+                    
+                    if similarity > threshold:
+                        items_with_similarity.append({
+                            'item_id': row.item_id,
+                            'name': row.item_name,
+                            'description': row.item_description,
+                            'price': row.item_price,
+                            'category': row.item_category,
+                            'ingredients': row.item_ingredients or [],
+                            'dietary_tags': row.dietary_tags or [],
+                            'similarity': similarity
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing embedding for item {row.item_id}: {e}")
         
-        return items
+        # Sort by similarity and return top items
+        items_with_similarity.sort(key=lambda x: x['similarity'], reverse=True)
+        return items_with_similarity[:limit]
+    
+    def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
+        """Calculate cosine similarity between two vectors"""
+        if len(vec1) != len(vec2):
+            return 0.0
+        
+        dot_product = sum(a * b for a, b in zip(vec1, vec2))
+        norm1 = sum(a * a for a in vec1) ** 0.5
+        norm2 = sum(b * b for b in vec2) ** 0.5
+        
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+        
+        return dot_product / (norm1 * norm2)
     
     def _extract_dietary_tags(self, item: Dict) -> List[str]:
         """Extract dietary tags from menu item"""
