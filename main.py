@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 
 from database import engine
 import models
-from routes import auth, restaurant, chat, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version
+from routes import auth, restaurant, chat_enhanced, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version
 
 # Load environment variables
 load_dotenv()
@@ -206,7 +206,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # Include routers with proper prefixes to avoid conflicts
 app.include_router(auth.router)
 app.include_router(restaurant.router)
-app.include_router(chat.router)  # No prefix - handles /chat, /client/create-or-update
+app.include_router(chat_enhanced.router)  # Enhanced chat with improved AI - handles /chat, /client/create-or-update
 app.include_router(clients.router)  # New client management router
 app.include_router(chats.router, prefix="/chat")  # Prefix for chat management - handles /chat/logs/*, /chat/
 app.include_router(whatsapp.router)  # WhatsApp integration routes
@@ -235,12 +235,12 @@ def root():
         "deployment": {
             "branch": branch,
             "commit": commit,
-            "version": "v3-improved-ai-FIXED",
+            "version": "v4-enhanced-simple-CONNECTED",
             "has_pasta_fixes": True,
-            "mia_chat_service": "improved_natural_responses_DEPLOYED",
-            "deployment_timestamp": "2025-01-10-1450",
-            "features": ["natural_ai_responses", "conversation_history_disabled", "dynamic_temperature"],
-            "latest_fix": "removed_conversation_history_confusion"
+            "mia_chat_service": "enhanced_simple_service_active",
+            "deployment_timestamp": "2025-01-14-1600",
+            "features": ["query_classification", "dynamic_temperature", "simple_caching", "better_error_handling"],
+            "latest_fix": "connected_enhanced_chat_routes"
         }
     }
 
