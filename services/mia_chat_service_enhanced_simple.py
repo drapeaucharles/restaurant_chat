@@ -123,7 +123,7 @@ def get_mia_response_simple(prompt: str, params: Dict) -> str:
             "source": "restaurant-enhanced-simple"
         }
         
-        logger.info(f"Sending to MIA: {request_data}")
+        logger.info(f"Sending to MIA: {json.dumps(request_data)[:200]}...")
         
         response = requests.post(
             f"{MIA_BACKEND_URL}/api/generate",
@@ -136,10 +136,11 @@ def get_mia_response_simple(prompt: str, params: Dict) -> str:
         )
         
         logger.info(f"MIA response status: {response.status_code}")
+        logger.info(f"MIA response headers: {dict(response.headers)}")
         
         if response.status_code == 200:
             result = response.json()
-            logger.info(f"MIA response data: {result}")
+            logger.info(f"MIA response data: {json.dumps(result)[:500]}")
             
             # Try different response fields
             text = result.get("text") or result.get("response") or result.get("answer") or ""
@@ -148,18 +149,19 @@ def get_mia_response_simple(prompt: str, params: Dict) -> str:
                 logger.info(f"Got response text: {text[:100]}...")
                 return text.strip()
             else:
-                logger.warning("MIA returned empty text")
-                return "I apologize, but I'm having trouble responding. Please try again."
+                logger.warning(f"MIA returned empty text. Full response: {json.dumps(result)}")
+                # Return debug info if empty
+                return f"Debug: MIA returned empty text. Response keys: {list(result.keys())}"
         else:
             logger.error(f"MIA API error: {response.status_code} - {response.text}")
-            return "I'm experiencing technical difficulties. Please try again in a moment."
+            return f"MIA Error {response.status_code}: {response.text[:200]}"
             
     except requests.exceptions.Timeout:
         logger.error("MIA request timed out")
-        return "I'm taking longer than expected. Please try again."
+        return "Error: MIA request timed out after 30 seconds"
     except Exception as e:
         logger.error(f"Error getting MIA response: {e}", exc_info=True)
-        return "I'm experiencing technical difficulties. Please try again."
+        return f"Error: {type(e).__name__}: {str(e)}"
 
 def build_simple_context(menu_items: List[Dict], query_type: QueryType, query: str) -> str:
     """Build simplified context based on query type"""

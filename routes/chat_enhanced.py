@@ -125,3 +125,82 @@ async def health_check():
             "simplified": True
         }
     }
+
+@router.post("/debug")
+async def debug_chat(req: ChatRequest, db: Session = Depends(get_db)):
+    """Debug endpoint to see what's being sent to MIA"""
+    from services.mia_chat_service_enhanced_simple import (
+        SimpleQueryClassifier, 
+        get_simple_system_prompt,
+        get_simple_parameters,
+        build_simple_context
+    )
+    
+    # Get restaurant
+    restaurant = db.query(models.Restaurant).filter(
+        models.Restaurant.restaurant_id == req.restaurant_id
+    ).first()
+    
+    if not restaurant:
+        return {"error": "Restaurant not found"}
+    
+    # Classify query
+    query_type = SimpleQueryClassifier.classify(req.message)
+    
+    # Get restaurant data
+    data = restaurant.data or {}
+    restaurant_name = data.get('restaurant_name', req.restaurant_id)
+    menu_items = data.get("menu", [])
+    
+    # Build prompt
+    system_prompt = get_simple_system_prompt(restaurant_name, query_type)
+    context = build_simple_context(menu_items, query_type, req.message)
+    
+    full_prompt = system_prompt
+    if context:
+        full_prompt += "\n" + context
+    full_prompt += f"\n\nCustomer: {req.message}\nAssistant:"
+    
+    # Get parameters
+    params = get_simple_parameters(query_type)
+    
+    return {
+        "query_type": query_type.value,
+        "parameters": params,
+        "prompt_length": len(full_prompt),
+        "prompt_preview": full_prompt[:500] + "..." if len(full_prompt) > 500 else full_prompt,
+        "menu_items_count": len(menu_items),
+        "restaurant_name": restaurant_name,
+        "context_preview": context[:200] + "..." if len(context) > 200 else context
+    }
+
+@router.get("/test-mia")
+async def test_mia_direct():
+    """Test MIA backend directly"""
+    import requests
+    
+    test_prompt = "Hello! I am a test. Please respond with a greeting."
+    
+    try:
+        response = requests.post(
+            f"{os.getenv('MIA_BACKEND_URL', 'https://mia-backend-production.up.railway.app')}/api/generate",
+            json={
+                "prompt": test_prompt,
+                "max_tokens": 50,
+                "temperature": 0.7,
+                "source": "test-endpoint"
+            },
+            timeout=10
+        )
+        
+        return {
+            "status_code": response.status_code,
+            "headers": dict(response.headers),
+            "response": response.json() if response.status_code == 200 else response.text,
+            "test_prompt": test_prompt
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "type": type(e).__name__
+        }
