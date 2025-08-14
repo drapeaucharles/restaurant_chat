@@ -19,7 +19,8 @@ class LightweightEmbeddingService:
     def __init__(self):
         """Initialize with HuggingFace API"""
         self.api_key = os.getenv("HUGGINGFACE_API_KEY", "")
-        self.model_id = "sentence-transformers/all-MiniLM-L6-v2"
+        # Use a model that works with feature extraction
+        self.model_id = "BAAI/bge-small-en-v1.5"  
         self.api_url = f"https://api-inference.huggingface.co/models/{self.model_id}"
         self.embedding_dim = 384
         
