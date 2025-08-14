@@ -237,16 +237,16 @@ def root():
         "deployment": {
             "branch": branch,
             "commit": commit,
-            "version": "v6-rag-enabled-READY",
+            "version": "v7-rag-lightweight-READY",
             "has_pasta_fixes": True,
-            "mia_chat_service": "rag_enhanced_hybrid",
-            "deployment_timestamp": "2025-01-14-1930",
-            "features": ["rag_semantic_search", "maria_personality", "redis_caching", "vector_embeddings", "multi_language", "dynamic_temperature"],
-            "latest_addition": "rag_with_pgvector",
+            "mia_chat_service": "rag_enhanced_lightweight",
+            "deployment_timestamp": "2025-01-14-2000",
+            "features": ["lightweight_rag", "huggingface_api", "maria_personality", "redis_caching", "vector_embeddings", "no_ml_libs"],
+            "latest_addition": "lightweight_embeddings_api",
             "notes": {
                 "redis": "Connected and working",
-                "rag": "Ready - run migration and index menu items",
-                "migration": "python run_migrations.py"
+                "rag": "Using HuggingFace API - add HUGGINGFACE_API_KEY",
+                "setup": "See HUGGINGFACE_SETUP.md for API key"
             }
         }
     }

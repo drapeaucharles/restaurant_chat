@@ -16,6 +16,7 @@ requests
 pydub
 fastapi[websockets]
 websockets
-numpy
+numpy==1.26.4
 redis==5.0.1
 pgvector==0.2.5
+psycopg2-binary>=2.9.0

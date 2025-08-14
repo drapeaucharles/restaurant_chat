@@ -1,48 +1,34 @@
 """
-Embedding service for RAG implementation
-Uses sentence-transformers for free, high-quality embeddings
+Lightweight embedding service using HuggingFace API
+No local ML models needed - perfect for Railway
 """
 import os
 import logging
-from typing import List, Dict, Optional, Tuple
+import requests
+from typing import List, Dict, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 import json
-
-# Try to import ML libraries, but don't fail if they're not available
-try:
-    from sentence_transformers import SentenceTransformer
-    import numpy as np
-    ML_AVAILABLE = True
-except ImportError:
-    ML_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning("ML libraries not available. RAG features will be disabled.")
+import hashlib
 
 logger = logging.getLogger(__name__)
 
-class EmbeddingService:
-    """Service for creating and managing embeddings"""
+class LightweightEmbeddingService:
+    """Embedding service using HuggingFace Inference API"""
     
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        """Initialize embedding model"""
-        if not ML_AVAILABLE:
-            logger.warning("ML libraries not available, embedding service disabled")
-            self.model = None
-            self.embedding_dim = 384  # Default for all-MiniLM-L6-v2
-            return
-            
-        try:
-            # Use cache dir to avoid re-downloading
-            cache_dir = os.path.join(os.path.dirname(__file__), "..", "model_cache")
-            os.makedirs(cache_dir, exist_ok=True)
-            
-            self.model = SentenceTransformer(model_name, cache_folder=cache_dir)
-            self.embedding_dim = self.model.get_sentence_embedding_dimension()
-            logger.info(f"Loaded embedding model: {model_name} (dim={self.embedding_dim})")
-        except Exception as e:
-            logger.error(f"Failed to load embedding model: {e}")
-            self.model = None
+    def __init__(self):
+        """Initialize with HuggingFace API"""
+        self.api_key = os.getenv("HUGGINGFACE_API_KEY", "")
+        self.model_id = "sentence-transformers/all-MiniLM-L6-v2"
+        self.api_url = f"https://api-inference.huggingface.co/models/{self.model_id}"
+        self.embedding_dim = 384
+        
+        if not self.api_key:
+            logger.warning("No HuggingFace API key found. Using hash-based embeddings as fallback.")
+            self.use_api = False
+        else:
+            self.use_api = True
+            logger.info(f"Using HuggingFace API for embeddings: {self.model_id}")
     
     def create_menu_item_text(self, item: Dict) -> str:
         """Create searchable text from menu item"""
@@ -88,34 +74,120 @@ class EmbeddingService:
     
     def create_embedding(self, text: str) -> Optional[List[float]]:
         """Create embedding for text"""
-        if not self.model:
-            return None
-        
-        try:
-            embedding = self.model.encode(text, convert_to_numpy=True)
-            return embedding.tolist()
-        except Exception as e:
-            logger.error(f"Failed to create embedding: {e}")
-            return None
+        if self.use_api:
+            return self._create_embedding_api(text)
+        else:
+            return self._create_embedding_fallback(text)
     
-    def create_embeddings_batch(self, texts: List[str]) -> Optional[np.ndarray]:
-        """Create embeddings for multiple texts"""
-        if not self.model or not texts:
-            return None
-        
+    def _create_embedding_api(self, text: str) -> Optional[List[float]]:
+        """Create embedding using HuggingFace API"""
         try:
-            embeddings = self.model.encode(texts, convert_to_numpy=True, show_progress_bar=True)
-            return embeddings
+            headers = {"Authorization": f"Bearer {self.api_key}"}
+            response = requests.post(
+                self.api_url,
+                headers=headers,
+                json={"inputs": text, "options": {"wait_for_model": True}},
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                # API returns embeddings directly
+                embedding = response.json()
+                if isinstance(embedding, list) and len(embedding) == self.embedding_dim:
+                    return embedding
+                elif isinstance(embedding, list) and len(embedding) > 0 and isinstance(embedding[0], list):
+                    # Sometimes returns nested array
+                    return embedding[0]
+            else:
+                logger.error(f"HuggingFace API error: {response.status_code} - {response.text}")
+                return self._create_embedding_fallback(text)
+                
         except Exception as e:
-            logger.error(f"Failed to create batch embeddings: {e}")
-            return None
+            logger.error(f"Failed to create embedding via API: {e}")
+            return self._create_embedding_fallback(text)
+    
+    def _create_embedding_fallback(self, text: str) -> List[float]:
+        """Create deterministic pseudo-embedding using hashing"""
+        # This is a fallback - not as good as real embeddings but better than nothing
+        # Creates a deterministic vector from text
+        
+        # Create multiple hash values
+        hashes = []
+        for i in range(self.embedding_dim // 32):  # 32 bits per hash
+            hash_input = f"{text}:{i}".encode('utf-8')
+            hash_value = int(hashlib.md5(hash_input).hexdigest(), 16)
+            hashes.append(hash_value)
+        
+        # Convert to normalized floats
+        embedding = []
+        for h in hashes:
+            # Extract 32 values from each hash
+            for j in range(32):
+                bit = (h >> j) & 1
+                value = (bit * 2 - 1) * 0.1  # Small values between -0.1 and 0.1
+                embedding.append(value)
+        
+        # Trim to exact dimension
+        embedding = embedding[:self.embedding_dim]
+        
+        # Add some variety based on text features
+        text_features = [
+            len(text) / 1000.0,  # Length feature
+            text.count(' ') / 100.0,  # Word count feature
+            sum(ord(c) for c in text[:10]) / 10000.0  # Character sum feature
+        ]
+        
+        for i, feature in enumerate(text_features):
+            if i < len(embedding):
+                embedding[i] += feature
+        
+        return embedding
+    
+    def create_embeddings_batch(self, texts: List[str]) -> Optional[List[List[float]]]:
+        """Create embeddings for multiple texts"""
+        embeddings = []
+        
+        if self.use_api:
+            # HuggingFace API supports batch processing
+            try:
+                headers = {"Authorization": f"Bearer {self.api_key}"}
+                response = requests.post(
+                    self.api_url,
+                    headers=headers,
+                    json={"inputs": texts, "options": {"wait_for_model": True}},
+                    timeout=60
+                )
+                
+                if response.status_code == 200:
+                    embeddings = response.json()
+                    if isinstance(embeddings, list) and len(embeddings) == len(texts):
+                        return embeddings
+                else:
+                    logger.error(f"Batch API error: {response.status_code}")
+                    # Fall back to individual processing
+                    for text in texts:
+                        emb = self.create_embedding(text)
+                        if emb:
+                            embeddings.append(emb)
+                            
+            except Exception as e:
+                logger.error(f"Batch API failed: {e}")
+                # Fall back to individual processing
+                for text in texts:
+                    emb = self.create_embedding(text)
+                    if emb:
+                        embeddings.append(emb)
+        else:
+            # Process individually with fallback
+            for text in texts:
+                emb = self.create_embedding(text)
+                if emb:
+                    embeddings.append(emb)
+        
+        return embeddings if embeddings else None
     
     def index_restaurant_menu(self, db: Session, restaurant_id: str, menu_items: List[Dict]) -> int:
         """Index all menu items for a restaurant"""
-        if not self.model:
-            logger.error("Embedding model not loaded")
-            return 0
-        
         indexed = 0
         texts = []
         items_data = []
@@ -146,20 +218,20 @@ class EmbeddingService:
         if not texts:
             return 0
         
-        # Create embeddings in batch
+        # Create embeddings
         logger.info(f"Creating embeddings for {len(texts)} menu items...")
         embeddings = self.create_embeddings_batch(texts)
         
-        if embeddings is None:
+        if not embeddings:
+            logger.error("Failed to create embeddings")
             return 0
         
         # Insert into database
         for i, (item_data, embedding) in enumerate(zip(items_data, embeddings)):
             try:
-                # Convert numpy array to list for pgvector
-                item_data['embedding'] = embedding.tolist()
+                item_data['embedding'] = embedding
                 
-                # Upsert (insert or update)
+                # Upsert
                 db.execute(text("""
                     INSERT INTO menu_embeddings 
                     (restaurant_id, item_id, item_name, item_description, item_price, 
@@ -192,9 +264,6 @@ class EmbeddingService:
     def search_similar_items(self, db: Session, restaurant_id: str, query: str, 
                            limit: int = 5, threshold: float = 0.3) -> List[Dict]:
         """Search for similar menu items using vector similarity"""
-        if not self.model:
-            return []
-        
         # Create query embedding
         query_embedding = self.create_embedding(query)
         if not query_embedding:
@@ -262,15 +331,5 @@ class EmbeddingService:
         
         return tags
 
-# Choose embedding service based on environment
-USE_LIGHTWEIGHT = os.getenv("USE_LIGHTWEIGHT_EMBEDDINGS", "true").lower() == "true"
-
-if USE_LIGHTWEIGHT:
-    # Use lightweight service for Railway
-    from services.embedding_service_lite import lightweight_embedding_service
-    embedding_service = lightweight_embedding_service
-    logger.info("Using lightweight embedding service")
-else:
-    # Use full ML service if available
-    embedding_service = EmbeddingService()
-    logger.info("Using full ML embedding service")
+# Global instance
+lightweight_embedding_service = LightweightEmbeddingService()
