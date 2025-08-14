@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 
 from database import engine
 import models
-from routes import auth, restaurant, chat_enhanced, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version
+from routes import auth, restaurant, chat_enhanced, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version, embeddings
 
 # Load environment variables
 load_dotenv()
@@ -217,6 +217,7 @@ app.include_router(update_subcategories.router)  # Admin endpoint for subcategor
 app.include_router(restaurant_categories.router)  # Restaurant categories endpoint
 app.include_router(debug.router)  # Debug endpoints
 app.include_router(version.router)  # Version endpoint
+app.include_router(embeddings.router)  # RAG embeddings endpoints
 
 # Health check endpoints
 @app.get("/")
@@ -236,13 +237,17 @@ def root():
         "deployment": {
             "branch": branch,
             "commit": commit,
-            "version": "v5-maria-hybrid-READY",
+            "version": "v6-rag-enabled-READY",
             "has_pasta_fixes": True,
-            "mia_chat_service": "hybrid_maria_personality",
-            "deployment_timestamp": "2025-01-14-1630",
-            "features": ["maria_personality", "redis_caching_ready", "multi_language", "dynamic_temperature", "mia_compatible"],
-            "latest_fix": "hybrid_service_with_maria",
-            "redis_note": "Add REDIS_HOST env var to enable Redis caching"
+            "mia_chat_service": "rag_enhanced_hybrid",
+            "deployment_timestamp": "2025-01-14-1930",
+            "features": ["rag_semantic_search", "maria_personality", "redis_caching", "vector_embeddings", "multi_language", "dynamic_temperature"],
+            "latest_addition": "rag_with_pgvector",
+            "notes": {
+                "redis": "Connected and working",
+                "rag": "Ready - run migration and index menu items",
+                "migration": "python run_migrations.py"
+            }
         }
     }
 

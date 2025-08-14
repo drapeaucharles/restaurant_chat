@@ -8,6 +8,7 @@ import models
 from schemas.chat import ChatRequest, ChatResponse
 from datetime import datetime
 from services.mia_chat_service_hybrid import mia_chat_service_hybrid, get_or_create_client
+from services.rag_chat_service import rag_enhanced_chat_service
 import logging
 import os
 
@@ -15,8 +16,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Use the hybrid service (Maria personality + MIA compatibility)
-chat_service = mia_chat_service_hybrid
+# Check if RAG is enabled
+USE_RAG = os.getenv("USE_RAG", "true").lower() == "true"
+
+# Use RAG-enhanced service if enabled, otherwise hybrid
+chat_service = rag_enhanced_chat_service if USE_RAG else mia_chat_service_hybrid
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, db: Session = Depends(get_db)):
@@ -57,19 +61,27 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
 @router.get("/provider")
 async def get_provider_info():
     """Get information about the current chat provider and features"""
+    features = [
+        "Maria personality assistant",
+        "Redis caching with fallback",
+        "Query classification",
+        "Dynamic temperature adjustment",
+        "Multi-language support (EN/ES/FR)",
+        "Complete menu listings",
+        "MIA-compatible parameters"
+    ]
+    
+    if USE_RAG:
+        features.insert(0, "RAG with semantic search")
+        features.append("Vector embeddings for menu items")
+        features.append("Similarity-based recommendations")
+    
     return {
-        "provider": "mia_hybrid",
-        "version": "2.0",
-        "features": [
-            "Maria personality assistant",
-            "Redis caching with fallback",
-            "Query classification",
-            "Dynamic temperature adjustment",
-            "Multi-language support (EN/ES/FR)",
-            "Complete menu listings",
-            "MIA-compatible parameters"
-        ],
-        "changes": "Combines Maria personality with MIA compatibility"
+        "provider": "mia_rag_hybrid" if USE_RAG else "mia_hybrid",
+        "version": "3.0" if USE_RAG else "2.0",
+        "features": features,
+        "changes": "RAG-enhanced with semantic search" if USE_RAG else "Combines Maria personality with MIA compatibility",
+        "rag_enabled": USE_RAG
     }
 
 @router.get("/cache/stats")

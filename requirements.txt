@@ -18,3 +18,7 @@ fastapi[websockets]
 websockets
 numpy
 redis==5.0.1
+pgvector==0.2.5
+sentence-transformers==2.2.2
+torch==2.1.0
+transformers>=4.30.0
