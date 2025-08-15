@@ -26,8 +26,8 @@ class OptimizedRAGChat:
     
     def __init__(self):
         self.embedding_service = embedding_service
-        self.similarity_threshold = 0.4  # Higher threshold = fewer items = less tokens
-        self.max_context_items = 3  # Reduced for efficiency
+        self.similarity_threshold = 0.35  # Balanced threshold
+        self.max_context_items = 7  # Show more items, but not all
     
     def build_minimal_context(self, 
                              db: Session,
@@ -72,16 +72,31 @@ class OptimizedRAGChat:
             else:
                 return "\nPlease check our full menu for available items.", 0
         
-        # Build compact context
+        # Build context with more items
         context = "\nRelevant items:\n"
-        for item in relevant_items:
+        for i, item in enumerate(relevant_items):
             context += f"• {item['name']} ({item['price']})"
             if query_type == QueryType.DIETARY and item.get('dietary_tags'):
                 context += f" [{', '.join(item['dietary_tags'])}]"
+            elif i < 3:  # Add brief description for top 3
+                desc = item.get('description', '')
+                if desc and len(desc) > 50:
+                    desc = desc[:50] + "..."
+                if desc:
+                    context += f" - {desc}"
             context += "\n"
         
-        # Add minimal instruction
-        context += "\n💡 Only discuss items mentioned above."
+        # Check if there might be more items
+        total_count = db.execute(text("""
+            SELECT COUNT(*) FROM menu_embeddings 
+            WHERE restaurant_id = :restaurant_id
+        """), {'restaurant_id': restaurant_id}).scalar()
+        
+        if total_count > len(relevant_items):
+            context += f"\n📋 Showing {len(relevant_items)} of {total_count} items. Ask to see more categories or specific types."
+        
+        # Smarter instruction
+        context += "\n💡 Focus on these items. Mention if customer wants to see other options."
         
         return context, len(relevant_items)
 
@@ -97,17 +112,19 @@ def get_optimized_prompt(business_name: str, query_type: QueryType, language: st
     
     persona = personas.get(language, personas["en"])
     
-    # Minimal base prompt
+    # Balanced prompt - helpful but efficient
     prompt = f"You are {persona} at {business_name}.\n"
-    prompt += "Rules: Be helpful. Only mention real items with prices. Keep responses short.\n"
+    prompt += "Rules: Be helpful and complete. List items with prices. If showing partial results, mention more options are available.\n"
     
-    # Query-specific hints (minimal)
+    # Query-specific hints
     if query_type == QueryType.SPECIFIC_ITEM:
-        prompt += "List matching items with prices.\n"
+        prompt += "Show all matching items. If there are many, show the best ones and mention there are more.\n"
     elif query_type == QueryType.DIETARY:
-        prompt += "Focus on dietary requirements.\n"
+        prompt += "Focus on dietary requirements. Be thorough but concise.\n"
     elif query_type == QueryType.RECOMMENDATION:
-        prompt += "Suggest 2-3 items briefly.\n"
+        prompt += "Suggest 3-5 items with brief reasons why.\n"
+    elif query_type == QueryType.MENU_QUERY:
+        prompt += "Give an overview of categories and highlight popular items.\n"
     
     return prompt
 
@@ -180,15 +197,17 @@ def optimized_rag_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         token_estimate = len(full_prompt) // 4
         logger.info(f"Prompt tokens (est): {token_estimate}, Items: {item_count}")
         
-        # Optimized parameters for MIA
+        # Balanced parameters for MIA
         params = {
-            "temperature": 0.4,  # Lower = more consistent
-            "max_tokens": 150    # Limit response length
+            "temperature": 0.5,  # Balanced creativity
+            "max_tokens": 250    # Reasonable response length
         }
         
-        # Special cases for longer responses
+        # Adjust for different query types
         if query_type == QueryType.MENU_QUERY:
-            params["max_tokens"] = 250
+            params["max_tokens"] = 350  # More space for menu overview
+        elif query_type == QueryType.GREETING:
+            params["max_tokens"] = 100  # Keep greetings short
         
         # Get response from MIA network
         answer = get_mia_response_hybrid(full_prompt, params)
