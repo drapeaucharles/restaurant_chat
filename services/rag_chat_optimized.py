@@ -16,6 +16,7 @@ from services.mia_chat_service_hybrid import (
     get_persona_name
 )
 from services.embedding_service import embedding_service
+from services.response_length_manager import ResponseLengthManager
 from schemas.chat import ChatRequest, ChatResponse
 import models
 
@@ -197,17 +198,21 @@ def optimized_rag_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         token_estimate = len(full_prompt) // 4
         logger.info(f"Prompt tokens (est): {token_estimate}, Items: {item_count}")
         
-        # Balanced parameters for MIA
+        # Dynamic response length based on query
+        length_config = ResponseLengthManager.determine_length(req.message, query_type.value)
+        response_instruction = ResponseLengthManager.format_response_instruction(length_config)
+        
+        # Add response length instruction to prompt
+        full_prompt += f"\n{response_instruction}"
+        
+        # Set parameters based on length config
         params = {
             "temperature": 0.5,  # Balanced creativity
-            "max_tokens": 250    # Reasonable response length
+            "max_tokens": length_config["max_tokens"]
         }
         
-        # Adjust for different query types
-        if query_type == QueryType.MENU_QUERY:
-            params["max_tokens"] = 350  # More space for menu overview
-        elif query_type == QueryType.GREETING:
-            params["max_tokens"] = 100  # Keep greetings short
+        # Log what we're doing
+        logger.info(f"Response length: {length_config['length'].value}, max_tokens: {length_config['max_tokens']}")
         
         # Get response from MIA network
         answer = get_mia_response_hybrid(full_prompt, params)
