@@ -18,7 +18,7 @@ router = APIRouter()
 
 # Check if RAG is enabled and which mode
 USE_RAG = os.getenv("USE_RAG", "true").lower() == "true"
-RAG_MODE = os.getenv("RAG_MODE", "optimized")  # optimized, improved, or full
+RAG_MODE = os.getenv("RAG_MODE", "optimized")  # optimized, enhanced, improved, or full
 
 # Choose appropriate service
 if USE_RAG and RAG_MODE == "optimized":
@@ -28,6 +28,14 @@ if USE_RAG and RAG_MODE == "optimized":
         logger.info("Using OPTIMIZED RAG (low token usage)")
     except ImportError:
         chat_service = mia_chat_service_hybrid
+elif USE_RAG and RAG_MODE == "enhanced":
+    try:
+        from services.rag_chat_enhanced import enhanced_rag_service
+        chat_service = enhanced_rag_service
+        logger.info("Using ENHANCED RAG (quality improvements)")
+    except ImportError:
+        logger.warning("Enhanced RAG not available, falling back to standard")
+        chat_service = rag_enhanced_chat_service
 elif USE_RAG:
     chat_service = rag_enhanced_chat_service
 else:
