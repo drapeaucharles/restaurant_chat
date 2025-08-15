@@ -101,14 +101,22 @@ async def search_menu_items(
     """Search menu items using semantic search"""
     
     # Check if restaurant has embeddings
-    count = db.execute(text("""
-        SELECT COUNT(*) FROM menu_embeddings WHERE restaurant_id = :restaurant_id
-    """), {"restaurant_id": restaurant_id}).scalar()
-    
-    if count == 0:
+    try:
+        count = db.execute(text("""
+            SELECT COUNT(*) FROM menu_embeddings WHERE restaurant_id = :restaurant_id
+        """), {"restaurant_id": restaurant_id}).scalar()
+        
+        if count == 0:
+            return {
+                "status": "error",
+                "message": "No embeddings found. Please index the menu first.",
+                "results": []
+            }
+    except Exception as e:
+        logger.error(f"Error checking embeddings: {e}")
         return {
             "status": "error",
-            "message": "No embeddings found. Please index the menu first.",
+            "message": "Embeddings table not ready. Please run migration first.",
             "results": []
         }
     

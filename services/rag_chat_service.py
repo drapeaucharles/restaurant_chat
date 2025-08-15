@@ -4,6 +4,7 @@ RAG-enhanced chat service that uses vector search for better context
 import logging
 from typing import List, Dict, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from services.mia_chat_service_hybrid import (
     mia_chat_service_hybrid,
     HybridQueryClassifier,
@@ -182,14 +183,19 @@ def rag_enhanced_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     logger.info(f"Detected language: {language}")
     
     # Check if embeddings are available for this restaurant
-    embeddings_count = db.execute(text("""
-        SELECT COUNT(*) as count 
-        FROM menu_embeddings 
-        WHERE restaurant_id = :restaurant_id
-    """), {'restaurant_id': req.restaurant_id}).scalar()
-    
-    if embeddings_count == 0:
-        logger.info("No embeddings found, falling back to regular hybrid service")
+    try:
+        embeddings_count = db.execute(text("""
+            SELECT COUNT(*) as count 
+            FROM menu_embeddings 
+            WHERE restaurant_id = :restaurant_id
+        """), {'restaurant_id': req.restaurant_id}).scalar()
+        
+        if embeddings_count == 0:
+            logger.info("No embeddings found, falling back to regular hybrid service")
+            return mia_chat_service_hybrid(req, db)
+    except Exception as e:
+        logger.warning(f"Error checking embeddings (table may not exist): {e}")
+        logger.info("Falling back to regular hybrid service")
         return mia_chat_service_hybrid(req, db)
     
     # Get restaurant

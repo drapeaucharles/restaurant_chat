@@ -111,12 +111,21 @@ async def check_migration_status(db: Session = Depends(get_db)):
         result = db.execute(text("SELECT 1 FROM pg_extension WHERE extname = 'vector'"))
         has_vector = result.scalar() is not None
         
-        # Check table
-        result = db.execute(text("""
-            SELECT COUNT(*) FROM information_schema.tables 
-            WHERE table_name = 'menu_embeddings'
-        """))
-        has_table = result.scalar() > 0
+        # Check table - try direct query first
+        has_table = False
+        try:
+            result = db.execute(text("SELECT 1 FROM menu_embeddings LIMIT 1"))
+            has_table = True  # If query succeeds, table exists
+        except:
+            # Fallback to information_schema
+            try:
+                result = db.execute(text("""
+                    SELECT COUNT(*) FROM information_schema.tables 
+                    WHERE table_name = 'menu_embeddings'
+                """))
+                has_table = result.scalar() > 0
+            except:
+                has_table = False
         
         # Count embeddings if table exists
         embedding_count = 0
