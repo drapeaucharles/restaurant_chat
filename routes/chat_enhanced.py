@@ -36,6 +36,14 @@ elif USE_RAG and RAG_MODE == "enhanced":
     except ImportError:
         logger.warning("Enhanced RAG not available, falling back to standard")
         chat_service = rag_enhanced_chat_service
+elif USE_RAG and RAG_MODE == "enhanced_v2":
+    try:
+        from services.rag_chat_enhanced_v2 import enhanced_rag_service_v2
+        chat_service = enhanced_rag_service_v2
+        logger.info("Using ENHANCED RAG V2 (clear context separation)")
+    except ImportError:
+        logger.warning("Enhanced RAG V2 not available, falling back to standard")
+        chat_service = rag_enhanced_chat_service
 elif USE_RAG:
     chat_service = rag_enhanced_chat_service
 else:

@@ -19,6 +19,7 @@ from services.embedding_service import embedding_service
 from services.response_length_manager import ResponseLengthManager
 from services.response_validator import response_validator
 from services.allergen_service import allergen_service
+from services.context_formatter import context_formatter, ContextSection
 from schemas.chat import ChatRequest, ChatResponse
 import models
 
@@ -39,9 +40,9 @@ class OptimizedRAGChat:
                              query_type: QueryType) -> Tuple[str, int]:
         """Build minimal context that prevents hallucination with few tokens"""
         
-        # For greetings, no context needed
+        # For greetings, minimal context
         if query_type == QueryType.GREETING:
-            return "", 0
+            return "Use a warm, welcoming tone.", 0
         
         # Check if this is an allergen/dietary query
         query_lower = query.lower()
@@ -222,9 +223,27 @@ def optimized_rag_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         # Build minimal context
         context, item_count = rag.build_minimal_context(db, req.restaurant_id, req.message, query_type)
         
-        # Construct final prompt (very compact)
-        full_prompt = system_prompt + context
-        full_prompt += f"\nUser: {req.message}\nReply:"
+        # Build context sections for clarity
+        context_sections = {}
+        if context and context.strip():
+            context_sections[ContextSection.MENU_ITEMS] = context
+        
+        # Create clear instructions
+        if query_type != QueryType.GREETING:
+            instructions = [
+                "Use ONLY the menu items shown above",
+                "If an item isn't listed, it's not available",
+                "Be concise and accurate"
+            ]
+            context_sections[ContextSection.INSTRUCTIONS] = "\n".join(instructions)
+        
+        # Use formatter for clear separation
+        full_prompt = context_formatter.format_prompt_with_context(
+            system_prompt=system_prompt,
+            context_sections=context_sections,
+            customer_message=req.message,
+            assistant_name="Assistant"
+        )
         
         # Log token estimate (rough: 1 token ≈ 4 chars)
         token_estimate = len(full_prompt) // 4
