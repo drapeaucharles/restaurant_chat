@@ -1,0 +1,50 @@
+IMMEDIATE SOLUTION - RUN THIS NOW:
+
+The table IS likely created (the API said so), but there's a transaction issue.
+Here's the fix:
+
+1. QUICKEST FIX (30 seconds):
+   
+   Go to: https://railway.app/dashboard
+   → Click your PostgreSQL service
+   → Click "Data" tab
+   → Click "Query"
+   → Run this:
+
+   SELECT * FROM menu_embeddings LIMIT 1;
+
+   If you get "relation does not exist", then run:
+
+   CREATE TABLE menu_embeddings (
+       id SERIAL PRIMARY KEY,
+       restaurant_id VARCHAR(255) NOT NULL,
+       item_id VARCHAR(255) NOT NULL,
+       item_name VARCHAR(255) NOT NULL,
+       item_description TEXT,
+       item_price VARCHAR(50),
+       item_category VARCHAR(100),
+       item_ingredients TEXT,
+       dietary_tags TEXT,
+       full_text TEXT NOT NULL,
+       embedding_json TEXT,
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   );
+
+2. OR USE RAILWAY CLI:
+
+   railway login
+   railway link
+   railway run psql -c "TABLE menu_embeddings;"
+
+   If error, then:
+   
+   railway run psql -c "CREATE TABLE menu_embeddings (id SERIAL PRIMARY KEY, restaurant_id VARCHAR(255) NOT NULL, item_id VARCHAR(255) NOT NULL, item_name VARCHAR(255) NOT NULL, item_description TEXT, item_price VARCHAR(50), item_category VARCHAR(100), item_ingredients TEXT, dietary_tags TEXT, full_text TEXT NOT NULL, embedding_json TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"
+
+3. TEST IT WORKED:
+
+   curl https://restaurantchat-production.up.railway.app/migration/status
+
+   Should show: "table_exists": true
+
+THE SYSTEM IS READY - JUST NEEDS THIS TABLE!
