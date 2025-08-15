@@ -197,20 +197,30 @@ def get_hybrid_parameters(query_type: QueryType) -> Dict:
 
 def detect_language(text: str) -> str:
     """
-    Improved language detection - defaults to English unless explicitly requested
+    Natural language detection based on the query language
+    Let the AI respond in the same language as the user
     """
     text_lower = text.lower()
     
-    # Check for explicit language requests
-    if any(phrase in text_lower for phrase in ['en español', 'in spanish', 'spanish please']):
-        return "es"
-    elif any(phrase in text_lower for phrase in ['en français', 'in french', 'french please']):
-        return "fr"
-    elif any(phrase in text_lower for phrase in ['em português', 'in portuguese', 'portuguese please']):
-        return "pt"
+    # Count language indicators
+    spanish_indicators = ['qué', 'cómo', 'dónde', 'cuánto', 'tiene', 'hay', 'quiero', 'puedo', 'platos', 'comida']
+    french_indicators = ['qu\'est', 'comment', 'où', 'combien', 'avez', 'je', 'puis', 'plats', 'nourriture']
+    portuguese_indicators = ['o que', 'como', 'onde', 'quanto', 'tem', 'há', 'quero', 'posso', 'pratos', 'comida']
     
-    # For now, always default to English to fix the Portuguese issue
-    return "en"
+    # Count matches for each language
+    spanish_score = sum(1 for word in spanish_indicators if word in text_lower)
+    french_score = sum(1 for word in french_indicators if word in text_lower)
+    portuguese_score = sum(1 for word in portuguese_indicators if word in text_lower)
+    
+    # Return the language with highest score, default to English if no clear match
+    if spanish_score > max(french_score, portuguese_score) and spanish_score >= 2:
+        return "es"
+    elif french_score > max(spanish_score, portuguese_score) and french_score >= 2:
+        return "fr"
+    elif portuguese_score > max(spanish_score, french_score) and portuguese_score >= 2:
+        return "pt"
+    else:
+        return "en"
 
 def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: str) -> str:
     """Build context for Maria's responses"""

@@ -145,6 +145,7 @@ def get_optimized_prompt(business_name: str, query_type: QueryType, language: st
     prompt += "2. NEVER invent, guess, or add items not explicitly shown\n"
     prompt += "3. Use exact names and prices from the context\n"
     prompt += "4. If asked about items not in context, say they're not available or ask to see other options\n"
+    prompt += "5. Always respond in the same language as the customer's question\n"
     
     # Query-specific hints
     if query_type == QueryType.SPECIFIC_ITEM:
