@@ -16,6 +16,7 @@ from schemas.restaurant import RestaurantUpdateRequest, RestaurantProfileUpdate,
 from services.restaurant_service import apply_menu_fallbacks
 from services.file_service import save_upload_file, delete_upload_file
 from pinecone_utils import insert_restaurant_data, index_menu_items
+from services.menu_sync_service import menu_sync_service
 
 
 def process_menu_for_response(menu_data):
@@ -146,6 +147,16 @@ def update_restaurant(
     db.commit()
     db.refresh(current_owner)
     
+    # Sync menu to embeddings if updated
+    if "menu" in new_data and new_data["menu"]:
+        try:
+            # Pinecone sync
+            index_menu_items(current_owner.restaurant_id, new_data["menu"])
+            # PostgreSQL sync
+            menu_sync_service.sync_restaurant_menu(db, current_owner.restaurant_id, new_data["menu"])
+        except Exception as e:
+            print(f"Warning: Menu sync failed: {e}")
+    
     return {
         "message": "Restaurant updated successfully",
         "restaurant_id": current_owner.restaurant_id
@@ -218,10 +229,22 @@ def update_restaurant_profile_new(
         # Re-index menu items for semantic search
         if processed_menu:
             indexed_count = index_menu_items(current_owner.restaurant_id, processed_menu)
-            print(f"✅ Re-indexed {indexed_count} menu items for restaurant {current_owner.restaurant_id}")
+            print(f"✅ Re-indexed {indexed_count} menu items in Pinecone for restaurant {current_owner.restaurant_id}")
     except Exception as e:
         print(f"Warning: Pinecone update failed: {e}")
         # Don't fail the operation for Pinecone issues
+    
+    # Sync to PostgreSQL embeddings for RAG
+    try:
+        if processed_menu:
+            sync_result = menu_sync_service.sync_restaurant_menu(db, current_owner.restaurant_id, processed_menu)
+            if sync_result['success']:
+                print(f"✅ Synced {sync_result['indexed']} menu items to PostgreSQL embeddings")
+            else:
+                print(f"Warning: PostgreSQL sync failed: {sync_result.get('error')}")
+    except Exception as e:
+        print(f"Warning: PostgreSQL embedding sync failed: {e}")
+        # Don't fail the operation for sync issues
     
     return {"success": True}
 
@@ -291,6 +314,16 @@ async def update_restaurant_profile_multipart(
         # Commit changes to database
         db.commit()
         db.refresh(current_owner)
+        
+        # Sync menu to embeddings
+        if processed_menu:
+            try:
+                # Pinecone sync
+                index_menu_items(current_owner.restaurant_id, processed_menu)
+                # PostgreSQL sync  
+                menu_sync_service.sync_restaurant_menu(db, current_owner.restaurant_id, processed_menu)
+            except Exception as e:
+                print(f"Warning: Menu sync failed in multipart: {e}")
         
         return {"success": True}
         
