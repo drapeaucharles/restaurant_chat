@@ -29,7 +29,7 @@ class OptimizedRAGChat:
     def __init__(self):
         self.embedding_service = embedding_service
         self.similarity_threshold = 0.35  # Balanced threshold
-        self.max_context_items = 7  # Show more items, but not all
+        self.max_context_items = 10  # Show more items now that we have 50
     
     def build_minimal_context(self, 
                              db: Session,

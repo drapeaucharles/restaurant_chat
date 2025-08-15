@@ -277,16 +277,18 @@ class LightweightEmbeddingService:
         query_lower = query.lower()
         category_filter = None
         
-        # Common category keywords
+        # Enhanced category keywords with subcategories
         category_keywords = {
-            'pasta': ['pasta', 'spaghetti', 'penne', 'linguine', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine'],
+            'pasta': ['pasta', 'spaghetti', 'penne', 'linguine', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine', 'carbonara', 'arrabbiata'],
+            'risotto': ['risotto', 'saffron risotto', 'mushroom risotto'],
             'pizza': ['pizza', 'margherita', 'pepperoni'],
-            'salad': ['salad', 'caesar', 'greek'],
-            'appetizer': ['appetizer', 'starter', 'antipasti'],
-            'dessert': ['dessert', 'tiramisu', 'gelato', 'cake'],
-            'seafood': ['seafood', 'fish', 'shrimp', 'lobster', 'salmon'],
-            'meat': ['steak', 'chicken', 'beef', 'pork', 'meat'],
-            'vegetarian': ['vegetarian', 'vegan', 'veggie']
+            'salads': ['salad', 'caesar', 'greek', 'beet', 'quinoa bowl'],
+            'appetizers': ['appetizer', 'starter', 'antipasti', 'arancini', 'bruschetta', 'calamari', 'carpaccio', 'mezze'],
+            'soups': ['soup', 'bisque', 'minestrone', 'french onion', 'tom yum'],
+            'seafood': ['seafood', 'fish', 'shrimp', 'lobster', 'salmon', 'sea bass', 'scallops', 'tuna', 'thermidor'],
+            'meat': ['steak', 'beef', 'pork', 'lamb', 'veal', 'duck', 'filet mignon', 'ribeye', 'osso buco', 'short ribs'],
+            'vegetarian': ['vegetarian', 'vegan', 'veggie', 'eggplant', 'vegetable', 'mushroom wellington', 'buddha bowl'],
+            'desserts': ['dessert', 'tiramisu', 'gelato', 'cake', 'cheesecake', 'crème brûlée', 'lava cake']
         }
         
         # Check if query matches a category
