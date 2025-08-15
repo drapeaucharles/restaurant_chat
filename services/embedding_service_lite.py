@@ -273,8 +273,30 @@ class LightweightEmbeddingService:
         if not query_embedding:
             return []
         
-        # Get all items for the restaurant
-        results = db.execute(text("""
+        # Detect if query is category-specific
+        query_lower = query.lower()
+        category_filter = None
+        
+        # Common category keywords
+        category_keywords = {
+            'pasta': ['pasta', 'spaghetti', 'penne', 'linguine', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine'],
+            'pizza': ['pizza', 'margherita', 'pepperoni'],
+            'salad': ['salad', 'caesar', 'greek'],
+            'appetizer': ['appetizer', 'starter', 'antipasti'],
+            'dessert': ['dessert', 'tiramisu', 'gelato', 'cake'],
+            'seafood': ['seafood', 'fish', 'shrimp', 'lobster', 'salmon'],
+            'meat': ['steak', 'chicken', 'beef', 'pork', 'meat'],
+            'vegetarian': ['vegetarian', 'vegan', 'veggie']
+        }
+        
+        # Check if query matches a category
+        for category, keywords in category_keywords.items():
+            if any(keyword in query_lower for keyword in keywords):
+                category_filter = category
+                break
+        
+        # Build SQL query with optional category filter
+        sql_query = """
             SELECT 
                 item_id,
                 item_name,
@@ -286,9 +308,17 @@ class LightweightEmbeddingService:
                 embedding_json
             FROM menu_embeddings
             WHERE restaurant_id = :restaurant_id
-        """), {
-            'restaurant_id': restaurant_id
-        })
+        """
+        
+        params = {'restaurant_id': restaurant_id}
+        
+        # Add category filter if detected
+        if category_filter:
+            sql_query += " AND (LOWER(item_category) LIKE :category OR LOWER(item_name) LIKE :category)"
+            params['category'] = f'%{category_filter}%'
+            logger.info(f"Filtering by category: {category_filter}")
+        
+        results = db.execute(text(sql_query), params)
         
         # Calculate similarities in Python
         items_with_similarity = []
@@ -300,6 +330,10 @@ class LightweightEmbeddingService:
                     
                     # Calculate cosine similarity
                     similarity = self._cosine_similarity(query_embedding, item_embedding)
+                    
+                    # Boost similarity for exact category matches
+                    if category_filter and row.item_category and category_filter in row.item_category.lower():
+                        similarity += 0.2  # Boost for matching category
                     
                     if similarity > threshold:
                         items_with_similarity.append({

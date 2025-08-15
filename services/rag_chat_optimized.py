@@ -17,6 +17,7 @@ from services.mia_chat_service_hybrid import (
 )
 from services.embedding_service import embedding_service
 from services.response_length_manager import ResponseLengthManager
+from services.response_validator import response_validator
 from schemas.chat import ChatRequest, ChatResponse
 import models
 
@@ -54,7 +55,7 @@ class OptimizedRAGChat:
             # Fallback: get a few items by keyword
             keywords = query.lower().split()
             items = db.execute(text("""
-                SELECT item_name, item_price, item_category 
+                SELECT item_name, item_price, item_category, item_description
                 FROM menu_embeddings 
                 WHERE restaurant_id = :restaurant_id 
                 AND (LOWER(item_name) LIKE ANY(ARRAY[:keywords])
@@ -66,40 +67,33 @@ class OptimizedRAGChat:
             }).fetchall()
             
             if items:
-                context = "\nAvailable items:\n"
-                for item in items:
-                    context += f"• {item.item_name} ({item.item_price})\n"
-                return context, len(items)
+                # Use validator to create safe context
+                relevant_items = [
+                    {
+                        'name': item.item_name,
+                        'price': item.item_price,
+                        'category': item.item_category,
+                        'description': item.item_description
+                    }
+                    for item in items
+                ]
+                return response_validator.create_validated_context(db, restaurant_id, relevant_items), len(items)
             else:
                 return "\nPlease check our full menu for available items.", 0
         
-        # Build context with more items
-        context = "\nRelevant items:\n"
-        for i, item in enumerate(relevant_items):
-            context += f"• {item['name']} ({item['price']})"
-            if query_type == QueryType.DIETARY and item.get('dietary_tags'):
-                context += f" [{', '.join(item['dietary_tags'])}]"
-            elif i < 3:  # Add brief description for top 3
-                desc = item.get('description', '')
-                if desc and len(desc) > 50:
-                    desc = desc[:50] + "..."
-                if desc:
-                    context += f" - {desc}"
-            context += "\n"
+        # Use validator to create context with only real items
+        validated_context = response_validator.create_validated_context(db, restaurant_id, relevant_items)
         
-        # Check if there might be more items
+        # Add total count info
         total_count = db.execute(text("""
             SELECT COUNT(*) FROM menu_embeddings 
             WHERE restaurant_id = :restaurant_id
         """), {'restaurant_id': restaurant_id}).scalar()
         
         if total_count > len(relevant_items):
-            context += f"\n📋 Showing {len(relevant_items)} of {total_count} items. Ask to see more categories or specific types."
+            validated_context += f"\n\n📋 Showing {len(relevant_items)} of {total_count} items. Ask to see more categories or specific types."
         
-        # Smarter instruction
-        context += "\n💡 Focus on these items. Mention if customer wants to see other options."
-        
-        return context, len(relevant_items)
+        return validated_context, len(relevant_items)
 
 def get_optimized_prompt(business_name: str, query_type: QueryType, language: str) -> str:
     """Get minimal but effective system prompt"""
@@ -115,17 +109,21 @@ def get_optimized_prompt(business_name: str, query_type: QueryType, language: st
     
     # Balanced prompt - helpful but efficient
     prompt = f"You are {persona} at {business_name}.\n"
-    prompt += "Rules: Be helpful and complete. List items with prices. If showing partial results, mention more options are available.\n"
+    prompt += "CRITICAL RULES:\n"
+    prompt += "1. ONLY mention items that are listed in the menu context below\n"
+    prompt += "2. NEVER invent, guess, or add items not explicitly shown\n"
+    prompt += "3. Use exact names and prices from the context\n"
+    prompt += "4. If asked about items not in context, say they're not available or ask to see other options\n"
     
     # Query-specific hints
     if query_type == QueryType.SPECIFIC_ITEM:
-        prompt += "Show all matching items. If there are many, show the best ones and mention there are more.\n"
+        prompt += "Show matching items from the context. If none match, politely say it's not available.\n"
     elif query_type == QueryType.DIETARY:
-        prompt += "Focus on dietary requirements. Be thorough but concise.\n"
+        prompt += "Only recommend items from the context that match dietary needs.\n"
     elif query_type == QueryType.RECOMMENDATION:
-        prompt += "Suggest 3-5 items with brief reasons why.\n"
+        prompt += "Suggest 3-5 items FROM THE CONTEXT with brief reasons.\n"
     elif query_type == QueryType.MENU_QUERY:
-        prompt += "Give an overview of categories and highlight popular items.\n"
+        prompt += "Describe ONLY the items shown in the context. Mention if there are more items available.\n"
     
     return prompt
 
@@ -216,6 +214,21 @@ def optimized_rag_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         
         # Get response from MIA network
         answer = get_mia_response_hybrid(full_prompt, params)
+        
+        # Validate response to catch any hallucinations
+        validation_result = response_validator.validate_response(db, req.restaurant_id, answer)
+        
+        if not validation_result['valid']:
+            logger.warning(f"Hallucinated items detected: {validation_result['hallucinated_items']}")
+            
+            # If hallucination detected, retry with stricter prompt
+            strict_prompt = full_prompt.replace("User:", "REMINDER: Only mention items from the context above!\n\nUser:")
+            answer = get_mia_response_hybrid(strict_prompt, params)
+            
+            # Validate again
+            second_validation = response_validator.validate_response(db, req.restaurant_id, answer)
+            if not second_validation['valid']:
+                logger.error(f"Persistent hallucination after retry: {second_validation['hallucinated_items']}")
         
         # Save to database
         new_message = models.ChatMessage(
