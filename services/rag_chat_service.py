@@ -50,6 +50,9 @@ class RAGEnhancedChat:
             threshold=self.similarity_threshold
         )
         
+        # ALWAYS include available items list to prevent hallucination
+        context_parts = ["\n=== AVAILABLE ITEMS (Only mention these) ==="]
+        
         if not relevant_items:
             # Fallback to keyword search if no embedding matches
             return self._build_keyword_context(menu_items, query_type, query)

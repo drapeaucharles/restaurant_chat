@@ -16,11 +16,22 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Check if RAG is enabled
+# Check if RAG is enabled and which mode
 USE_RAG = os.getenv("USE_RAG", "true").lower() == "true"
+RAG_MODE = os.getenv("RAG_MODE", "optimized")  # optimized, improved, or full
 
-# Use RAG-enhanced service if enabled, otherwise hybrid
-chat_service = rag_enhanced_chat_service if USE_RAG else mia_chat_service_hybrid
+# Choose appropriate service
+if USE_RAG and RAG_MODE == "optimized":
+    try:
+        from services.rag_chat_optimized import optimized_rag_service
+        chat_service = optimized_rag_service
+        logger.info("Using OPTIMIZED RAG (low token usage)")
+    except ImportError:
+        chat_service = mia_chat_service_hybrid
+elif USE_RAG:
+    chat_service = rag_enhanced_chat_service
+else:
+    chat_service = mia_chat_service_hybrid
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, db: Session = Depends(get_db)):
@@ -76,12 +87,18 @@ async def get_provider_info():
         features.append("Vector embeddings for menu items")
         features.append("Similarity-based recommendations")
     
+    provider_name = "mia_hybrid"
+    if USE_RAG:
+        provider_name = f"mia_rag_{RAG_MODE}"
+    
     return {
-        "provider": "mia_rag_hybrid" if USE_RAG else "mia_hybrid",
+        "provider": provider_name,
         "version": "3.0" if USE_RAG else "2.0",
         "features": features,
-        "changes": "RAG-enhanced with semantic search" if USE_RAG else "Combines Maria personality with MIA compatibility",
-        "rag_enabled": USE_RAG
+        "changes": f"RAG-{RAG_MODE} with semantic search" if USE_RAG else "Combines Maria personality with MIA compatibility",
+        "rag_enabled": USE_RAG,
+        "rag_mode": RAG_MODE if USE_RAG else None,
+        "optimization": "Low token usage for MIA network" if RAG_MODE == "optimized" else "Standard"
     }
 
 @router.get("/cache/stats")

@@ -1,0 +1,36 @@
+RAILWAY CLI COMMANDS - COPY AND PASTE THESE:
+
+Since I cannot directly access your Railway database, you need to run these commands:
+
+1. INSTALL RAILWAY CLI (if not already installed):
+   npm install -g @railway/cli
+
+2. LOGIN TO RAILWAY:
+   railway login
+
+3. LINK YOUR PROJECT:
+   railway link
+   (Select your restaurant project)
+
+4. CREATE THE TABLE (copy this entire command):
+
+railway run psql -c "DROP TABLE IF EXISTS menu_embeddings CASCADE; CREATE TABLE menu_embeddings (id SERIAL PRIMARY KEY, restaurant_id VARCHAR(255) NOT NULL, item_id VARCHAR(255) NOT NULL, item_name VARCHAR(255) NOT NULL, item_description TEXT, item_price VARCHAR(50), item_category VARCHAR(100), item_ingredients TEXT, dietary_tags TEXT, full_text TEXT NOT NULL, embedding_json TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP); CREATE UNIQUE INDEX idx_menu_embeddings_unique ON menu_embeddings(restaurant_id, item_id); CREATE INDEX idx_menu_embeddings_restaurant ON menu_embeddings(restaurant_id);"
+
+5. VERIFY IT WORKED:
+   railway run psql -c "SELECT COUNT(*) FROM menu_embeddings;"
+
+   Should return: count = 0
+
+6. TEST THE API:
+   curl https://restaurantchat-production.up.railway.app/migration/status
+
+   Should show: "table_exists": true
+
+ALTERNATIVE - Use Railway Dashboard:
+1. Go to https://railway.app/dashboard
+2. Click your PostgreSQL service
+3. Click "Query" tab
+4. Paste the CREATE TABLE command from step 4 above
+5. Click "Run Query"
+
+That's it! Your RAG system will work immediately after this.
