@@ -196,20 +196,21 @@ def get_hybrid_parameters(query_type: QueryType) -> Dict:
         }
 
 def detect_language(text: str) -> str:
-    """Simple language detection based on common words"""
-    spanish_words = ['hola', 'buenas', 'quiero', 'tiene', 'por favor', 'gracias']
-    french_words = ['bonjour', 'bonsoir', 'je', 'voudrais', 'avez-vous', 'merci']
-    
+    """
+    Improved language detection - defaults to English unless explicitly requested
+    """
     text_lower = text.lower()
-    spanish_count = sum(1 for word in spanish_words if word in text_lower)
-    french_count = sum(1 for word in french_words if word in text_lower)
     
-    if spanish_count > french_count and spanish_count > 0:
+    # Check for explicit language requests
+    if any(phrase in text_lower for phrase in ['en español', 'in spanish', 'spanish please']):
         return "es"
-    elif french_count > 0:
+    elif any(phrase in text_lower for phrase in ['en français', 'in french', 'french please']):
         return "fr"
-    else:
-        return "en"
+    elif any(phrase in text_lower for phrase in ['em português', 'in portuguese', 'portuguese please']):
+        return "pt"
+    
+    # For now, always default to English to fix the Portuguese issue
+    return "en"
 
 def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: str) -> str:
     """Build context for Maria's responses"""

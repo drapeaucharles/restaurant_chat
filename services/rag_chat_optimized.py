@@ -18,6 +18,7 @@ from services.mia_chat_service_hybrid import (
 from services.embedding_service import embedding_service
 from services.response_length_manager import ResponseLengthManager
 from services.response_validator import response_validator
+from services.allergen_service import allergen_service
 from schemas.chat import ChatRequest, ChatResponse
 import models
 
@@ -41,6 +42,12 @@ class OptimizedRAGChat:
         # For greetings, no context needed
         if query_type == QueryType.GREETING:
             return "", 0
+        
+        # Check if this is an allergen/dietary query
+        query_lower = query.lower()
+        is_allergen_query = any(word in query_lower for word in [
+            'allerg', 'nut', 'dairy', 'gluten', 'shellfish', 'vegetarian', 'vegan'
+        ])
         
         # Get only the most relevant items via semantic search
         relevant_items = self.embedding_service.search_similar_items(
@@ -81,8 +88,32 @@ class OptimizedRAGChat:
             else:
                 return "\nPlease check our full menu for available items.", 0
         
-        # Use validator to create context with only real items
-        validated_context = response_validator.create_validated_context(db, restaurant_id, relevant_items)
+        # Check if allergen info needed
+        if is_allergen_query:
+            # Handle dietary/allergen queries specially
+            if any(word in query_lower for word in ['nut free', 'no nuts', 'nut allerg']):
+                suitable_items = allergen_service.get_items_for_dietary_need(db, restaurant_id, 'nut-free')
+                validated_context = f"\nNut-free options:\n"
+                for item in suitable_items[:self.max_context_items]:
+                    validated_context += f"• {item['name']} ({item['price']}) - {item['category']}\n"
+            elif any(word in query_lower for word in ['dairy free', 'no dairy', 'lactose']):
+                suitable_items = allergen_service.get_items_for_dietary_need(db, restaurant_id, 'dairy-free')
+                validated_context = f"\nDairy-free options:\n"
+                for item in suitable_items[:self.max_context_items]:
+                    validated_context += f"• {item['name']} ({item['price']}) - {item['category']}\n"
+            elif 'vegetarian' in query_lower:
+                suitable_items = allergen_service.get_items_for_dietary_need(db, restaurant_id, 'vegetarian')
+                validated_context = f"\nVegetarian options:\n"
+                for item in suitable_items[:self.max_context_items]:
+                    validated_context += f"• {item['name']} ({item['price']}) - {item['category']}\n"
+            else:
+                # Use validator with allergen info
+                validated_context = response_validator.create_validated_context(
+                    db, restaurant_id, relevant_items, include_allergens=True
+                )
+        else:
+            # Use validator to create context with only real items
+            validated_context = response_validator.create_validated_context(db, restaurant_id, relevant_items)
         
         # Add total count info
         total_count = db.execute(text("""
@@ -120,6 +151,8 @@ def get_optimized_prompt(business_name: str, query_type: QueryType, language: st
         prompt += "Show matching items from the context. If none match, politely say it's not available.\n"
     elif query_type == QueryType.DIETARY:
         prompt += "Only recommend items from the context that match dietary needs.\n"
+        prompt += "If asked about allergens, be clear about what items contain or don't contain.\n"
+        prompt += "Always mention if an item contains common allergens like nuts, dairy, or gluten.\n"
     elif query_type == QueryType.RECOMMENDATION:
         prompt += "Suggest 3-5 items FROM THE CONTEXT with brief reasons.\n"
     elif query_type == QueryType.MENU_QUERY:

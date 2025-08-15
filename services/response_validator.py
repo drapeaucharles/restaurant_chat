@@ -6,6 +6,7 @@ import logging
 from typing import List, Dict, Set, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from .allergen_service import allergen_service
 
 logger = logging.getLogger(__name__)
 
@@ -131,8 +132,8 @@ class ResponseValidator:
         return similar
     
     def create_validated_context(self, db: Session, restaurant_id: str, 
-                               relevant_items: List[Dict]) -> str:
-        """Create context with only validated items"""
+                               relevant_items: List[Dict], include_allergens: bool = False) -> str:
+        """Create context with only validated items and optional allergen info"""
         
         # Get actual menu for validation
         actual_menu = self.get_actual_menu_items(db, restaurant_id)
@@ -161,6 +162,16 @@ class ResponseValidator:
             if item.get('description'):
                 desc = item['description'][:50] + "..." if len(item['description']) > 50 else item['description']
                 context += f" - {desc}"
+            
+            # Add allergen info if requested
+            if include_allergens:
+                allergen_info = allergen_service.get_allergen_info(
+                    db, restaurant_id, item['name']
+                )
+                if allergen_info.get('found') and allergen_info.get('allergens'):
+                    warning = allergen_service.format_allergen_warning(allergen_info['allergens'])
+                    context += f" {warning}"
+            
             context += "\n"
         
         context += "\n⚠️ IMPORTANT: Only mention items listed above. Do NOT invent or guess other items."
