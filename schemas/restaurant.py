@@ -161,4 +161,5 @@ class RestaurantProfileUpdate(BaseModel):
     faq: Optional[List[FAQItem]] = None
     whatsapp_number: Optional[str] = None
     restaurant_categories: Optional[List[str]] = None
+    rag_mode: Optional[str] = Field(None, description="AI chat mode: 'optimized', 'enhanced_v2', 'enhanced_v3', 'hybrid_smart', 'hybrid_smart_memory'")
 

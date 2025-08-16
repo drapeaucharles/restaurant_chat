@@ -220,7 +220,8 @@ def get_restaurant_profile(
         "faq": current_restaurant.data.get("faq", []),
         "opening_hours": current_restaurant.data.get("opening_hours"),
         "whatsapp_number": current_restaurant.whatsapp_number,
-        "restaurant_categories": getattr(current_restaurant, 'restaurant_categories', None) or []
+        "restaurant_categories": getattr(current_restaurant, 'restaurant_categories', None) or [],
+        "rag_mode": getattr(current_restaurant, 'rag_mode', 'hybrid_smart')
     }
 
 
@@ -259,6 +260,14 @@ def update_restaurant_profile_new(
     # Update restaurant categories if provided (when column exists)
     if hasattr(payload, 'restaurant_categories') and hasattr(current_owner, 'restaurant_categories'):
         current_owner.restaurant_categories = payload.restaurant_categories
+    
+    # Update RAG mode if provided
+    if payload.rag_mode and hasattr(current_owner, 'rag_mode'):
+        valid_modes = ['optimized', 'enhanced_v2', 'enhanced_v3', 'hybrid_smart', 'hybrid_smart_memory']
+        if payload.rag_mode in valid_modes:
+            current_owner.rag_mode = payload.rag_mode
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid RAG mode. Must be one of: {', '.join(valid_modes)}")
     
     # Commit changes to database
     db.commit()

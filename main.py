@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 
 from database import engine
 import models
-from routes import auth, restaurant, chat_enhanced, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version, embeddings, migration, db_management, embeddings_admin
+from routes import auth, restaurant, chat_dynamic, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version, embeddings, migration, db_management, embeddings_admin
 
 # Load environment variables
 load_dotenv()
@@ -207,7 +207,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # IMPORTANT: Order matters! Enhanced chat must come before chats to take precedence
 app.include_router(auth.router)
 app.include_router(restaurant.router)
-app.include_router(chat_enhanced.router)  # Enhanced chat with improved AI - handles /chat
+app.include_router(chat_dynamic.router)  # Dynamic chat with restaurant-specific AI mode - handles /chat
 app.include_router(clients.router)  # New client management router
 app.include_router(chats.router, prefix="/chat")  # Chat management - handles /chat/logs/*, etc
 app.include_router(whatsapp.router)  # WhatsApp integration routes
