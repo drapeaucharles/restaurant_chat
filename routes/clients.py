@@ -10,7 +10,7 @@ from auth import get_current_restaurant
 from database import get_db
 import models
 from schemas.client import ClientCreateRequest, ClientResponse
-from services.chat_service import get_or_create_client  # Add this import
+from services.mia_chat_service_hybrid import get_or_create_client
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
