@@ -44,6 +44,14 @@ elif USE_RAG and RAG_MODE == "enhanced_v2":
     except ImportError:
         logger.warning("Enhanced RAG V2 not available, falling back to standard")
         chat_service = rag_enhanced_chat_service
+elif USE_RAG and RAG_MODE == "hybrid_smart":
+    try:
+        from services.rag_chat_hybrid_smart import smart_hybrid_rag
+        chat_service = smart_hybrid_rag
+        logger.info("Using HYBRID SMART RAG (automatic complexity detection)")
+    except ImportError:
+        logger.warning("Hybrid Smart RAG not available, falling back to optimized")
+        chat_service = optimized_rag_service if 'optimized_rag_service' in locals() else mia_chat_service_hybrid
 elif USE_RAG:
     chat_service = rag_enhanced_chat_service
 else:

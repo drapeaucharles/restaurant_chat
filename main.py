@@ -222,6 +222,10 @@ app.include_router(embeddings_admin.router)  # Embeddings admin endpoints
 app.include_router(migration.router)  # Migration endpoints
 app.include_router(db_management.router)  # Database management endpoints
 
+# Admin management endpoints
+from routes import admin_management
+app.include_router(admin_management.router)  # Admin management endpoints
+
 # Health check endpoints
 @app.get("/")
 def root():
