@@ -230,6 +230,10 @@ app.include_router(admin_management.router)  # Admin management endpoints
 from routes import simple_admin
 app.include_router(simple_admin.router)  # Simple admin endpoints
 
+# Complete admin delete endpoints
+from routes import complete_admin_delete
+app.include_router(complete_admin_delete.router)  # Complete admin delete
+
 # Health check endpoints
 @app.get("/")
 def root():
