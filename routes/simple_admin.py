@@ -31,21 +31,48 @@ def simple_delete_restaurant(
         raise HTTPException(status_code=400, detail="Cannot delete admin")
     
     try:
-        # Simple deletion approach
-        # Delete from related tables first (in correct order for foreign keys)
-        db.execute(text("DELETE FROM menu_embeddings WHERE restaurant_id = :rid"), {"rid": restaurant_id})
-        db.execute(text("DELETE FROM chat_messages WHERE restaurant_id = :rid"), {"rid": restaurant_id})
+        # Get restaurant info first
+        restaurant = db.query(models.Restaurant).filter(
+            models.Restaurant.restaurant_id == restaurant_id
+        ).first()
         
-        # Delete chat_logs before clients (foreign key constraint)
-        db.execute(text("DELETE FROM chat_logs WHERE client_id IN (SELECT id FROM clients WHERE restaurant_id = :rid)"), {"rid": restaurant_id})
-        db.execute(text("DELETE FROM clients WHERE restaurant_id = :rid"), {"rid": restaurant_id})
+        if not restaurant:
+            return {"success": False, "message": f"Restaurant {restaurant_id} not found"}
         
-        # Delete restaurant
-        db.execute(text("DELETE FROM restaurants WHERE restaurant_id = :rid"), {"rid": restaurant_id})
+        # Comprehensive deletion in correct order for all foreign keys
+        # 1. Delete embeddings
+        deleted_embeddings = db.execute(text("DELETE FROM menu_embeddings WHERE restaurant_id = :rid"), {"rid": restaurant_id})
         
+        # 2. Delete chat messages
+        deleted_messages = db.execute(text("DELETE FROM chat_messages WHERE restaurant_id = :rid"), {"rid": restaurant_id})
+        
+        # 3. Delete chat_logs (must be before clients due to foreign key)
+        deleted_logs = db.execute(text("""
+            DELETE FROM chat_logs 
+            WHERE client_id IN (
+                SELECT id FROM clients WHERE restaurant_id = :rid
+            )
+        """), {"rid": restaurant_id})
+        
+        # 4. Delete clients
+        deleted_clients = db.execute(text("DELETE FROM clients WHERE restaurant_id = :rid"), {"rid": restaurant_id})
+        
+        # 5. Finally delete the restaurant
+        db.delete(restaurant)
+        
+        # Commit all changes
         db.commit()
         
-        return {"success": True, "message": f"Deleted {restaurant_id}"}
+        return {
+            "success": True, 
+            "message": f"Deleted {restaurant_id}",
+            "deleted_counts": {
+                "embeddings": deleted_embeddings.rowcount,
+                "messages": deleted_messages.rowcount,
+                "logs": deleted_logs.rowcount,
+                "clients": deleted_clients.rowcount
+            }
+        }
         
     except Exception as e:
         db.rollback()
