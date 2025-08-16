@@ -12,7 +12,7 @@ import models
 from schemas.chat import ChatMessageCreate, ChatMessageResponse
 from auth import get_current_restaurant
 from schemas.chat import ToggleAIRequest
-from services.chat_service import get_or_create_client
+from services.mia_chat_service_hybrid import get_or_create_client
 
 
 router = APIRouter(tags=["chat-management"])
