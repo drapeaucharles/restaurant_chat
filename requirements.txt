@@ -11,6 +11,7 @@ python-multipart
 pydantic[email]
 slowapi
 requests
+httpx
 pydub
 fastapi[websockets]
 websockets
