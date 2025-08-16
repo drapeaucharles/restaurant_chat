@@ -135,7 +135,10 @@ def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
 @router.get("/list")
 def list_restaurants(db: Session = Depends(get_db)):
     """List all restaurants (public endpoint) with processed menu structure."""
-    restaurants = db.query(models.Restaurant).all()
+    # Exclude admin account from restaurant list
+    restaurants = db.query(models.Restaurant).filter(
+        models.Restaurant.role != "admin"
+    ).all()
     return [
         {
             "restaurant_id": r.restaurant_id,
