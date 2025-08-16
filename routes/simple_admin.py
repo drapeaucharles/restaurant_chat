@@ -32,9 +32,12 @@ def simple_delete_restaurant(
     
     try:
         # Simple deletion approach
-        # Delete from related tables first
+        # Delete from related tables first (in correct order for foreign keys)
         db.execute(text("DELETE FROM menu_embeddings WHERE restaurant_id = :rid"), {"rid": restaurant_id})
         db.execute(text("DELETE FROM chat_messages WHERE restaurant_id = :rid"), {"rid": restaurant_id})
+        
+        # Delete chat_logs before clients (foreign key constraint)
+        db.execute(text("DELETE FROM chat_logs WHERE client_id IN (SELECT id FROM clients WHERE restaurant_id = :rid)"), {"rid": restaurant_id})
         db.execute(text("DELETE FROM clients WHERE restaurant_id = :rid"), {"rid": restaurant_id})
         
         # Delete restaurant
