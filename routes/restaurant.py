@@ -19,6 +19,27 @@ from services.file_service import save_upload_file, delete_upload_file
 from services.embedding_service import embedding_service
 
 
+def get_embedding_status(db: Session, restaurant_id: str):
+    """Get embedding status for a restaurant"""
+    try:
+        # Count embeddings
+        result = db.execute(text("""
+            SELECT COUNT(*) as count 
+            FROM menu_embeddings 
+            WHERE restaurant_id = :restaurant_id
+        """), {'restaurant_id': restaurant_id}).fetchone()
+        
+        embedding_count = result.count if result else 0
+        return {
+            "has_embeddings": embedding_count > 0,
+            "embedding_count": embedding_count
+        }
+    except:
+        return {
+            "has_embeddings": False,
+            "embedding_count": 0
+        }
+
 def process_menu_for_response(menu_data):
     """Process menu data for API responses, ensuring new structure compatibility."""
     if not menu_data:
@@ -89,15 +110,25 @@ def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     
+    # Get embedding status
+    embedding_status = get_embedding_status(db, restaurant_id)
+    menu_data = restaurant.data.get("menu", [])
+    
     return {
         "restaurant_id": restaurant.restaurant_id,
         "name": restaurant.data.get("name"),
         "story": restaurant.data.get("story"),
-        "menu": process_menu_for_response(restaurant.data.get("menu", [])),
+        "menu": process_menu_for_response(menu_data),
         "faq": restaurant.data.get("faq", []),
         "opening_hours": restaurant.data.get("opening_hours"),
         "whatsapp_number": restaurant.whatsapp_number,
-        "restaurant_categories": getattr(restaurant, 'restaurant_categories', None) or []
+        "restaurant_categories": getattr(restaurant, 'restaurant_categories', None) or [],
+        "embedding_status": {
+            "indexed": embedding_status["has_embeddings"],
+            "embedding_count": embedding_status["embedding_count"],
+            "menu_count": len(menu_data),
+            "sync_needed": len(menu_data) != embedding_status["embedding_count"]
+        }
     }
 
 
@@ -354,11 +385,22 @@ def delete_restaurant(
     """Delete current restaurant (protected endpoint - owner only)."""
     restaurant_id = current_owner.restaurant_id
     
+    # Delete embeddings first
+    try:
+        db.execute(text("""
+            DELETE FROM menu_embeddings 
+            WHERE restaurant_id = :restaurant_id
+        """), {'restaurant_id': restaurant_id})
+        print(f"✅ Deleted embeddings for restaurant {restaurant_id}")
+    except Exception as e:
+        print(f"Warning: Failed to delete embeddings: {e}")
+    
     # Delete the restaurant from the database
     db.delete(current_owner)
     db.commit()
     
     return {
-        "message": f"Restaurant {restaurant_id} deleted successfully"
+        "message": f"Restaurant {restaurant_id} deleted successfully",
+        "embeddings_cleaned": True
     }
 

@@ -1,11 +1,15 @@
 # services/restaurant_service.py
 
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from fastapi import HTTPException
 import models
-from pinecone_utils import insert_restaurant_data, index_menu_items
+from services.embedding_service import embedding_service
 from schemas.restaurant import RestaurantCreateRequest
 from auth import hash_password
+import logging
+
+logger = logging.getLogger(__name__)
 
 KNOWN_ALLERGENS = {"milk", "peanuts", "egg", "wheat", "soy", "fish", "shellfish", "tree nuts", "sesame", "mustard"}
 
@@ -186,19 +190,21 @@ def create_restaurant_service(req: RestaurantCreateRequest, db: Session):
             detail=f"Database error: {str(e)}"
         )
 
-    # Inject into Pinecone (only for owners, not staff)
-    if restaurant.role == "owner":
+    # Create embeddings for menu items (only for owners, not staff)
+    if restaurant.role == "owner" and data.get("menu"):
         try:
-            # Insert restaurant data for general context
-            insert_restaurant_data(req.restaurant_id, data)
-            
-            # Index individual menu items for semantic search
-            if data.get("menu"):
-                indexed_count = index_menu_items(req.restaurant_id, data["menu"])
-                print(f"✅ Indexed {indexed_count} menu items for restaurant {req.restaurant_id}")
+            # Index menu items for semantic search using HuggingFace
+            indexed_count = embedding_service.index_restaurant_menu(
+                db=db,
+                restaurant_id=req.restaurant_id,
+                menu_items=data["menu"]
+            )
+            db.commit()
+            logger.info(f"✅ Created {indexed_count} embeddings for restaurant {req.restaurant_id}")
         except Exception as e:
-            print(f"Warning: Pinecone insertion failed: {e}")
-            # Don't fail the entire operation for Pinecone issues
+            logger.error(f"Warning: Embedding creation failed: {e}")
+            # Don't fail the entire operation for embedding issues
+            db.rollback()
 
     return {
         "message": "Restaurant registered successfully",
