@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from schemas.chat import ChatRequest, ChatResponse
 from services.rag_chat_optimized import optimized_rag_service
 from services.rag_chat_enhanced_v3 import enhanced_rag_chat_v3
-from services.conversation_memory_enhanced import enhanced_conversation_memory
+from services.conversation_memory_enhanced_fixed import enhanced_conversation_memory
 from services.mia_chat_service_hybrid import detect_language
 import re
 
