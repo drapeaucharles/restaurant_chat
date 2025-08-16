@@ -11,7 +11,12 @@ from datetime import datetime
 from database import get_db
 from schemas.speech import SpeechToTextResponse
 from schemas.chat import ChatRequest
-from services.chat_service import chat_service
+# Import the current chat service based on configuration
+import os
+if os.getenv("USE_RAG", "true").lower() == "true" and os.getenv("RAG_MODE", "optimized") == "optimized":
+    from services.rag_chat_optimized import optimized_rag_service as chat_service
+else:
+    from services.mia_chat_service_hybrid import mia_chat_service_hybrid as chat_service
 from models import ChatMessage
 
 router = APIRouter(tags=["speech"])

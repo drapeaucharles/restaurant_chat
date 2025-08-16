@@ -21,7 +21,7 @@ from pydub import AudioSegment
 # Import database and models
 from database import get_db
 import models
-from services.chat_service import get_or_create_client
+from services.mia_chat_service_hybrid import get_or_create_client
 
 router = APIRouter(tags=["smartlamp"])
 
