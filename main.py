@@ -226,6 +226,10 @@ app.include_router(db_management.router)  # Database management endpoints
 from routes import admin_management
 app.include_router(admin_management.router)  # Admin management endpoints
 
+# Simple admin endpoints
+from routes import simple_admin
+app.include_router(simple_admin.router)  # Simple admin endpoints
+
 # Health check endpoints
 @app.get("/")
 def root():
