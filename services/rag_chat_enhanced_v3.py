@@ -20,7 +20,7 @@ from services.allergen_service import allergen_service
 from services.context_enrichment import context_enrichment
 from services.confidence_scorer import confidence_scorer
 from services.semantic_cache import semantic_cache
-from services.conversation_memory_enhanced import enhanced_conversation_memory
+from services.conversation_memory_enhanced_fixed import enhanced_conversation_memory
 from services.context_formatter import context_formatter, ContextSection
 from schemas.chat import ChatRequest, ChatResponse
 import models

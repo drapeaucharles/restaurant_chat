@@ -1,6 +1,6 @@
 """
-Smart Hybrid RAG Service with Conversation Memory
-Combines automatic complexity routing with conversation tracking
+Smart Hybrid RAG Service with Conversation Memory V2
+Improved handling of personal interactions and context
 """
 import logging
 from typing import Dict, List, Optional
@@ -8,17 +8,29 @@ from sqlalchemy.orm import Session
 from schemas.chat import ChatRequest, ChatResponse
 from services.rag_chat_optimized import optimized_rag_service
 from services.rag_chat_enhanced_v3 import enhanced_rag_chat_v3
-from services.conversation_memory_enhanced_fixed import enhanced_conversation_memory
+from services.conversation_memory_enhanced import enhanced_conversation_memory
 from services.mia_chat_service_hybrid import detect_language
 import re
 
 logger = logging.getLogger(__name__)
 
-class SmartHybridWithMemoryRAG:
-    """Intelligently routes queries with full conversation memory support"""
+class SmartHybridWithMemoryRAGV2:
+    """Intelligently routes queries with improved personal interaction handling"""
     
     def __init__(self):
-        # Reuse complexity patterns from original hybrid_smart
+        # Patterns that indicate personal/social interaction (should use enhanced)
+        self.personal_patterns = [
+            r'\bmy name is\b',
+            r'\bi am\b',
+            r'\bcall me\b',
+            r'\bremember\b',
+            r'\bdo you know\b',
+            r'\bhow are you\b',
+            r'\bnice to meet\b',
+            r'\bplease\b.*\b(call|refer|address)\b',
+        ]
+        
+        # Complex query indicators
         self.complexity_indicators = {
             'multi_dietary': [
                 r'vegetarian.*(?:but|and|also).*(?:nut|dairy|gluten)',
@@ -47,42 +59,49 @@ class SmartHybridWithMemoryRAG:
                 r'\?.*\?',  # Multiple question marks
                 r'(?:first|second|third|finally)',
             ],
-            'non_food': [
-                r'(?:weather|time|location|direction)',
-                r'(?:joke|poem|song|story)',
-                r'(?:meaning of|philosophy|life)',
-                r'(?:dragon|unicorn|alien|robot)',
+            'personal_request': [
+                r'(?:remember|know).*(?:me|my|i)',
+                r'(?:call|address|refer).*(?:me|my)',
+                r'(?:prefer|like|want).*(?:to be called)',
             ]
         }
         
-        # Simple query patterns (use optimized)
+        # Simple query patterns (use optimized ONLY if truly simple)
         self.simple_patterns = [
-            r'^(?:hi|hello|hey|bonjour|ciao|hola)',
-            r'^(?:menu|what.*have|show.*dishes)',
-            r'^(?:hours|open|closed)',
-            r'^(?:phone|number|contact)',
-            r'^(?:where|location|address)',
-            r'^(?:price|cost|how much).*(?:is|are|for)\s+(?:the|a)\s+\w+',  # Price for specific item
-            r'^(?:delivery|takeout|pickup)',
-            r'^(?:thank|bye|goodbye)',
+            r'^(?:hi|hello|hey)$',  # ONLY simple greeting without additional text
+            r'^(?:menu|show menu)$',
+            r'^(?:hours|open|closed)\??$',
+            r'^(?:phone|number|contact)\??$',
+            r'^(?:where|location|address)\??$',
+            r'^(?:delivery|takeout|pickup)\??$',
+            r'^(?:thank|thanks|bye|goodbye)$',
         ]
         
         # Initialize services
         self.optimized_service = optimized_rag_service
-        self.enhanced_service = enhanced_rag_chat_v3  # v3 has memory built-in
+        self.enhanced_service = enhanced_rag_chat_v3
         self.memory = enhanced_conversation_memory
     
     def analyze_complexity_with_memory(self, message: str, client_id: str, restaurant_id: str) -> Dict[str, any]:
-        """Analyze query complexity considering conversation history"""
+        """Analyze query complexity with better personal interaction detection"""
         message_lower = message.lower().strip()
         
-        # First check conversation memory for context needs
+        # First, check for personal/social patterns - these ALWAYS need enhanced
+        for pattern in self.personal_patterns:
+            if re.search(pattern, message_lower):
+                return {
+                    'is_complex': True,
+                    'mode': 'enhanced_v3',
+                    'reason': ['personal_interaction'],
+                    'confidence': 0.95
+                }
+        
+        # Check conversation memory for context needs
         conversation_history = self.memory.recall(client_id, restaurant_id)
         has_recent_context = len(conversation_history) > 0
         
-        # Check if this query references previous conversation
+        # If asking about something ambiguous with history, need enhanced
         if has_recent_context and self.memory.should_clarify_context(client_id, restaurant_id, message):
-            # This query needs context, use enhanced
             return {
                 'is_complex': True,
                 'mode': 'enhanced_v3',
@@ -90,17 +109,20 @@ class SmartHybridWithMemoryRAG:
                 'confidence': 0.9
             }
         
-        # Check if it's a simple query first
+        # Check if it's TRULY a simple query (exact match only)
         for pattern in self.simple_patterns:
             if re.search(pattern, message_lower):
-                # Even simple queries might need context
-                if has_recent_context and any(word in message_lower for word in ['more', 'another', 'else', 'other']):
-                    return {
-                        'is_complex': True,
-                        'mode': 'enhanced_v3',
-                        'reason': ['simple_with_context'],
-                        'confidence': 0.8
-                    }
+                # But if there's recent context about preferences, still use enhanced
+                if has_recent_context:
+                    recent_preferences = self.memory.extract_preferences(conversation_history)
+                    if recent_preferences.get('dietary_restrictions') or recent_preferences.get('favorite_categories'):
+                        return {
+                            'is_complex': True,
+                            'mode': 'enhanced_v3',
+                            'reason': ['simple_with_preferences'],
+                            'confidence': 0.8
+                        }
+                
                 return {
                     'is_complex': False,
                     'mode': 'optimized',
@@ -119,8 +141,13 @@ class SmartHybridWithMemoryRAG:
                     detected_types.append(complexity_type)
                     break
         
-        # Check message length (long questions often need detailed answers)
-        if len(message) > 100:
+        # Any greeting with additional content is complex
+        if re.search(r'^(?:hi|hello|hey)', message_lower) and len(message.split()) > 3:
+            complexity_score += 1
+            detected_types.append('greeting_plus')
+        
+        # Check message length
+        if len(message) > 50:
             complexity_score += 1
             detected_types.append('long_query')
         
@@ -129,48 +156,37 @@ class SmartHybridWithMemoryRAG:
             complexity_score += 1
             detected_types.append('multi_sentence')
         
-        # Consider conversation history in complexity scoring
+        # Consider conversation history
         if has_recent_context:
-            # Extract topics from history
-            topics = self.memory.extract_topics(conversation_history)
-            if topics:
-                complexity_score += 0.5  # Slight boost for having context
-                detected_types.append('has_context')
+            complexity_score += 0.5
+            detected_types.append('has_context')
         
-        # Determine mode based on complexity
-        if complexity_score >= 2:
+        # Lower threshold for using enhanced mode
+        if complexity_score >= 1:
             return {
                 'is_complex': True,
                 'mode': 'enhanced_v3',
                 'reason': detected_types,
                 'confidence': min(0.9, 0.5 + complexity_score * 0.1)
             }
-        elif complexity_score >= 1:
-            # Borderline case - use enhanced for certain types
-            if any(t in detected_types for t in ['multi_dietary', 'cultural_educational', 'follow_up', 'has_context']):
-                return {
-                    'is_complex': True,
-                    'mode': 'enhanced_v3',
-                    'reason': detected_types,
-                    'confidence': 0.7
-                }
         
+        # Default to optimized only for very simple cases
         return {
             'is_complex': False,
             'mode': 'optimized',
             'reason': 'default',
-            'confidence': 0.8
+            'confidence': 0.7
         }
     
     def __call__(self, req: ChatRequest, db: Session) -> ChatResponse:
-        """Process request with smart routing and conversation memory"""
+        """Process request with improved routing"""
         # Analyze query complexity with memory context
         analysis = self.analyze_complexity_with_memory(
             req.message, req.client_id, req.restaurant_id
         )
         
         # Log the routing decision
-        logger.info(f"Smart routing with memory: {analysis['mode']} (reason: {analysis.get('reason', 'default')})")
+        logger.info(f"Smart routing V2: {analysis['mode']} (reason: {analysis.get('reason', 'default')})")
         
         # Route to appropriate service
         if analysis['mode'] == 'enhanced_v3':
@@ -180,18 +196,24 @@ class SmartHybridWithMemoryRAG:
             # Use optimized service
             response = self.optimized_service(req, db)
             
-            # Even with optimized, we should store in memory for future context
-            # Extract response text
+            # Store in conversation memory even for optimized
             response_text = response.answer if hasattr(response, 'answer') else str(response)
             
-            # Store in conversation memory
+            # Extract any personal information from the query
+            metadata = {'mode': 'optimized', 'complexity': analysis}
+            
+            # Check if user introduced themselves
+            name_match = re.search(r'my name is (\w+)', req.message.lower())
+            if name_match:
+                metadata['customer_name'] = name_match.group(1).capitalize()
+            
             self.memory.remember(
                 req.client_id, req.restaurant_id,
                 req.message, response_text,
-                {'mode': 'optimized', 'complexity': analysis}
+                metadata
             )
         
-        # Add routing info to help monitor
+        # Add routing info
         if hasattr(response, 'metadata'):
             response.metadata = {
                 'mode': analysis['mode'], 
@@ -202,27 +224,4 @@ class SmartHybridWithMemoryRAG:
         return response
 
 # Singleton instance
-smart_hybrid_memory_rag = SmartHybridWithMemoryRAG()
-
-# Cost calculator for hybrid + memory
-def estimate_hybrid_memory_costs(monthly_queries: int = 10000):
-    """Estimate costs with hybrid + memory approach"""
-    # Assume 70% simple (optimized), 30% complex (enhanced_v3)
-    # Slightly more complex due to memory context
-    simple_queries = int(monthly_queries * 0.7)
-    complex_queries = int(monthly_queries * 0.3)
-    
-    # Costs
-    optimized_cost = 0.0018  # per query
-    enhanced_cost = 0.006    # per query
-    
-    total_cost = (simple_queries * optimized_cost) + (complex_queries * enhanced_cost)
-    
-    print(f"Hybrid + Memory Cost Analysis for {monthly_queries:,} queries/month:")
-    print(f"- Simple queries (70%): {simple_queries:,} × ${optimized_cost} = ${simple_queries * optimized_cost:.2f}")
-    print(f"- Complex queries (30%): {complex_queries:,} × ${enhanced_cost} = ${complex_queries * enhanced_cost:.2f}")
-    print(f"- Total monthly cost: ${total_cost:.2f}")
-    print(f"- vs All optimized: ${monthly_queries * optimized_cost:.2f}")
-    print(f"- vs All enhanced: ${monthly_queries * enhanced_cost:.2f}")
-    print(f"- Savings vs all enhanced: ${(monthly_queries * enhanced_cost) - total_cost:.2f} ({((monthly_queries * enhanced_cost) - total_cost) / (monthly_queries * enhanced_cost) * 100:.1f}%)")
-    print(f"\nKey benefit: Cost-efficient routing WITH full conversation memory!")
+smart_hybrid_memory_rag_v2 = SmartHybridWithMemoryRAGV2()

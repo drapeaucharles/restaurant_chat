@@ -5,9 +5,9 @@
 ALTER TABLE restaurants 
 ADD COLUMN IF NOT EXISTS rag_mode VARCHAR(50) DEFAULT 'hybrid_smart_memory';
 
--- Update ALL existing restaurants to the new mode
+-- Update ALL existing restaurants to the new mode V2 (better personal handling)
 UPDATE restaurants 
-SET rag_mode = 'hybrid_smart_memory';
+SET rag_mode = 'hybrid_smart_memory_v2';
 
 -- Show the results
 SELECT 

@@ -58,6 +58,14 @@ try:
 except ImportError:
     logger.warning("Hybrid smart with memory RAG service not available")
 
+# Load hybrid smart with memory V2 service (improved personal handling)
+try:
+    from services.rag_chat_hybrid_smart_memory_v2 import smart_hybrid_memory_rag_v2
+    chat_services['hybrid_smart_memory_v2'] = smart_hybrid_memory_rag_v2
+    logger.info("Loaded hybrid smart with memory V2 RAG service")
+except ImportError:
+    logger.warning("Hybrid smart with memory V2 RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
