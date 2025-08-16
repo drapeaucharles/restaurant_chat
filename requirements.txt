@@ -12,6 +12,7 @@ pydantic[email]
 slowapi
 requests
 httpx
+openai>=1.0.0
 pydub
 fastapi[websockets]
 websockets
