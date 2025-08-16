@@ -135,8 +135,8 @@ def authenticate_restaurant(restaurant_id: str, password: str, db: Session) -> O
 
 
 def get_current_owner(current_restaurant: models.Restaurant = Depends(get_current_restaurant)):
-    """Get the current authenticated restaurant and ensure it's an owner."""
-    if current_restaurant.role != "owner":
+    """Get the current authenticated restaurant and ensure it's an owner or admin."""
+    if current_restaurant.role not in ["owner", "admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only owners can perform this action"
