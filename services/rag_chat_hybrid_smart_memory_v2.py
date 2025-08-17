@@ -161,8 +161,8 @@ class SmartHybridWithMemoryRAGV2:
             complexity_score += 0.5
             detected_types.append('has_context')
         
-        # Lower threshold for using enhanced mode
-        if complexity_score >= 1:
+        # Higher threshold for using enhanced mode (more conservative)
+        if complexity_score >= 2:
             return {
                 'is_complex': True,
                 'mode': 'enhanced_v3',
@@ -188,10 +188,14 @@ class SmartHybridWithMemoryRAGV2:
         # Log the routing decision
         logger.info(f"Smart routing V2: {analysis['mode']} (reason: {analysis.get('reason', 'default')})")
         
-        # Route to appropriate service
+        # Route to appropriate service with fallback
         if analysis['mode'] == 'enhanced_v3':
-            # Use enhanced service (which has memory built-in)
-            response = self.enhanced_service(req, db)
+            # Try enhanced service first, fall back to optimized if it fails
+            try:
+                response = self.enhanced_service(req, db)
+            except Exception as e:
+                logger.error(f"Enhanced service failed: {e}, falling back to optimized")
+                response = self.optimized_service(req, db)
         else:
             # Use optimized service
             response = self.optimized_service(req, db)

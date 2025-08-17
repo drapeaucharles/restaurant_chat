@@ -96,12 +96,18 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         
         logger.info(f"Restaurant {req.restaurant_id} using RAG mode: {rag_mode}")
         
-        # Select appropriate service
-        if rag_mode in chat_services:
+        # Select appropriate service with memory service bypass
+        # Temporary fix: avoid memory services that have Redis dependency issues
+        problematic_modes = ['hybrid_smart_memory', 'hybrid_smart_memory_v2']
+        
+        if rag_mode in problematic_modes:
+            logger.warning(f"Temporarily bypassing {rag_mode} due to memory service issues, using hybrid_smart")
+            chat_service = chat_services.get('hybrid_smart', chat_services.get('optimized', chat_services.get('fallback')))
+        elif rag_mode in chat_services:
             chat_service = chat_services[rag_mode]
         else:
             logger.warning(f"RAG mode '{rag_mode}' not available, falling back to hybrid_smart")
-            chat_service = chat_services.get('hybrid_smart', chat_services.get('fallback'))
+            chat_service = chat_services.get('hybrid_smart', chat_services.get('optimized', chat_services.get('fallback')))
         
         # Get or create client FIRST (before creating message)
         get_or_create_client(db, req.client_id, req.restaurant_id)
