@@ -74,6 +74,14 @@ try:
 except ImportError:
     logger.warning("Simple memory RAG service not available")
 
+# Load ultra simple service (absolutely minimal)
+try:
+    from services.rag_chat_ultra_simple import ultra_simple_rag
+    chat_services['ultra_simple'] = ultra_simple_rag
+    logger.info("Loaded ultra simple RAG service")
+except ImportError:
+    logger.warning("Ultra simple RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")

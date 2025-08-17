@@ -46,11 +46,11 @@ class SimpleMemoryRAG:
                 logger.info(f"Captured name: {client_memory['name']}")
             
             # Get restaurant info
-            restaurant = db.query(text("""
+            restaurant = db.execute(text("""
                 SELECT restaurant_id, data->>'name' as name
                 FROM restaurants 
                 WHERE restaurant_id = :rid
-            """)).params(rid=req.restaurant_id).first()
+            """), {"rid": req.restaurant_id}).first()
             
             if not restaurant:
                 return ChatResponse(
