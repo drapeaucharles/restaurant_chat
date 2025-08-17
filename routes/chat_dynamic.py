@@ -82,6 +82,22 @@ try:
 except ImportError:
     logger.warning("Ultra simple RAG service not available")
 
+# Load optimized with memory service
+try:
+    from services.rag_chat_optimized_with_memory import optimized_rag_with_memory
+    chat_services['optimized_with_memory'] = optimized_rag_with_memory
+    logger.info("Loaded optimized with memory RAG service")
+except ImportError:
+    logger.warning("Optimized with memory RAG service not available")
+
+# Load enhanced v3 with lazy Redis service
+try:
+    from services.rag_chat_enhanced_v3_lazy import enhanced_rag_chat_v3 as enhanced_v3_lazy
+    chat_services['enhanced_v3_lazy'] = enhanced_v3_lazy
+    logger.info("Loaded enhanced v3 lazy RAG service")
+except ImportError:
+    logger.warning("Enhanced v3 lazy RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
@@ -115,6 +131,7 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         # Select appropriate service
         if rag_mode in chat_services:
             chat_service = chat_services[rag_mode]
+            logger.info(f"Selected service: {rag_mode}")
         else:
             logger.warning(f"RAG mode '{rag_mode}' not available, falling back to hybrid_smart")
             chat_service = chat_services.get('hybrid_smart', chat_services.get('optimized', chat_services.get('fallback')))
