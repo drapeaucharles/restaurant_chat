@@ -2,7 +2,7 @@
 Enhanced conversation memory with lazy Redis import
 This version will work even if Redis is not installed
 """
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 import json
 import logging
