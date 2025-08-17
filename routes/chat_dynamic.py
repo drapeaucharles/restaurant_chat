@@ -66,6 +66,14 @@ try:
 except ImportError:
     logger.warning("Hybrid smart with memory V2 RAG service not available")
 
+# Load simple memory service (minimal dependencies)
+try:
+    from services.rag_chat_simple_memory import simple_memory_rag
+    chat_services['simple_memory'] = simple_memory_rag
+    logger.info("Loaded simple memory RAG service")
+except ImportError:
+    logger.warning("Simple memory RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
