@@ -116,15 +116,30 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         db.add(new_message)
         db.commit()
         
-        # Get AI response using selected service
-        response = chat_service(req, db)
-        
-        # Log which service was used
-        response_dict = response.dict() if hasattr(response, 'dict') else response
-        if isinstance(response_dict, dict) and 'answer' in response_dict:
-            logger.info(f"Response generated using {rag_mode} mode")
-        
-        return response
+        # Get AI response using selected service with fallback
+        try:
+            response = chat_service(req, db)
+            
+            # Log which service was used
+            response_dict = response.dict() if hasattr(response, 'dict') else response
+            if isinstance(response_dict, dict) and 'answer' in response_dict:
+                logger.info(f"Response generated using {rag_mode} mode")
+            
+            return response
+        except Exception as service_error:
+            logger.error(f"Service {rag_mode} failed: {service_error}")
+            logger.info("Falling back to MIA hybrid service")
+            
+            # Fallback to MIA hybrid service
+            try:
+                fallback_response = mia_chat_service_hybrid(req, db)
+                logger.info("Fallback service succeeded")
+                return fallback_response
+            except Exception as fallback_error:
+                logger.error(f"Fallback service also failed: {fallback_error}")
+                # Return a basic error response
+                from schemas.chat import ChatResponse
+                return ChatResponse(answer="I apologize, but I'm experiencing technical difficulties. Please try again later.")
         
     except HTTPException:
         raise
