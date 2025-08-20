@@ -259,3 +259,12 @@ async def get_memory_contents(restaurant_id: str, client_id: str):
         contents["best_local_store"] = "Import failed"
     
     return contents
+
+@router.get("/diagnostic/execution-log")
+async def get_execution_log():
+    """Get the last execution log from diagnostic service"""
+    try:
+        from services.rag_chat_memory_diagnostic import get_diagnostic_info
+        return get_diagnostic_info()
+    except Exception as e:
+        return {"error": str(e)}

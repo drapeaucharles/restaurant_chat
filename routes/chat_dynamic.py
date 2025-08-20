@@ -130,6 +130,14 @@ try:
 except ImportError:
     logger.warning("Fixed memory RAG service not available")
 
+# Load diagnostic memory version
+try:
+    from services.rag_chat_memory_diagnostic import diagnostic_memory_rag
+    chat_services['memory_diagnostic'] = diagnostic_memory_rag
+    logger.info("Loaded diagnostic memory RAG service")
+except ImportError:
+    logger.warning("Diagnostic memory RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
