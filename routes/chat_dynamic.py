@@ -154,6 +154,30 @@ try:
 except ImportError:
     logger.warning("Memory v3 RAG service not available")
 
+# Load memory v4 (v3 + allergen service)
+try:
+    from services.rag_chat_memory_v4 import working_memory_rag_v4
+    chat_services['memory_v4'] = working_memory_rag_v4
+    logger.info("Loaded memory v4 RAG service")
+except ImportError:
+    logger.warning("Memory v4 RAG service not available")
+
+# Load memory v5 (v4 + context formatter)
+try:
+    from services.rag_chat_memory_v5 import working_memory_rag_v5
+    chat_services['memory_v5'] = working_memory_rag_v5
+    logger.info("Loaded memory v5 RAG service")
+except ImportError:
+    logger.warning("Memory v5 RAG service not available")
+
+# Load memory v6 (v5 + extract_and_update_memory)
+try:
+    from services.rag_chat_memory_v6 import working_memory_rag_v6
+    chat_services['memory_v6'] = working_memory_rag_v6
+    logger.info("Loaded memory v6 RAG service")
+except ImportError:
+    logger.warning("Memory v6 RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
