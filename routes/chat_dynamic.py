@@ -98,6 +98,22 @@ try:
 except ImportError:
     logger.warning("Enhanced v3 lazy RAG service not available")
 
+# Load debug version
+try:
+    from services.rag_chat_enhanced_v3_debug import enhanced_rag_chat_v3_debug
+    chat_services['enhanced_v3_debug'] = enhanced_rag_chat_v3_debug
+    logger.info("Loaded enhanced v3 debug RAG service")
+except ImportError:
+    logger.warning("Enhanced v3 debug RAG service not available")
+
+# Load working memory version
+try:
+    from services.rag_chat_memory_working import working_memory_rag
+    chat_services['memory_working'] = working_memory_rag
+    logger.info("Loaded working memory RAG service")
+except ImportError:
+    logger.warning("Working memory RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
