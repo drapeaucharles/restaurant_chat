@@ -178,6 +178,14 @@ try:
 except ImportError:
     logger.warning("Memory v6 RAG service not available")
 
+# Load universal memory service (works for any business type)
+try:
+    from services.rag_chat_memory_universal import universal_memory_rag
+    chat_services['memory_universal'] = universal_memory_rag
+    logger.info("Loaded universal memory RAG service")
+except ImportError:
+    logger.warning("Universal memory RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
