@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 
 from database import engine
 import models
-from routes import auth, restaurant, chat_dynamic, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version, embeddings, migration, db_management, embeddings_admin, redis_check, memory_debug
+from routes import auth, restaurant, chat_dynamic, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version, embeddings, migration, db_management, embeddings_admin, redis_check, memory_debug, diagnostic
 
 # Load environment variables
 load_dotenv()
@@ -223,6 +223,7 @@ app.include_router(migration.router)  # Migration endpoints
 app.include_router(db_management.router)  # Database management endpoints
 app.include_router(redis_check.router)  # Redis check endpoint
 app.include_router(memory_debug.router)  # Memory debug endpoint
+app.include_router(diagnostic.router)  # Comprehensive diagnostic endpoint
 
 # Admin management endpoints
 from routes import admin_management
