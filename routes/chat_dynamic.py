@@ -122,6 +122,14 @@ try:
 except ImportError:
     logger.warning("Best memory RAG service not available")
 
+# Load fixed memory version
+try:
+    from services.rag_chat_memory_fixed import fixed_memory_rag
+    chat_services['memory_fixed'] = fixed_memory_rag
+    logger.info("Loaded fixed memory RAG service")
+except ImportError:
+    logger.warning("Fixed memory RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
