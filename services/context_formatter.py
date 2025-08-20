@@ -12,6 +12,7 @@ class ContextSection(Enum):
     CONVERSATION_HISTORY = "conversation_history"
     PREFERENCES = "preferences"
     INSTRUCTIONS = "instructions"
+    PERSONALIZATION = "personalization"
 
 class ContextFormatter:
     """Formats context clearly for AI understanding"""
@@ -23,7 +24,8 @@ class ContextFormatter:
             ContextSection.DIETARY_INFO: "🥗 DIETARY INFORMATION",
             ContextSection.CONVERSATION_HISTORY: "💬 PREVIOUS CONVERSATION",
             ContextSection.PREFERENCES: "⭐ CUSTOMER PREFERENCES",
-            ContextSection.INSTRUCTIONS: "📌 INSTRUCTIONS"
+            ContextSection.INSTRUCTIONS: "📌 INSTRUCTIONS",
+            ContextSection.PERSONALIZATION: "👤 CUSTOMER INFORMATION"
         }
     
     def format_context(self, sections: Dict[ContextSection, str]) -> str:
