@@ -114,6 +114,14 @@ try:
 except ImportError:
     logger.warning("Working memory RAG service not available")
 
+# Load best memory version (working + all features)
+try:
+    from services.rag_chat_memory_best import best_memory_rag
+    chat_services['memory_best'] = best_memory_rag
+    logger.info("Loaded best memory RAG service")
+except ImportError:
+    logger.warning("Best memory RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
