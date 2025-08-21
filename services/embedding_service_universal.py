@@ -222,7 +222,9 @@ class UniversalEmbeddingService:
                            limit: int = 5, threshold: float = 0.3) -> List[Dict]:
         """Search for similar products using embeddings"""
         if not self.model:
-            return []
+            # Fall back to text search when ML is not available
+            from services.text_search_service import text_search_service
+            return text_search_service.search_products(db, business_id, query, limit)
         
         try:
             # Get business type
