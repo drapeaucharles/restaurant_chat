@@ -14,8 +14,8 @@ from services.mia_chat_service_hybrid import (
     QueryType,
     get_hybrid_parameters
 )
-from services.embedding_service import embedding_service
-from services.response_validator import response_validator
+from services.embedding_service_universal import universal_embedding_service as embedding_service
+from services.response_validator_universal import universal_response_validator as response_validator
 from services.redis_helper import redis_client
 import models
 import re
