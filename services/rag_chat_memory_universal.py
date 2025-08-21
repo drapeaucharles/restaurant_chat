@@ -17,7 +17,7 @@ from services.mia_chat_service_hybrid import (
 from services.embedding_service_universal import universal_embedding_service as embedding_service
 from services.response_validator_universal import universal_response_validator as response_validator
 from services.redis_helper import redis_client
-import models
+from sqlalchemy import text
 import re
 import json
 from datetime import datetime
@@ -154,17 +154,23 @@ class UniversalMemoryRAG:
             query_type = QueryType.GENERAL
             language = "en"
         
-        # Get business info
-        business = db.query(models.Restaurant).filter(
-            models.Restaurant.restaurant_id == business_id
-        ).first()
+        # Get business info directly from businesses table
+        business_query = text("""
+            SELECT business_id, data, business_type, metadata 
+            FROM businesses 
+            WHERE business_id = :business_id
+        """)
+        result = db.execute(business_query, {"business_id": business_id}).fetchone()
         
-        if not business:
+        if not result:
             return ChatResponse(answer="Business not found.")
         
+        # Extract business info
+        business_id, business_data, business_type_db, metadata = result
+        business_data = business_data or {}
+        
         # Determine business type
-        business_data = business.data or {}
-        business_type = business_data.get('business_type', 'restaurant')  # Default to restaurant for compatibility
+        business_type = business_type_db or 'restaurant'  # Default to restaurant for compatibility
         business_name = business_data.get('name', 'our business')
         
         # Extract requirements based on business type
