@@ -31,7 +31,7 @@ curl -s -X POST "$API_URL/chat" \
   -d '{
     "restaurant_id": "bali-legal-consulting",
     "message": "I need a Remote Worker KITAS visa",
-    "client_id": "test_legal_123"
+    "client_id": "123e4567-e89b-12d3-a456-426614174000"
   }' | jq .
 
 echo -e "\n3b. Query: 'How much does the retirement visa cost?'"
@@ -40,7 +40,7 @@ curl -s -X POST "$API_URL/chat" \
   -d '{
     "restaurant_id": "bali-legal-consulting",
     "message": "How much does the retirement visa cost?",
-    "client_id": "test_legal_123"
+    "client_id": "123e4567-e89b-12d3-a456-426614174000"
   }' | jq .
 
 echo -e "\n3c. Query: 'What services do you offer?'"
@@ -49,7 +49,7 @@ curl -s -X POST "$API_URL/chat" \
   -d '{
     "restaurant_id": "bali-legal-consulting",
     "message": "What services do you offer?",
-    "client_id": "test_legal_123"
+    "client_id": "123e4567-e89b-12d3-a456-426614174000"
   }' | jq .
 
 echo -e "\n\nTest complete!"
