@@ -251,20 +251,37 @@ class UniversalMemoryRAG:
 Customer asked: {req.message}
 
 You should acknowledge that you know their name is {memory['name']} and use it in your response.
-Be friendly and professional."""
+Be friendly and professional. NEVER use placeholder text."""
         else:
+            # Build strong instructions to prevent placeholders
+            name_instruction = ""
+            if memory.get('name'):
+                name_instruction = f"The customer's name is {memory['name']}. Use it naturally in your response."
+            else:
+                name_instruction = "You don't know the customer's name yet. Start with a friendly greeting like 'Hello!' or 'Hi there!'"
+            
             prompt = f"""{context}
 
 Customer: {req.message}
 
-Instructions:
-- Be friendly and professional
-- If you know the customer's name, use it naturally (never use placeholders like [Customer's Name])
-- Never use brackets or placeholders like [Your Name] - speak naturally
-- Keep responses concise and helpful
-- Only mention items/services from the context
-- Adapt your tone to the business type ({business_type})
+CRITICAL INSTRUCTIONS:
+- {name_instruction}
+- NEVER EVER use placeholder text like [Customer's Name], [Your Name], [Business Name], etc.
+- NEVER use brackets [] in your response
+- If you don't know something, don't use a placeholder - just omit it or use generic language
+- Be natural and conversational
 - For legal/visa services, provide specific service information with prices when asked
+- Keep responses helpful and concise
+
+Examples of BAD responses (NEVER do this):
+- "Hello [Customer's Name]" 
+- "I'm [Your Name]"
+- "Welcome to [Business Name]"
+
+Examples of GOOD responses:
+- "Hello! I'd be happy to help with your visa inquiry."
+- "Hi there! For a 60-day stay, I recommend..."
+- "Good day! Let me help you with that visa question."
 
 Response:"""
         
