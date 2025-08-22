@@ -47,16 +47,16 @@ async def receive_whatsapp_message(
         print(f"💬 Message: '{message.message}'")
         print(f"🔗 Session ID: {message.session_id}")
         
-        # Find restaurant by session ID
-        restaurant = whatsapp_service.find_restaurant_by_session(message.session_id, db)
-        if not restaurant:
-            print(f"❌ No restaurant found for session: {message.session_id}")
+        # Find business by session ID (works for both restaurants and other businesses)
+        business = whatsapp_service.find_business_by_session(message.session_id, db)
+        if not business:
+            print(f"❌ No business found for session: {message.session_id}")
             return WhatsAppWebhookResponse(
                 success=False,
-                error="Restaurant not found for this session"
+                error="Business not found for this session"
             )
         
-        print(f"✅ Restaurant found: {restaurant.restaurant_id}")
+        print(f"✅ Business found: {business.get('business_id')}")
         
         # Generate consistent client ID from phone number
         client_id = whatsapp_service.generate_client_id_from_phone(message.from_number)
@@ -67,11 +67,12 @@ async def receive_whatsapp_message(
         
         # Ensure client exists with phone number
         from services.mia_chat_service_hybrid import get_or_create_client
-        client = get_or_create_client(db, client_id, restaurant.restaurant_id, message.from_number)
+        business_id = business.get('business_id')
+        client = get_or_create_client(db, client_id, business_id, message.from_number)
         print(f"✅ Client ensured with phone number: {client.id}")
         
         customer_message = models.ChatMessage(
-            restaurant_id=restaurant.restaurant_id,
+            restaurant_id=business_id,  # This field works for any business_id
             client_id=uuid.UUID(client_id),
             sender_type="client",
             message=message.message
@@ -83,7 +84,7 @@ async def receive_whatsapp_message(
         
         # Create chat request (table_id=None for WhatsApp as specified)
         chat_request = ChatRequest(
-            restaurant_id=restaurant.restaurant_id,
+            restaurant_id=business_id,  # This field works for any business_id
             client_id=uuid.UUID(client_id),
             message=message.message,
             sender_type='client'  # WhatsApp messages are always from clients

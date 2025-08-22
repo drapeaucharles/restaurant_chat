@@ -186,6 +186,14 @@ try:
 except ImportError:
     logger.warning("Universal memory RAG service not available")
 
+# Load enhanced memory service with preferences and summaries
+try:
+    from services.rag_chat_memory_enhanced import enhanced_memory_rag
+    chat_services['memory_enhanced'] = enhanced_memory_rag
+    logger.info("Loaded enhanced memory RAG service")
+except ImportError:
+    logger.warning("Enhanced memory RAG service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")

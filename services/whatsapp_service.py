@@ -267,6 +267,78 @@ class WhatsAppService:
             models.Restaurant.whatsapp_session_id == session_id
         ).first()
     
+    def find_business_by_session(self, session_id: str, db: Session) -> Optional[Dict[str, Any]]:
+        """
+        Find business by WhatsApp session ID (works for all business types)
+        """
+        from sqlalchemy import text
+        
+        # First check businesses table
+        business_query = text("""
+            SELECT business_id, name, business_type, phone, whatsapp_session_id
+            FROM businesses 
+            WHERE whatsapp_session_id = :session_id
+        """)
+        result = db.execute(business_query, {"session_id": session_id}).fetchone()
+        
+        if result:
+            return {
+                'business_id': result[0],
+                'name': result[1],
+                'business_type': result[2],
+                'phone': result[3],
+                'whatsapp_session_id': result[4]
+            }
+        
+        # Fallback to restaurants table for backward compatibility
+        restaurant = self.find_restaurant_by_session(session_id, db)
+        if restaurant:
+            return {
+                'business_id': restaurant.restaurant_id,
+                'name': restaurant.name,
+                'business_type': 'restaurant',
+                'phone': restaurant.phone,
+                'whatsapp_session_id': restaurant.whatsapp_session_id
+            }
+        
+        return None
+    
+    def find_business_by_phone(self, phone_number: str, db: Session) -> Optional[Dict[str, Any]]:
+        """
+        Find business by WhatsApp phone number (works for all business types)
+        """
+        from sqlalchemy import text
+        
+        # First check businesses table
+        business_query = text("""
+            SELECT business_id, name, business_type, phone, whatsapp_session_id
+            FROM businesses 
+            WHERE whatsapp_number = :phone_number
+        """)
+        result = db.execute(business_query, {"phone_number": phone_number}).fetchone()
+        
+        if result:
+            return {
+                'business_id': result[0],
+                'name': result[1],
+                'business_type': result[2],
+                'phone': result[3],
+                'whatsapp_session_id': result[4]
+            }
+        
+        # Fallback to restaurants table
+        restaurant = self.find_restaurant_by_phone(phone_number, db)
+        if restaurant:
+            return {
+                'business_id': restaurant.restaurant_id,
+                'name': restaurant.name,
+                'business_type': 'restaurant',
+                'phone': restaurant.phone,
+                'whatsapp_session_id': restaurant.whatsapp_session_id
+            }
+        
+        return None
+    
     def generate_client_id_from_phone(self, phone_number: str) -> str:
         """
         Generate a consistent client ID from phone number
