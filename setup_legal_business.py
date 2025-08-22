@@ -15,7 +15,7 @@ def setup_legal_business():
     
     try:
         # 1. Create the business
-        business_id = "bali_business_consulting"
+        business_id = "bali-legal-consulting"
         business_data = {
             "name": "Bali Business Consulting",
             "email": "info@balibusinessconsulting.com",

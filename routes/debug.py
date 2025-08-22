@@ -1,7 +1,10 @@
 """
 Debug endpoints to help troubleshoot deployment issues
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from database import get_db
+from pydantic import BaseModel
 
 router = APIRouter(tags=["debug"])
 
@@ -120,4 +123,88 @@ def test_pasta_context(restaurant_id: str):
         "pasta_items_found": len(pasta_found),
         "pasta_items": pasta_found[:10],
         "first_10_items": [f"{i}: {item.get('name') or item.get('dish', 'NO NAME')}" for i, item in enumerate(menu_items[:10])]
+    }
+
+
+class SearchDebugRequest(BaseModel):
+    business_id: str
+    query: str
+
+
+@router.post("/debug/search")
+def debug_search(req: SearchDebugRequest, db: Session = Depends(get_db)):
+    """Debug text search functionality"""
+    from services.text_search_service import text_search_service
+    from services.embedding_service_universal import universal_embedding_service
+    
+    # Check if ML is available
+    ml_available = universal_embedding_service.model is not None
+    
+    # Try text search directly
+    text_results = text_search_service.search_products(
+        db, req.business_id, req.query, limit=5
+    )
+    
+    # Try embedding search
+    embedding_results = []
+    embedding_error = None
+    try:
+        embedding_results = universal_embedding_service.search_similar_items(
+            db, req.business_id, req.query, limit=5
+        )
+    except Exception as e:
+        embedding_error = str(e)
+    
+    return {
+        "ml_available": ml_available,
+        "query": req.query,
+        "text_search_results": text_results,
+        "embedding_search_results": embedding_results,
+        "embedding_error": embedding_error
+    }
+
+
+@router.get("/debug/business/{business_id}/products")
+def debug_business_products(business_id: str, db: Session = Depends(get_db)):
+    """Check products for a business"""
+    from sqlalchemy import text
+    
+    # Check if business exists
+    business_result = db.execute(text("""
+        SELECT business_id, business_type, data::text 
+        FROM businesses 
+        WHERE business_id = :business_id
+    """), {"business_id": business_id}).fetchone()
+    
+    if not business_result:
+        return {"error": f"Business '{business_id}' not found"}
+    
+    # Get products
+    products_result = db.execute(text("""
+        SELECT id, name, price, description, category, product_type, tags::text 
+        FROM products 
+        WHERE business_id = :business_id
+        ORDER BY price
+    """), {"business_id": business_id}).fetchall()
+    
+    products = []
+    for p in products_result:
+        products.append({
+            "id": p[0],
+            "name": p[1],
+            "price": p[2],
+            "description": p[3][:100] + "..." if p[3] and len(p[3]) > 100 else p[3],
+            "category": p[4],
+            "product_type": p[5],
+            "tags": p[6]
+        })
+    
+    return {
+        "business": {
+            "id": business_result[0],
+            "type": business_result[1],
+            "data": business_result[2][:200] + "..." if business_result[2] and len(business_result[2]) > 200 else business_result[2]
+        },
+        "products_count": len(products),
+        "products": products
     }

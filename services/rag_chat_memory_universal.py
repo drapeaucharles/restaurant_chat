@@ -216,19 +216,19 @@ class UniversalMemoryRAG:
                     # Import allergen service only when needed
                     from services.allergen_service import allergen_service
                     logger.info(f"Universal: Using allergen service for dietary query")
-                    allergen_data = allergen_service.get_items_for_restriction(
+                    suitable_items = allergen_service.get_items_for_dietary_need(
                         db, business_id, message_lower
                     )
                     
-                    if allergen_data['safe_items']:
-                        context_parts.append(f"\nItems suitable for {allergen_data['restriction_type']}:")
-                        for item in allergen_data['safe_items'][:5]:
+                    if suitable_items:
+                        context_parts.append(f"\nItems suitable for your dietary needs:")
+                        for item in suitable_items[:5]:
                             context_parts.append(f"- {item['name']} (${item['price']})")
                 else:
                     # Regular embedding search for any business
                     items = self.embedding_service.search_similar_items(
                         db=db,
-                        restaurant_id=business_id,  # Works for any business
+                        business_id=business_id,  # Fixed parameter name
                         query=req.message,
                         limit=5,
                         threshold=0.35
