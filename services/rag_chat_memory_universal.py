@@ -17,6 +17,7 @@ from services.mia_chat_service_hybrid import (
 from services.embedding_service_universal import universal_embedding_service as embedding_service
 from services.response_validator_universal import universal_response_validator as response_validator
 from services.redis_helper import redis_client
+from services.placeholder_remover import placeholder_remover
 from sqlalchemy import text
 import re
 import json
@@ -297,6 +298,18 @@ Response:"""
             }
         
         answer = get_mia_response_hybrid(prompt, params)
+        
+        # Remove any placeholders from the response
+        answer = placeholder_remover.clean_response(answer, customer_name=memory.get('name'))
+        
+        # Double-check for placeholders
+        if not placeholder_remover.validate_response(answer):
+            logger.error(f"Response still contains placeholders: {answer[:100]}...")
+            # Force clean it again
+            answer = placeholder_remover.remove_placeholders(answer)
+            if not answer.strip():
+                # If cleaning removed everything, provide a generic response
+                answer = "I'd be happy to help you with that. Could you please provide more details?"
         
         # Validate response (for any business)
         try:

@@ -208,3 +208,41 @@ def debug_business_products(business_id: str, db: Session = Depends(get_db)):
         "products_count": len(products),
         "products": products
     }
+
+
+@router.post("/debug/test-placeholder-removal")
+def test_placeholder_removal():
+    """Test placeholder removal service"""
+    from services.placeholder_remover import placeholder_remover
+    
+    test_cases = [
+        "Hello [Customer's Name], I'm glad to help you.",
+        "Hi [Customer Name], welcome to [Business Name]!",
+        "Dear [Customer's Name], I'm [Your Name] and I'll assist you.",
+        "[Customer's Name], thank you for your inquiry.",
+        "Hello! I'm happy to help you today.",  # Should not change
+    ]
+    
+    results = []
+    for test in test_cases:
+        cleaned = placeholder_remover.remove_placeholders(test)
+        valid = placeholder_remover.validate_response(cleaned)
+        results.append({
+            "original": test,
+            "cleaned": cleaned,
+            "is_valid": valid
+        })
+    
+    # Test with customer name
+    with_name = placeholder_remover.clean_response(
+        "Hello [Customer's Name], how can I help?", 
+        customer_name="John"
+    )
+    
+    return {
+        "test_results": results,
+        "with_customer_name": {
+            "original": "Hello [Customer's Name], how can I help?",
+            "cleaned": with_name
+        }
+    }
