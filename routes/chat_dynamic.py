@@ -199,16 +199,32 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
     try:
         logger.info(f"Dynamic chat request from client {req.client_id} to restaurant {req.restaurant_id}")
         
-        # Get restaurant to check its RAG mode
-        restaurant = db.query(models.Restaurant).filter(
-            models.Restaurant.restaurant_id == req.restaurant_id
-        ).first()
+        # Get restaurant/business to check its RAG mode
+        # First try businesses table (new universal model)
+        from sqlalchemy import text
+        business_query = text("""
+            SELECT business_type, rag_mode 
+            FROM businesses 
+            WHERE business_id = :business_id
+        """)
+        business_result = db.execute(business_query, {"business_id": req.restaurant_id}).fetchone()
         
-        if not restaurant:
-            raise HTTPException(status_code=404, detail="Restaurant not found")
-        
-        # Get restaurant's preferred RAG mode
-        rag_mode = getattr(restaurant, 'rag_mode', 'hybrid_smart')
+        if business_result:
+            business_type, rag_mode = business_result
+            # For non-restaurant businesses, use universal memory service
+            if business_type != 'restaurant' and 'memory_universal' in chat_services:
+                rag_mode = 'memory_universal'
+                logger.info(f"Business {req.restaurant_id} is type '{business_type}', using universal memory service")
+        else:
+            # Fallback to restaurant model for backward compatibility
+            restaurant = db.query(models.Restaurant).filter(
+                models.Restaurant.restaurant_id == req.restaurant_id
+            ).first()
+            
+            if not restaurant:
+                raise HTTPException(status_code=404, detail="Restaurant/Business not found")
+            
+            rag_mode = getattr(restaurant, 'rag_mode', 'hybrid_smart')
         
         # If restaurant doesn't have rag_mode set, use default from env or hybrid_smart
         if not rag_mode:
