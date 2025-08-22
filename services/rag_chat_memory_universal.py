@@ -259,10 +259,12 @@ Customer: {req.message}
 
 Instructions:
 - Be friendly and professional
-- If you know the customer's name, use it naturally
+- If you know the customer's name, use it naturally (never use placeholders like [Customer's Name])
+- Never use brackets or placeholders like [Your Name] - speak naturally
 - Keep responses concise and helpful
 - Only mention items/services from the context
 - Adapt your tone to the business type ({business_type})
+- For legal/visa services, provide specific service information with prices when asked
 
 Response:"""
         
