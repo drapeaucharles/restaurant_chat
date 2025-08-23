@@ -155,6 +155,48 @@ def monitor_whatsapp_service():
             print(f"❌ Error in WhatsApp service monitor: {str(e)}")
             time.sleep(10)
 
+def ensure_admin_exists():
+    """Ensure admin user exists in database on startup"""
+    from sqlalchemy.orm import Session
+    from database import SessionLocal
+    from auth import hash_password
+    import models
+    
+    db: Session = SessionLocal()
+    try:
+        # Check if admin exists
+        admin = db.query(models.Restaurant).filter(
+            models.Restaurant.restaurant_id == "admin"
+        ).first()
+        
+        if not admin:
+            # Create admin user
+            admin = models.Restaurant(
+                restaurant_id="admin",
+                password=hash_password("Lol007321lol!"),
+                role="admin",
+                data={
+                    "name": "System Administrator",
+                    "business_type": "admin"
+                }
+            )
+            db.add(admin)
+            db.commit()
+            print("✅ Created admin user with ID 'admin'")
+        else:
+            # Ensure role is admin
+            if admin.role != "admin":
+                admin.role = "admin"
+                db.commit()
+                print("✅ Updated admin user role to 'admin'")
+            else:
+                print("✅ Admin user exists with correct role")
+                
+    except Exception as e:
+        print(f"⚠️ Error ensuring admin user: {e}")
+    finally:
+        db.close()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup and shutdown events"""
@@ -162,6 +204,9 @@ async def lifespan(app: FastAPI):
     
     # Startup
     print("🔄 FastAPI starting up...")
+    
+    # Ensure admin user exists
+    ensure_admin_exists()
     
     # Start WhatsApp service
     start_whatsapp_service()
