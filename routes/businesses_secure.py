@@ -10,9 +10,10 @@ import json
 from datetime import datetime
 
 from database import get_db
-from auth import get_current_user
+from auth import get_current_restaurant
 from services.security_service import security_service
 from services.placeholder_remover import placeholder_remover
+import models
 
 router = APIRouter(prefix="/api/v2/businesses", tags=["businesses_v2"])
 
@@ -22,7 +23,7 @@ async def list_businesses(
     request: Request,
     business_type: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_restaurant: models.Restaurant = Depends(get_current_restaurant)
 ):
     """
     List businesses that the current user has access to
@@ -102,7 +103,7 @@ async def get_business(
     business_id: str,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_restaurant: models.Restaurant = Depends(get_current_restaurant)
 ):
     """
     Get a specific business with permission check
@@ -173,7 +174,7 @@ async def update_business(
     update_data: Dict[str, Any],
     request: Request,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_restaurant: models.Restaurant = Depends(get_current_restaurant)
 ):
     """
     Update a business with permission check
@@ -277,7 +278,7 @@ async def delete_business(
     business_id: str,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_restaurant: models.Restaurant = Depends(get_current_restaurant)
 ):
     """
     Delete a business (admin only)
@@ -328,7 +329,7 @@ async def get_business_audit_logs(
     request: Request,
     limit: int = 100,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
+    current_restaurant: models.Restaurant = Depends(get_current_restaurant)
 ):
     """
     Get audit logs for a business (owner or admin only)
