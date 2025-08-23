@@ -24,11 +24,11 @@ def admin_delete_restaurant(
     Only admin@admin.com can use this endpoint.
     """
     # Ensure it's the admin account
-    if current_admin.restaurant_id != "admin@admin.com":
+    if current_admin.restaurant_id not in ["admin", "admin@admin.com"]:
         raise HTTPException(status_code=403, detail="Only system admin can delete restaurants")
     
     # Prevent deleting self
-    if restaurant_id == "admin@admin.com":
+    if restaurant_id in ["admin", "admin@admin.com"]:
         raise HTTPException(status_code=400, detail="Cannot delete admin account")
     
     # Find the restaurant
@@ -78,6 +78,32 @@ def admin_delete_restaurant(
         logger.error(f"Failed to delete restaurant {restaurant_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/restaurants")
+def get_all_restaurants(
+    current_admin: models.Restaurant = Depends(get_current_owner),
+    db: Session = Depends(get_db)
+):
+    """
+    Get all restaurants (admin only).
+    """
+    if current_admin.restaurant_id != "admin":
+        raise HTTPException(status_code=403, detail="Only admin can view all restaurants")
+    
+    restaurants = db.query(models.Restaurant).all()
+    
+    # Format the response
+    result = []
+    for restaurant in restaurants:
+        data = restaurant.data or {}
+        result.append({
+            "restaurant_id": restaurant.restaurant_id,
+            "name": data.get("name", restaurant.restaurant_id),
+            "role": restaurant.role,
+            "business_type": data.get("business_type", "restaurant")
+        })
+    
+    return result
+
 @router.get("/restaurants/summary")
 def get_restaurants_summary(
     current_admin: models.Restaurant = Depends(get_current_owner),
@@ -86,7 +112,7 @@ def get_restaurants_summary(
     """
     Get summary of all restaurants (admin only).
     """
-    if current_admin.restaurant_id != "admin@admin.com":
+    if current_admin.restaurant_id not in ["admin", "admin@admin.com"]:
         raise HTTPException(status_code=403, detail="Only system admin can view summary")
     
     # Get restaurant statistics
