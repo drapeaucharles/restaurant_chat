@@ -164,36 +164,39 @@ def ensure_admin_exists():
     
     db: Session = SessionLocal()
     try:
-        # Check if admin exists
-        admin = db.query(models.Restaurant).filter(
-            models.Restaurant.restaurant_id == "admin"
-        ).first()
+        # Ensure both admin and admin@admin.com exist with correct roles
+        admin_ids = ["admin", "admin@admin.com"]
         
-        if not admin:
-            # Create admin user
-            admin = models.Restaurant(
-                restaurant_id="admin",
-                password=hash_password("Lol007321lol!"),
-                role="admin",
-                data={
-                    "name": "System Administrator",
-                    "business_type": "admin"
-                }
-            )
-            db.add(admin)
-            db.commit()
-            print("✅ Created admin user with ID 'admin'")
-        else:
-            # Ensure role is admin
-            if admin.role != "admin":
-                admin.role = "admin"
+        for admin_id in admin_ids:
+            admin = db.query(models.Restaurant).filter(
+                models.Restaurant.restaurant_id == admin_id
+            ).first()
+            
+            if not admin:
+                # Create admin user
+                admin = models.Restaurant(
+                    restaurant_id=admin_id,
+                    password=hash_password("Lol007321lol!"),
+                    role="admin",
+                    data={
+                        "name": "System Administrator",
+                        "business_type": "admin"
+                    }
+                )
+                db.add(admin)
                 db.commit()
-                print("✅ Updated admin user role to 'admin'")
+                print(f"✅ Created admin user with ID '{admin_id}'")
             else:
-                print("✅ Admin user exists with correct role")
+                # Ensure role is admin
+                if admin.role != "admin":
+                    admin.role = "admin"
+                    db.commit()
+                    print(f"✅ Updated {admin_id} user role to 'admin'")
+                else:
+                    print(f"✅ Admin user {admin_id} exists with correct role")
                 
     except Exception as e:
-        print(f"⚠️ Error ensuring admin user: {e}")
+        print(f"⚠️ Error ensuring admin users: {e}")
     finally:
         db.close()
 
