@@ -104,6 +104,39 @@ def get_all_restaurants(
     
     return result
 
+@router.get("/restaurant/{restaurant_id}")
+def get_restaurant_details(
+    restaurant_id: str,
+    current_admin: models.Restaurant = Depends(get_current_owner),
+    db: Session = Depends(get_db)
+):
+    """
+    Get details of a specific restaurant (admin only).
+    """
+    if current_admin.restaurant_id not in ["admin", "admin@admin.com"]:
+        raise HTTPException(status_code=403, detail="Only admin can view restaurant details")
+    
+    logger.info(f"Admin {current_admin.restaurant_id} fetching details for restaurant: {restaurant_id}")
+    
+    restaurant = db.query(models.Restaurant).filter(
+        models.Restaurant.restaurant_id == restaurant_id
+    ).first()
+    
+    if not restaurant:
+        logger.warning(f"Restaurant {restaurant_id} not found for admin access")
+        raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
+    
+    # Return restaurant data in a format compatible with the frontend
+    data = restaurant.data or {}
+    return {
+        "restaurant_id": restaurant.restaurant_id,
+        "name": data.get("name", restaurant.restaurant_id),
+        "role": restaurant.role,
+        "data": data,
+        # Include all fields from data at the top level for compatibility
+        **data
+    }
+
 @router.get("/restaurants/summary")
 def get_restaurants_summary(
     current_admin: models.Restaurant = Depends(get_current_owner),
@@ -151,4 +184,45 @@ def get_restaurants_summary(
     return {
         "total_restaurants": len(results),
         "restaurants": results
+    }
+
+@router.put("/restaurant/{restaurant_id}")
+def update_restaurant_admin(
+    restaurant_id: str,
+    update_data: dict,
+    current_admin: models.Restaurant = Depends(get_current_owner),
+    db: Session = Depends(get_db)
+):
+    """
+    Update any restaurant (admin only).
+    """
+    if current_admin.restaurant_id not in ["admin", "admin@admin.com"]:
+        raise HTTPException(status_code=403, detail="Only admin can update any restaurant")
+    
+    logger.info(f"Admin {current_admin.restaurant_id} updating restaurant: {restaurant_id}")
+    
+    restaurant = db.query(models.Restaurant).filter(
+        models.Restaurant.restaurant_id == restaurant_id
+    ).first()
+    
+    if not restaurant:
+        logger.warning(f"Restaurant {restaurant_id} not found for admin update")
+        raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
+    
+    # Update restaurant data
+    current_data = restaurant.data or {}
+    current_data.update(update_data)
+    restaurant.data = current_data
+    
+    db.commit()
+    db.refresh(restaurant)
+    
+    logger.info(f"Restaurant {restaurant_id} updated successfully by admin")
+    
+    return {
+        "restaurant_id": restaurant.restaurant_id,
+        "name": current_data.get("name", restaurant.restaurant_id),
+        "role": restaurant.role,
+        "data": current_data,
+        **current_data
     }
