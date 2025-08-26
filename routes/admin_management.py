@@ -128,9 +128,12 @@ def get_restaurant_details(
     
     # Debug log to check data structure
     if restaurant.data:
-        logger.info(f"Restaurant data has {len(restaurant.data)} keys")
+        logger.info(f"Restaurant data has {len(restaurant.data)} keys: {list(restaurant.data.keys())}")
         if 'name' in restaurant.data:
             logger.info(f"Restaurant name from DB: {restaurant.data.get('name')}")
+        if 'menu' in restaurant.data and restaurant.data['menu']:
+            first_item = restaurant.data['menu'][0]
+            logger.info(f"First menu item: {first_item.get('dish', 'NO DISH')} / {first_item.get('title', 'NO TITLE')}")
         if 'restaurant_data' in restaurant.data:
             logger.warning(f"Found nested restaurant_data - this is likely a data corruption issue!")
     
@@ -240,8 +243,27 @@ def update_restaurant_admin(
     if 'name' in restaurant.data:
         logger.info(f"Restaurant name is now: {restaurant.data['name']}")
     
-    db.commit()
+    # Force commit and verify
+    try:
+        db.commit()
+        logger.info(f"Database commit successful")
+    except Exception as e:
+        logger.error(f"Database commit failed: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to save changes")
+    
     db.refresh(restaurant)
+    
+    # Verify the update actually saved
+    verify_restaurant = db.query(models.Restaurant).filter(
+        models.Restaurant.restaurant_id == restaurant_id
+    ).first()
+    
+    if verify_restaurant and verify_restaurant.data:
+        logger.info(f"Verification - Restaurant has {len(verify_restaurant.data)} keys after commit")
+        if 'menu' in verify_restaurant.data and verify_restaurant.data['menu']:
+            first_item = verify_restaurant.data['menu'][0]
+            logger.info(f"Verification - First menu item after commit: {first_item.get('dish', 'NO DISH')}")
     
     logger.info(f"Restaurant {restaurant_id} updated successfully by admin")
     
