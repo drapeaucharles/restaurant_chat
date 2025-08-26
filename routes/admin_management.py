@@ -230,11 +230,26 @@ def update_restaurant_admin(
     logger.info(f"Update payload received: {list(update_data.keys())}")
     logger.info(f"Extracted data keys: {list(new_data.keys()) if isinstance(new_data, dict) else 'not a dict'}")
     
-    # Update restaurant data
+    # Update restaurant data - ensure we preserve all fields
     current_data = restaurant.data or {}
     logger.info(f"Current data has {len(current_data)} keys: {list(current_data.keys())[:5]}...")
-    current_data.update(new_data)
-    restaurant.data = current_data
+    
+    # Create a new dict to ensure proper assignment
+    updated_data = dict(current_data)
+    updated_data.update(new_data)
+    
+    # Explicitly set the data to ensure SQLAlchemy detects the change
+    restaurant.data = None  # Force SQLAlchemy to detect change
+    db.flush()  # Flush the None
+    restaurant.data = updated_data  # Set the new data
+    
+    logger.info(f"After update, data has {len(updated_data)} keys: {list(updated_data.keys())}")
+    
+    # Also update separate fields if they exist in the update
+    if 'whatsapp_number' in new_data:
+        restaurant.whatsapp_number = new_data['whatsapp_number']
+    if 'rag_mode' in new_data:
+        restaurant.rag_mode = new_data['rag_mode']
     
     # Verify the update
     logger.info(f"Updated data has {len(restaurant.data)} keys")
@@ -279,16 +294,21 @@ def update_restaurant_admin(
                 WHERE restaurant_id = :restaurant_id
             """), {"restaurant_id": restaurant_id})
             
-            # Generate new embeddings
-            from services.embedding_service_universal import UniversalEmbeddingService
-            embedding_service = UniversalEmbeddingService()
-            indexed = embedding_service.index_restaurant_menu(
-                db=db,
-                restaurant_id=restaurant_id,
-                menu_items=new_data["menu"]
-            )
-            
-            logger.info(f"Indexed {indexed} menu items for restaurant {restaurant_id}")
+            # Generate new embeddings - check if service is available
+            try:
+                from services.embedding_service_universal import UniversalEmbeddingService
+                embedding_service = UniversalEmbeddingService()
+                if hasattr(embedding_service, 'index_restaurant_menu'):
+                    indexed = embedding_service.index_restaurant_menu(
+                        db=db,
+                        restaurant_id=restaurant_id,
+                        menu_items=new_data["menu"]
+                    )
+                    logger.info(f"Indexed {indexed} menu items for restaurant {restaurant_id}")
+                else:
+                    logger.warning("Embedding service does not support menu indexing")
+            except ImportError:
+                logger.warning("Embedding service not available")
         except Exception as e:
             logger.error(f"Failed to update embeddings for {restaurant_id}: {str(e)}")
             # Don't fail the update if embeddings fail
