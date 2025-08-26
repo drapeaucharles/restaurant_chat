@@ -303,6 +303,37 @@ app.include_router(complete_admin_delete.router)  # Complete admin delete
 from routes import migration_endpoint
 app.include_router(migration_endpoint.router)  # /api/migration
 
+# Quick migration endpoint (temporary)
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from database import get_db
+
+@app.post("/quick-migrate")
+def quick_migrate(db: Session = Depends(get_db)):
+    """Quick migration endpoint - no auth for emergency use"""
+    try:
+        # Check if column exists
+        result = db.execute(text("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='restaurants' AND column_name='business_type'
+        """))
+        
+        if result.fetchone():
+            return {"message": "Column already exists"}
+            
+        # Add the column
+        db.execute(text("""
+            ALTER TABLE restaurants 
+            ADD COLUMN business_type VARCHAR DEFAULT 'restaurant'
+        """))
+        db.commit()
+        
+        return {"message": "Migration successful"}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+
 # Health check endpoints
 @app.get("/")
 def root():
