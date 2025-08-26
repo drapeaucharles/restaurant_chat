@@ -126,6 +126,14 @@ def get_restaurant_details(
         logger.warning(f"Restaurant {restaurant_id} not found for admin access")
         raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
     
+    # Debug log to check data structure
+    if restaurant.data:
+        logger.info(f"Restaurant data has {len(restaurant.data)} keys")
+        if 'name' in restaurant.data:
+            logger.info(f"Restaurant name from DB: {restaurant.data.get('name')}")
+        if 'restaurant_data' in restaurant.data:
+            logger.warning(f"Found nested restaurant_data - this is likely a data corruption issue!")
+    
     # Return restaurant data in a format compatible with the frontend
     data = restaurant.data or {}
     return {
@@ -215,10 +223,22 @@ def update_restaurant_admin(
     else:
         new_data = update_data
     
+    # Debug logging
+    logger.info(f"Update payload received: {list(update_data.keys())}")
+    logger.info(f"Extracted data keys: {list(new_data.keys()) if isinstance(new_data, dict) else 'not a dict'}")
+    
     # Update restaurant data
     current_data = restaurant.data or {}
+    logger.info(f"Current data has {len(current_data)} keys: {list(current_data.keys())[:5]}...")
     current_data.update(new_data)
     restaurant.data = current_data
+    
+    # Verify the update
+    logger.info(f"Updated data has {len(restaurant.data)} keys")
+    if 'menu' in restaurant.data:
+        logger.info(f"Menu has {len(restaurant.data['menu'])} items")
+    if 'name' in restaurant.data:
+        logger.info(f"Restaurant name is now: {restaurant.data['name']}")
     
     db.commit()
     db.refresh(restaurant)
