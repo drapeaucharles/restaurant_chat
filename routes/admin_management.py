@@ -209,9 +209,15 @@ def update_restaurant_admin(
         logger.warning(f"Restaurant {restaurant_id} not found for admin update")
         raise HTTPException(status_code=404, detail=f"Restaurant '{restaurant_id}' not found")
     
+    # Extract restaurant_data from the update payload
+    if "restaurant_data" in update_data:
+        new_data = update_data["restaurant_data"]
+    else:
+        new_data = update_data
+    
     # Update restaurant data
     current_data = restaurant.data or {}
-    current_data.update(update_data)
+    current_data.update(new_data)
     restaurant.data = current_data
     
     db.commit()
@@ -219,10 +225,15 @@ def update_restaurant_admin(
     
     logger.info(f"Restaurant {restaurant_id} updated successfully by admin")
     
+    # Return consistent response format
     return {
         "restaurant_id": restaurant.restaurant_id,
         "name": current_data.get("name", restaurant.restaurant_id),
         "role": restaurant.role,
         "data": current_data,
-        **current_data
+        "story": current_data.get("restaurant_story"),
+        "menu": current_data.get("menu", []),
+        "faq": current_data.get("faq", []),
+        "opening_hours": current_data.get("opening_hours", {}),
+        "restaurant_data": current_data
     }
