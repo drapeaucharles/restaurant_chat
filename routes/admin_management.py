@@ -245,6 +245,32 @@ def update_restaurant_admin(
     
     logger.info(f"Restaurant {restaurant_id} updated successfully by admin")
     
+    # Sync menu to embeddings if updated
+    if "menu" in new_data and new_data["menu"]:
+        try:
+            # Import here to avoid circular dependency
+            from sqlalchemy import text
+            
+            # Clear existing embeddings
+            db.execute(text("""
+                DELETE FROM menu_embeddings 
+                WHERE restaurant_id = :restaurant_id
+            """), {"restaurant_id": restaurant_id})
+            
+            # Generate new embeddings
+            from services.embedding_service_universal import UniversalEmbeddingService
+            embedding_service = UniversalEmbeddingService()
+            indexed = embedding_service.index_restaurant_menu(
+                db=db,
+                restaurant_id=restaurant_id,
+                menu_items=new_data["menu"]
+            )
+            
+            logger.info(f"Indexed {indexed} menu items for restaurant {restaurant_id}")
+        except Exception as e:
+            logger.error(f"Failed to update embeddings for {restaurant_id}: {str(e)}")
+            # Don't fail the update if embeddings fail
+    
     # Return consistent response format
     return {
         "restaurant_id": restaurant.restaurant_id,
