@@ -89,7 +89,10 @@ def get_all_restaurants(
     if current_admin.restaurant_id not in ["admin", "admin@admin.com"]:
         raise HTTPException(status_code=403, detail="Only admin can view all restaurants")
     
+    logger.info(f"Admin {current_admin.restaurant_id} fetching all restaurants")
+    
     restaurants = db.query(models.Restaurant).all()
+    logger.info(f"Found {len(restaurants)} restaurants")
     
     # Format the response
     result = []
