@@ -307,6 +307,7 @@ app.include_router(migration_endpoint.router)  # /api/migration
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db
+from fastapi import Depends
 
 @app.post("/quick-migrate")
 def quick_migrate(db: Session = Depends(get_db)):
