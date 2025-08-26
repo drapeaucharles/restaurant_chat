@@ -299,6 +299,10 @@ app.include_router(simple_admin.router)  # Simple admin endpoints
 from routes import complete_admin_delete
 app.include_router(complete_admin_delete.router)  # Complete admin delete
 
+# Migration endpoints
+from routes import migration_endpoint
+app.include_router(migration_endpoint.router)  # /api/migration
+
 # Health check endpoints
 @app.get("/")
 def root():
