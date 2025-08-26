@@ -1,11 +1,8 @@
-#!/usr/bin/env python3
 """
-Manual migration script to add restaurant_categories column.
-Run this script to update the database schema.
+Manual migration script to add business_type column
+Run this directly on Railway using: python manual_migration.py
 """
-
 import os
-import sys
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
@@ -15,39 +12,49 @@ load_dotenv()
 # Get database URL
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    print("ERROR: DATABASE_URL environment variable not set")
-    sys.exit(1)
+    print("ERROR: DATABASE_URL not set")
+    exit(1)
+
+print(f"Connecting to database...")
 
 # Create engine
 engine = create_engine(DATABASE_URL)
 
-# Migration SQL
-migration_sql = """
--- Add restaurant_categories column to restaurants table
-ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS restaurant_categories JSON DEFAULT '[]';
-"""
-
-# Run migration
 try:
     with engine.connect() as conn:
-        print("Running migration to add restaurant_categories column...")
-        conn.execute(text(migration_sql))
-        conn.commit()
-        print("✅ Migration completed successfully!")
-        
-        # Verify the column was added
+        # Check if column exists
         result = conn.execute(text("""
             SELECT column_name 
             FROM information_schema.columns 
-            WHERE table_name = 'restaurants' 
-            AND column_name = 'restaurant_categories'
+            WHERE table_name='restaurants' AND column_name='business_type'
         """))
         
         if result.fetchone():
-            print("✅ Verified: restaurant_categories column exists")
+            print("business_type column already exists - skipping migration")
         else:
-            print("❌ Warning: Column may not have been created")
+            print("Adding business_type column...")
+            
+            # Add the column
+            conn.execute(text("""
+                ALTER TABLE restaurants 
+                ADD COLUMN business_type VARCHAR DEFAULT 'restaurant'
+            """))
+            
+            # Update existing records
+            conn.execute(text("""
+                UPDATE restaurants 
+                SET business_type = COALESCE(
+                    CAST(data->>'business_type' AS VARCHAR),
+                    'restaurant'
+                )
+                WHERE business_type IS NULL
+            """))
+            
+            conn.commit()
+            print("Successfully added business_type column!")
             
 except Exception as e:
-    print(f"❌ Migration failed: {e}")
-    sys.exit(1)
+    print(f"Error: {str(e)}")
+    exit(1)
+
+print("Migration complete!")

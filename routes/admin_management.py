@@ -102,7 +102,7 @@ def get_all_restaurants(
             "restaurant_id": restaurant.restaurant_id,
             "name": data.get("name", restaurant.restaurant_id),
             "role": restaurant.role,
-            "business_type": restaurant.business_type or data.get("business_type", "restaurant")
+            "business_type": getattr(restaurant, 'business_type', None) or data.get("business_type", "restaurant")
         })
     
     return result
@@ -253,7 +253,7 @@ def update_restaurant_admin(
         restaurant.whatsapp_number = new_data['whatsapp_number']
     if 'rag_mode' in new_data:
         restaurant.rag_mode = new_data['rag_mode']
-    if 'business_type' in new_data:
+    if 'business_type' in new_data and hasattr(restaurant, 'business_type'):
         restaurant.business_type = new_data['business_type']
     
     # Verify the update

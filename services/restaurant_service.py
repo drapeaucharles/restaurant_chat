@@ -172,13 +172,18 @@ def create_restaurant_service(req: RestaurantCreateRequest, db: Session):
             )
     
     # Create restaurant record
-    restaurant = models.Restaurant(
-        restaurant_id=req.restaurant_id,
-        data=data,
-        password=hashed_pw,
-        role=req.role or "owner",  # Default to "owner" if not specified
-        business_type=data.get("business_type", "restaurant")  # Default to "restaurant"
-    )
+    restaurant_data = {
+        "restaurant_id": req.restaurant_id,
+        "data": data,
+        "password": hashed_pw,
+        "role": req.role or "owner",  # Default to "owner" if not specified
+    }
+    
+    # Only add business_type if the column exists
+    if hasattr(models.Restaurant, 'business_type'):
+        restaurant_data["business_type"] = data.get("business_type", "restaurant")
+    
+    restaurant = models.Restaurant(**restaurant_data)
     
     try:
         db.add(restaurant)
