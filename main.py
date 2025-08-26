@@ -303,6 +303,10 @@ app.include_router(complete_admin_delete.router)  # Complete admin delete
 from routes import migration_endpoint
 app.include_router(migration_endpoint.router)  # /api/migration
 
+# Debug endpoints
+from routes import db_debug
+app.include_router(db_debug.router)  # /db-debug
+
 # Quick migration endpoint (temporary)
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -313,6 +317,36 @@ from fastapi import Depends
 def quick_migrate(db: Session = Depends(get_db)):
     """Quick migration endpoint - no auth for emergency use"""
     try:
+        # First check what type of object 'restaurants' is
+        check_type = db.execute(text("""
+            SELECT table_type 
+            FROM information_schema.tables 
+            WHERE table_name = 'restaurants'
+        """))
+        result = check_type.fetchone()
+        
+        if result and result[0] == 'VIEW':
+            # Find the base table for the view
+            base_table_query = db.execute(text("""
+                SELECT definition 
+                FROM pg_views 
+                WHERE viewname = 'restaurants'
+            """))
+            view_def = base_table_query.fetchone()
+            
+            # Check if the base table has the column
+            check_base = db.execute(text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_schema = 'public' 
+                AND column_name = 'business_type'
+            """))
+            
+            if check_base.fetchone():
+                return {"message": "Column already exists in base table", "type": "view", "definition": view_def[0] if view_def else None}
+            
+            return {"error": "restaurants is a view, not a table. Cannot add column directly.", "type": "view"}
+            
         # Check if column exists
         result = db.execute(text("""
             SELECT column_name 
