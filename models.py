@@ -38,6 +38,8 @@ class Restaurant(Base):
     # restaurant_categories = Column(JSON, nullable=True, default=list)  # Array of custom categories for this restaurant
     # RAG mode selection for AI chat
     rag_mode = Column(String, nullable=True, default="hybrid_smart_memory")  # Options: 'optimized', 'enhanced_v2', 'enhanced_v3', 'hybrid_smart', 'hybrid_smart_memory'
+    # Business type field
+    business_type = Column(String, nullable=True, default="restaurant")  # restaurant, salon, retail, medical, etc.
 
 # ✅ REMOVED: ChatLog model - migrated to ChatMessage only
 # ChatLog table preserved in database for rollback safety but removed from Python code

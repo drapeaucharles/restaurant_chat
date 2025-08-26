@@ -176,7 +176,8 @@ def create_restaurant_service(req: RestaurantCreateRequest, db: Session):
         restaurant_id=req.restaurant_id,
         data=data,
         password=hashed_pw,
-        role=req.role or "owner"  # Default to "owner" if not specified
+        role=req.role or "owner",  # Default to "owner" if not specified
+        business_type=data.get("business_type", "restaurant")  # Default to "restaurant"
     )
     
     try:

@@ -211,6 +211,13 @@ async def lifespan(app: FastAPI):
     # Ensure admin user exists
     ensure_admin_exists()
     
+    # Run migrations
+    try:
+        from migrations.add_business_type import add_business_type_column
+        add_business_type_column()
+    except Exception as e:
+        print(f"⚠️ Migration warning (may already be applied): {str(e)}")
+    
     # Start WhatsApp service
     start_whatsapp_service()
     
