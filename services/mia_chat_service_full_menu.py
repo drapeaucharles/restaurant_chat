@@ -155,7 +155,7 @@ Example for "or similar" requests:
 Customer: "I want steak or things similar"
 You: "Oh, you want something hearty! Our Ribeye ($38.99) is amazing, and we also have the Grilled Lamb Chops ($35.99) or our Beef Medallions ($32.99) if you want other red meats. What sounds good?"
 
-Menu items below show [ingredients] and {allergens}."""
+Menu items below show [ingredients] and {{allergens}}."""
         
         # Build compact menu context
         menu_context = build_compact_menu_context(menu_items, business_type)
