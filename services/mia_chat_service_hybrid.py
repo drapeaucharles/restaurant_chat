@@ -261,7 +261,9 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
             preferences = {'likes': [], 'dislikes': []}
         
         # Check for ingredient requests
-        if any(word in query_lower for word in ['contain', 'with', 'have', 'include', 'love', 'want'] + negation_words):
+        ingredient_triggers = ['contain', 'with', 'have', 'include', 'love', 'like', 'want', 'need', 'prefer', 'enjoy']
+        if any(word in query_lower for word in ingredient_triggers + negation_words):
+            logger.info(f"Hybrid: Processing ingredient request for query: {query_lower}")
             # Look for specific ingredients mentioned
             for item in menu_items:
                 item_ingredients = item.get('ingredients', [])
@@ -303,6 +305,9 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
                         relevant_items.append(item)
                 elif not is_negative and should_include:
                     relevant_items.append(item)
+            
+            # DEBUG log results
+            logger.info(f"Hybrid: Found {len(relevant_items)} relevant items for ingredient search")
         
         # Check for specific food types
         elif 'pasta' in query_lower:
@@ -457,8 +462,9 @@ def mia_chat_service_hybrid(req: ChatRequest, db: Session) -> ChatResponse:
     language = detect_language(req.message)
     logger.info(f"Detected language: {language}")
     
-    # Check cache
-    cached_response = cache.get(req.message, req.restaurant_id, query_type.value)
+    # Check cache (but skip for ingredient queries to ensure fresh results)
+    skip_cache = any(word in req.message.lower() for word in ['egg', 'ingredient', 'contain', 'allerg'])
+    cached_response = None if skip_cache else cache.get(req.message, req.restaurant_id, query_type.value)
     
     if cached_response:
         logger.info("Returning cached response")
@@ -492,6 +498,16 @@ def mia_chat_service_hybrid(req: ChatRequest, db: Session) -> ChatResponse:
         if menu_items:
             menu_items = apply_menu_fallbacks(menu_items)
         
+        # DEBUG: Log menu data
+        logger.info(f"Restaurant {restaurant.restaurant_id} has {len(menu_items)} menu items")
+        if menu_items:
+            # Count items with eggs
+            egg_count = 0
+            for item in menu_items:
+                if any('egg' in str(ing).lower() for ing in item.get('ingredients', [])):
+                    egg_count += 1
+            logger.info(f"Items with eggs in ingredients: {egg_count}")
+        
         # Build Maria's prompt
         system_prompt = get_maria_system_prompt(restaurant_name, query_type, language)
         context = build_hybrid_context(menu_items, query_type, req.message)
@@ -516,8 +532,10 @@ def mia_chat_service_hybrid(req: ChatRequest, db: Session) -> ChatResponse:
         # Get AI response
         answer = get_mia_response_hybrid(full_prompt, params)
         
-        # Cache the response
-        cache.set(req.message, req.restaurant_id, query_type.value, answer)
+        # Cache the response (but not if it's a "no items found" type response)
+        negative_responses = ["don't have any", "no dishes", "don't offer", "not available", "sorry"]
+        if not any(neg in answer.lower() for neg in negative_responses) or skip_cache:
+            cache.set(req.message, req.restaurant_id, query_type.value, answer)
         
         # Save to database
         new_message = models.ChatMessage(
