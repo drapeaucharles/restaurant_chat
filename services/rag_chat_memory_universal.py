@@ -246,6 +246,10 @@ class UniversalMemoryRAG:
                 
                 # IMPORTANT: If no specific items found, provide general menu context
                 if not found_specific_items and business_type == 'restaurant':
+                    # Check for negation in the query
+                    negation_words = ["don't", "dont", "do not", "no ", "without", "avoid", "dislike", "hate", "allergic"]
+                    is_negative = any(neg in message_lower for neg in negation_words)
+                    
                     # Get all menu items for restaurants
                     all_items_query = text("""
                         SELECT name, price, description, category, ingredients, allergens
@@ -257,7 +261,11 @@ class UniversalMemoryRAG:
                     all_items = db.execute(all_items_query, {"business_id": business_id}).fetchall()
                     
                     if all_items:
-                        context_parts.append("\nOur full menu includes:")
+                        if is_negative:
+                            context_parts.append("\nOur full menu (I'll help you find items without the ingredients you want to avoid):")
+                        else:
+                            context_parts.append("\nOur full menu includes:")
+                            
                         current_category = None
                         for item in all_items:
                             if item.category != current_category:
@@ -268,8 +276,18 @@ class UniversalMemoryRAG:
                             ing_part = ""
                             if item.ingredients:
                                 ingredients_list = json.loads(item.ingredients) if isinstance(item.ingredients, str) else item.ingredients
-                                if ingredients_list and any('egg' in ing.lower() for ing in ingredients_list):
-                                    ing_part = f" (contains: {', '.join(ingredients_list[:3])}...)"
+                                # For negative queries, highlight items that DON'T contain the unwanted ingredient
+                                if ingredients_list:
+                                    if is_negative:
+                                        # Extract what they want to avoid
+                                        unwanted_words = [w for w in message_lower.split() if len(w) > 3 and w not in negation_words]
+                                        has_unwanted = any(unwanted in ing.lower() for unwanted in unwanted_words for ing in ingredients_list)
+                                        if not has_unwanted:
+                                            ing_part = " ✓ (safe choice)"
+                                    else:
+                                        # For positive queries about eggs
+                                        if any('egg' in ing.lower() for ing in ingredients_list):
+                                            ing_part = f" (contains: {', '.join(ingredients_list[:3])}...)"
                             
                             context_parts.append(f"- {item.name} (${item.price}){desc_part}{ing_part}")
                 

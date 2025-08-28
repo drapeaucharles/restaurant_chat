@@ -245,8 +245,12 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
         query_lower = query.lower()
         relevant_items = []
         
+        # Check for negation patterns
+        negation_words = ["don't", "dont", "do not", "no ", "without", "avoid", "dislike", "hate", "allergic"]
+        is_negative = any(neg in query_lower for neg in negation_words)
+        
         # Check for ingredient requests
-        if any(word in query_lower for word in ['contain', 'with', 'have', 'include', 'love', 'want']):
+        if any(word in query_lower for word in ['contain', 'with', 'have', 'include', 'love', 'want'] + negation_words):
             # Look for specific ingredients mentioned
             for item in menu_items:
                 item_ingredients = item.get('ingredients', [])
@@ -254,13 +258,37 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
                 item_desc = item.get('description', '').lower()
                 
                 # Check if any word in query matches ingredients
+                should_include = False
                 for word in query_lower.split():
                     if len(word) > 3:  # Skip short words
-                        if (any(word in ing.lower() for ing in item_ingredients) or
-                            any(word in allerg.lower() for allerg in item_allergens) or
-                            word in item_desc):
-                            relevant_items.append(item)
+                        has_ingredient = (any(word in ing.lower() for ing in item_ingredients) or
+                                        any(word in allerg.lower() for allerg in item_allergens) or
+                                        word in item_desc)
+                        
+                        if is_negative and has_ingredient:
+                            # Exclude items with this ingredient
+                            should_include = False
                             break
+                        elif not is_negative and has_ingredient:
+                            # Include items with this ingredient
+                            should_include = True
+                            break
+                
+                # For negative queries, include items that DON'T have the ingredient
+                if is_negative and not should_include:
+                    # Check if item doesn't contain the unwanted ingredient
+                    unwanted_found = False
+                    for word in query_lower.split():
+                        if len(word) > 3 and word not in negation_words:
+                            if (any(word in ing.lower() for ing in item_ingredients) or
+                                any(word in allerg.lower() for allerg in item_allergens)):
+                                unwanted_found = True
+                                break
+                    
+                    if not unwanted_found:
+                        relevant_items.append(item)
+                elif not is_negative and should_include:
+                    relevant_items.append(item)
         
         # Check for specific food types
         elif 'pasta' in query_lower:
@@ -285,9 +313,11 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
         
         if relevant_items:
             # Check if this is an ingredient-specific query
-            is_ingredient_query = any(word in query_lower for word in ['contain', 'with', 'have', 'include', 'love', 'want'])
+            is_ingredient_query = any(word in query_lower for word in ['contain', 'with', 'have', 'include', 'love', 'want'] + negation_words)
             
-            if is_ingredient_query:
+            if is_negative:
+                context_parts.append(f"\nMenu items WITHOUT the ingredients you want to avoid:")
+            elif is_ingredient_query:
                 context_parts.append(f"\nMenu items that match your request:")
             else:
                 context_parts.append(f"\nRelevant menu items for the customer's request:")
