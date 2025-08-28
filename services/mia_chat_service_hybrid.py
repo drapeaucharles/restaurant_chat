@@ -464,6 +464,10 @@ def mia_chat_service_hybrid(req: ChatRequest, db: Session) -> ChatResponse:
     
     # Check cache (but skip for ingredient queries to ensure fresh results)
     skip_cache = any(word in req.message.lower() for word in ['egg', 'ingredient', 'contain', 'allerg'])
+    
+    # TEMPORARY: Force skip cache for debugging
+    skip_cache = True  # TODO: Remove after cache is cleared
+    
     cached_response = None if skip_cache else cache.get(req.message, req.restaurant_id, query_type.value)
     
     if cached_response:

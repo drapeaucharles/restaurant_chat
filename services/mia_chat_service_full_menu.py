@@ -168,11 +168,14 @@ def mia_chat_service_full_menu(req: ChatRequest, db: Session) -> ChatResponse:
     
     # Build system prompt
     system_prompt = f"""You are a helpful assistant for {business_name}.
-You have access to our complete menu/service list.
-Be friendly and professional.
-Always include prices when mentioning items.
-If customers ask about descriptions, provide them.
-For ingredients or allergen questions, use the information in brackets."""
+You have access to our complete menu/service list below.
+
+IMPORTANT INSTRUCTIONS:
+- When customers express preference for an ingredient (like "I love eggs"), recommend items that CONTAIN that ingredient
+- Look at the ingredients listed in square brackets [...]
+- Always include prices when mentioning items
+- Be friendly and professional
+- For example, if someone says "I love eggs", recommend dishes with eggs in the ingredients like Carbonara, Tiramisu, etc."""
     
     # Build compact menu context
     menu_context = build_compact_menu_context(menu_items, business_type)
@@ -200,6 +203,16 @@ Customer: {req.message}
 Assistant:"""
     
     logger.info(f"Full menu prompt length: {len(full_prompt)} chars (~{len(full_prompt)//4} tokens)")
+    
+    # DEBUG: Log items with eggs
+    egg_items = []
+    for item in menu_items:
+        ingredients = item.get('ingredients', [])
+        if any('egg' in str(ing).lower() for ing in ingredients):
+            egg_items.append(f"{item.get('dish', item.get('name', ''))} - {ingredients}")
+    logger.info(f"Items with eggs in menu: {len(egg_items)}")
+    for item in egg_items[:5]:
+        logger.info(f"  {item}")
     
     # Get AI response
     params = get_hybrid_parameters(query_type)
