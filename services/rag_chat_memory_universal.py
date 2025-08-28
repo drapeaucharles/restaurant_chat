@@ -22,6 +22,10 @@ from sqlalchemy import text
 import re
 import json
 from datetime import datetime
+try:
+    from .negation_detector import NegationDetector
+except ImportError:
+    NegationDetector = None
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +81,24 @@ class UniversalMemoryRAG:
         """Extract requirements based on business type"""
         message_lower = message.lower()
         requirements = []
+        
+        # Use NegationDetector if available
+        if NegationDetector:
+            is_negative, negated_items = NegationDetector.detect_negation(message)
+            preferences = NegationDetector.extract_preferences(message)
+            
+            # Add dislikes as requirements
+            for dislike in preferences.get('dislikes', []):
+                requirements.append(f"avoid:{dislike}")
+            
+            # Add likes as preferences
+            for like in preferences.get('likes', []):
+                requirements.append(f"prefer:{like}")
+            
+            # Check if it's a dietary restriction
+            if NegationDetector.is_dietary_restriction(message):
+                for dislike in preferences.get('dislikes', []):
+                    requirements.append(f"dietary:{dislike}-free")
         
         # Universal patterns
         universal_patterns = {
@@ -229,20 +251,37 @@ class UniversalMemoryRAG:
                             context_parts.append(f"- {item['name']} (${item['price']})")
                         found_specific_items = True
                 else:
+                    # Check for avoid requirements from memory
+                    avoid_items = [req.split(':')[1] for req in memory.get('requirements', []) if req.startswith('avoid:')]
+                    
                     # Regular embedding search for any business
                     items = self.embedding_service.search_similar_items(
                         db=db,
                         business_id=business_id,  # Fixed parameter name
                         query=req.message,
-                        limit=5,
+                        limit=10,  # Get more to filter
                         threshold=0.35
                     )
                     
                     if items:
-                        context_parts.append("\nRelevant items/services:")
-                        for item in items:
-                            context_parts.append(f"- {item['name']} (${item['price']})")
-                        found_specific_items = True
+                        # Filter out items with ingredients to avoid
+                        if avoid_items:
+                            filtered_items = []
+                            for item in items:
+                                # Check if item contains any avoided ingredients
+                                item_desc = f"{item.get('name', '')} {item.get('description', '')}".lower()
+                                if not any(avoid in item_desc for avoid in avoid_items):
+                                    filtered_items.append(item)
+                            items = filtered_items[:5]
+                        
+                        if items:
+                            if avoid_items:
+                                context_parts.append(f"\nRelevant items/services (avoiding {', '.join(avoid_items)}):")
+                            else:
+                                context_parts.append("\nRelevant items/services:")
+                            for item in items:
+                                context_parts.append(f"- {item['name']} (${item['price']})")
+                            found_specific_items = True
                 
                 # IMPORTANT: If no specific items found, provide general menu context
                 if not found_specific_items and business_type == 'restaurant':
