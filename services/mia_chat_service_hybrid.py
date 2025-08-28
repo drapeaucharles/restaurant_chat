@@ -68,10 +68,16 @@ class HybridQueryClassifier:
         if any(word in query_lower.split() for word in greeting_words):
             return QueryType.GREETING
         
-        # Check for specific items
+        # Check for specific items or ingredients
         food_items = ['pasta', 'pizza', 'dessert', 'wine', 'appetizer', 'salad', 'soup', 
-                      'chicken', 'beef', 'fish', 'seafood', 'vegetarian', 'vegan']
+                      'chicken', 'beef', 'fish', 'seafood', 'vegetarian', 'vegan', 
+                      'eggs', 'egg', 'cheese', 'mushroom', 'tomato', 'sauce']
+        ingredient_phrases = ['love', 'want', 'with', 'contain', 'include', 'have']
+        
+        # Check if query mentions food items or is asking about ingredients
         if any(item in query_lower for item in food_items):
+            return QueryType.SPECIFIC_ITEM
+        if any(phrase in query_lower for phrase in ingredient_phrases) and len(query_lower.split()) < 10:
             return QueryType.SPECIFIC_ITEM
         
         # Check for menu queries
@@ -239,8 +245,25 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
         query_lower = query.lower()
         relevant_items = []
         
+        # Check for ingredient requests
+        if any(word in query_lower for word in ['contain', 'with', 'have', 'include', 'love', 'want']):
+            # Look for specific ingredients mentioned
+            for item in menu_items:
+                item_ingredients = item.get('ingredients', [])
+                item_allergens = item.get('allergens', [])
+                item_desc = item.get('description', '').lower()
+                
+                # Check if any word in query matches ingredients
+                for word in query_lower.split():
+                    if len(word) > 3:  # Skip short words
+                        if (any(word in ing.lower() for ing in item_ingredients) or
+                            any(word in allerg.lower() for allerg in item_allergens) or
+                            word in item_desc):
+                            relevant_items.append(item)
+                            break
+        
         # Check for specific food types
-        if 'pasta' in query_lower:
+        elif 'pasta' in query_lower:
             for item in menu_items:
                 name = (item.get('dish') or item.get('name', '')).lower()
                 desc = item.get('description', '').lower()
@@ -261,12 +284,25 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
                     relevant_items.append(item)
         
         if relevant_items:
-            context_parts.append(f"\nRelevant menu items for the customer's request:")
+            # Check if this is an ingredient-specific query
+            is_ingredient_query = any(word in query_lower for word in ['contain', 'with', 'have', 'include', 'love', 'want'])
+            
+            if is_ingredient_query:
+                context_parts.append(f"\nMenu items that match your request:")
+            else:
+                context_parts.append(f"\nRelevant menu items for the customer's request:")
+            
             for item in relevant_items:
                 name = item.get('dish') or item.get('name', '')
                 price = item.get('price', '')
                 desc = item.get('description', '')
-                if desc:
+                ingredients = item.get('ingredients', [])
+                
+                # For ingredient queries, show ingredients clearly
+                if is_ingredient_query and ingredients:
+                    context_parts.append(f"- {name} ({price}): {desc}")
+                    context_parts.append(f"  Ingredients: {', '.join(ingredients)}")
+                elif desc:
                     context_parts.append(f"- {name} ({price}): {desc}")
                 else:
                     context_parts.append(f"- {name} ({price})")
