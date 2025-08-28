@@ -123,113 +123,132 @@ def get_description_if_needed(menu_items: List[Dict], item_names: List[str]) -> 
 def mia_chat_service_full_menu(req: ChatRequest, db: Session) -> ChatResponse:
     """Full menu chat service - sends complete menu in compact format"""
     
-    logger.info(f"FULL MENU SERVICE - Request from client {req.client_id}")
-    
-    # Skip AI for restaurant staff messages
-    if req.sender_type == 'restaurant':
-        logger.info("Blocking AI response for restaurant staff message")
-        return ChatResponse(answer="")
-    
-    # Classify query
-    query_type = HybridQueryClassifier.classify(req.message)
-    logger.info(f"Query classified as: {query_type.value}")
-    
-    # Detect language
-    language = detect_language(req.message)
-    
-    # Check if it's businesses or restaurants table
-    from sqlalchemy import text
-    
-    # First try businesses table
-    business_query = text("""
-        SELECT business_type, data
-        FROM businesses 
-        WHERE business_id = :business_id
-    """)
-    business_result = db.execute(business_query, {"business_id": req.restaurant_id}).fetchone()
-    
-    if business_result:
-        business_type, data = business_result
-        business_name = data.get('name', req.restaurant_id) if data else req.restaurant_id
-        menu_items = data.get('menu', []) if data else []
-    else:
-        # Fallback to restaurants table
-        restaurant = db.query(models.Restaurant).filter(
-            models.Restaurant.restaurant_id == req.restaurant_id
-        ).first()
+    try:
+        logger.info(f"FULL MENU SERVICE - Request from client {req.client_id}: {req.message[:50]}...")
         
-        if not restaurant:
-            return ChatResponse(answer="I'm sorry, I cannot find information about this business.")
-        
-        business_type = 'restaurant'
-        data = restaurant.data or {}
-        business_name = data.get('restaurant_name', req.restaurant_id)
-        menu_items = data.get('menu', [])
+        # Skip AI for restaurant staff messages
+        if req.sender_type == 'restaurant':
+            logger.info("Blocking AI response for restaurant staff message")
+            return ChatResponse(answer="")
     
-    # Build system prompt with personality
-    system_prompt = f"""You are Maria, a friendly server at {business_name}.
+        # Classify query
+        query_type = HybridQueryClassifier.classify(req.message)
+        logger.info(f"Query classified as: {query_type.value}")
+    
+        # Detect language
+        language = detect_language(req.message)
+    
+        # Check if it's businesses or restaurants table
+        from sqlalchemy import text
+        
+        # First try businesses table
+        business_query = text("""
+            SELECT business_type, data
+            FROM businesses 
+            WHERE business_id = :business_id
+        """)
+        business_result = db.execute(business_query, {"business_id": req.restaurant_id}).fetchone()
+        
+        if business_result:
+            business_type, data = business_result
+            business_name = data.get('name', req.restaurant_id) if data else req.restaurant_id
+            menu_items = data.get('menu', []) if data else []
+        else:
+            # Fallback to restaurants table
+            restaurant = db.query(models.Restaurant).filter(
+                models.Restaurant.restaurant_id == req.restaurant_id
+            ).first()
+            
+            if not restaurant:
+                return ChatResponse(answer="I'm sorry, I cannot find information about this business.")
+            
+            business_type = 'restaurant'
+            data = restaurant.data or {}
+            business_name = data.get('restaurant_name', req.restaurant_id)
+            menu_items = data.get('menu', [])
+        
+        # Build system prompt with personality
+        system_prompt = f"""You are Maria, a friendly server at {business_name}.
 
 Be warm but concise:
 - Sound natural, not robotic
 - Keep responses short (2-4 sentences max)
-- React genuinely but briefly ("Oh, you love eggs!")
+- React genuinely but briefly ("Oh, you want steak!")
 - Suggest 2-3 items with a quick reason why they're good
 - Include prices naturally in conversation
+- Handle "or similar" requests by finding related items
 
 Example response style:
-"Oh, you love eggs! Our Carbonara ($18.99) is amazing - creamy egg yolk sauce just like in Rome. The Tiramisu ($9.99) is my personal favorite for dessert too. What sounds good?"
+"Oh, you want steak! Our Ribeye ($38.99) is perfectly marbled and so tender. The Grilled Chicken ($24.99) is also great if you want something lighter but still hearty. What sounds better?"
 
 Menu items below show [ingredients] and {allergens}."""
-    
-    # Build compact menu context
-    menu_context = build_compact_menu_context(menu_items, business_type)
-    
-    # Check if query mentions specific items that might need descriptions
-    mentioned_items = []
-    query_lower = req.message.lower()
-    for item in menu_items[:20]:  # Check first 20 for efficiency
-        item_name = (item.get('name') or item.get('dish', '')).lower()
-        if item_name and len(item_name) > 3 and item_name in query_lower:
-            mentioned_items.append(item.get('name') or item.get('dish'))
-    
-    # Get descriptions if specific items mentioned
-    description_context = ""
-    if mentioned_items and query_type == QueryType.SPECIFIC_ITEM:
-        description_context = get_description_if_needed(menu_items, mentioned_items)
-    
-    # Build full prompt
-    full_prompt = f"""{system_prompt}
+        
+        # Build compact menu context
+        menu_context = build_compact_menu_context(menu_items, business_type)
+        
+        # Check if query mentions specific items that might need descriptions
+        mentioned_items = []
+        query_lower = req.message.lower()
+        for item in menu_items[:20]:  # Check first 20 for efficiency
+            item_name = (item.get('name') or item.get('dish', '')).lower()
+            if item_name and len(item_name) > 3 and item_name in query_lower:
+                mentioned_items.append(item.get('name') or item.get('dish'))
+        
+        # Get descriptions if specific items mentioned
+        description_context = ""
+        if mentioned_items and query_type == QueryType.SPECIFIC_ITEM:
+            description_context = get_description_if_needed(menu_items, mentioned_items)
+        
+        # Build full prompt
+        full_prompt = f"""{system_prompt}
 
 {menu_context}
 {description_context}
 
 Customer: {req.message}
 Assistant:"""
-    
-    logger.info(f"Full menu prompt length: {len(full_prompt)} chars (~{len(full_prompt)//4} tokens)")
-    
-    # DEBUG: Log items with eggs
-    egg_items = []
-    for item in menu_items:
-        ingredients = item.get('ingredients', [])
-        if any('egg' in str(ing).lower() for ing in ingredients):
-            egg_items.append(f"{item.get('dish', item.get('name', ''))} - {ingredients}")
-    logger.info(f"Items with eggs in menu: {len(egg_items)}")
-    for item in egg_items[:5]:
-        logger.info(f"  {item}")
-    
-    # Get AI response
-    params = get_hybrid_parameters(query_type)
-    answer = get_mia_response_hybrid(full_prompt, params)
-    
-    # Save to database
-    new_message = models.ChatMessage(
-        restaurant_id=req.restaurant_id,
-        client_id=req.client_id,
-        sender_type="ai",
-        message=answer
-    )
-    db.add(new_message)
-    db.commit()
-    
-    return ChatResponse(answer=answer)
+        
+        logger.info(f"Full menu prompt length: {len(full_prompt)} chars (~{len(full_prompt)//4} tokens)")
+        
+        # DEBUG: Log items with specific ingredients
+        if 'steak' in query_lower:
+            steak_items = []
+            for item in menu_items:
+                name = (item.get('dish') or item.get('name', '')).lower()
+                if 'steak' in name or 'beef' in name or 'ribeye' in name:
+                    steak_items.append(f"{item.get('dish', item.get('name', ''))} - {item.get('price', '')}")
+            logger.info(f"Steak/beef items found: {len(steak_items)}")
+            for item in steak_items[:5]:
+                logger.info(f"  {item}")
+        
+        # Get AI response
+        params = get_hybrid_parameters(query_type)
+        answer = get_mia_response_hybrid(full_prompt, params)
+        
+        # Save to database
+        new_message = models.ChatMessage(
+            restaurant_id=req.restaurant_id,
+            client_id=req.client_id,
+            sender_type="ai",
+            message=answer
+        )
+        db.add(new_message)
+        db.commit()
+        
+        return ChatResponse(answer=answer)
+        
+    except Exception as e:
+        logger.error(f"Error in full_menu service: {str(e)}", exc_info=True)
+        # Try to rollback database if needed
+        try:
+            db.rollback()
+        except:
+            pass
+        
+        # Return a more helpful error message
+        if "timeout" in str(e).lower():
+            return ChatResponse(answer="The AI service is taking longer than expected. Please try again.")
+        elif "connection" in str(e).lower():
+            return ChatResponse(answer="I'm having trouble connecting to our AI service. Please try again in a moment.")
+        else:
+            return ChatResponse(answer="I apologize, but I'm having technical difficulties. Please try again or ask our staff for assistance.")
