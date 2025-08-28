@@ -12,8 +12,7 @@ from schemas.chat import ChatRequest, ChatResponse
 import os
 import logging
 from services.mia_chat_service_hybrid import (
-    get_mia_response_hybrid,
-    detect_language
+    get_mia_response_hybrid
 )
 
 logger = logging.getLogger(__name__)
@@ -111,7 +110,7 @@ def mia_chat_service_full_menu(req: ChatRequest, db: Session) -> ChatResponse:
         if req.sender_type == 'restaurant':
             logger.info("Blocking AI response for restaurant staff message")
             return ChatResponse(answer="")
-    
+        
         # Check if it's businesses or restaurants table
         from sqlalchemy import text
         
