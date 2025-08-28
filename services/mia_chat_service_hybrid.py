@@ -17,6 +17,10 @@ import os
 import logging
 from enum import Enum
 from services.enhanced_response_cache import HybridCache
+try:
+    from services.negation_detector import NegationDetector
+except ImportError:
+    NegationDetector = None
 
 logger = logging.getLogger(__name__)
 
@@ -245,9 +249,16 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
         query_lower = query.lower()
         relevant_items = []
         
-        # Check for negation patterns
-        negation_words = ["don't", "dont", "do not", "no ", "without", "avoid", "dislike", "hate", "allergic"]
-        is_negative = any(neg in query_lower for neg in negation_words)
+        # Check for negation patterns using advanced detector
+        if NegationDetector:
+            is_negative, negated_items = NegationDetector.detect_negation(query_lower)
+            preferences = NegationDetector.extract_preferences(query_lower)
+        else:
+            # Fallback to simple detection
+            negation_words = ["don't", "dont", "do not", "no ", "without", "avoid", "dislike", "hate", "allergic"]
+            is_negative = any(neg in query_lower for neg in negation_words)
+            negated_items = []
+            preferences = {'likes': [], 'dislikes': []}
         
         # Check for ingredient requests
         if any(word in query_lower for word in ['contain', 'with', 'have', 'include', 'love', 'want'] + negation_words):
@@ -276,14 +287,17 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
                 
                 # For negative queries, include items that DON'T have the ingredient
                 if is_negative and not should_include:
-                    # Check if item doesn't contain the unwanted ingredient
+                    # Check if item doesn't contain any of the unwanted ingredients
                     unwanted_found = False
-                    for word in query_lower.split():
-                        if len(word) > 3 and word not in negation_words:
-                            if (any(word in ing.lower() for ing in item_ingredients) or
-                                any(word in allerg.lower() for allerg in item_allergens)):
-                                unwanted_found = True
-                                break
+                    
+                    # Use detected negated items if available
+                    items_to_check = negated_items if negated_items else [w for w in query_lower.split() if len(w) > 3 and w not in negation_words]
+                    
+                    for unwanted_item in items_to_check:
+                        if (any(unwanted_item in ing.lower() for ing in item_ingredients) or
+                            any(unwanted_item in allerg.lower() for allerg in item_allergens)):
+                            unwanted_found = True
+                            break
                     
                     if not unwanted_found:
                         relevant_items.append(item)
