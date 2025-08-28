@@ -1,6 +1,6 @@
 """
-Full Menu MIA Chat Service - Always sends complete menu in compact format
-No complex search, no missing items, just all the data
+Simplified Full Menu MIA Chat Service
+Since we send the complete menu, the AI can handle all queries without complex classification
 """
 import requests
 import json
@@ -11,10 +11,6 @@ import models
 from schemas.chat import ChatRequest, ChatResponse
 import os
 import logging
-from services.mia_chat_service_hybrid import (
-    get_mia_response_hybrid,
-    detect_language
-)
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +96,51 @@ def build_compact_menu_context(menu_items: List[Dict], business_type: str = 'res
     
     return "\n".join(context_parts)
 
+def get_mia_response(prompt: str, max_tokens: int = 300) -> str:
+    """Get response from MIA with simple error handling"""
+    try:
+        request_data = {
+            "prompt": prompt,
+            "max_tokens": max_tokens,
+            "temperature": 0.7,
+            "source": "restaurant-full-menu"
+        }
+        
+        logger.info(f"Sending to MIA: {len(prompt)} chars")
+        
+        response = requests.post(
+            f"{MIA_BACKEND_URL}/api/generate",
+            json=request_data,
+            headers={
+                "Content-Type": "application/json",
+                "X-Source": "restaurant-backend-full-menu"
+            },
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            text = result.get("text") or result.get("response") or result.get("answer") or ""
+            
+            if text:
+                logger.info(f"Got response from MIA: {text[:100]}...")
+                return text.strip()
+            else:
+                logger.warning("MIA returned empty text")
+                return "I'm having trouble processing that. Could you try again?"
+        else:
+            logger.error(f"MIA returned status code: {response.status_code}")
+            return "I'm having technical difficulties. Please try again."
+            
+    except requests.Timeout:
+        logger.error("MIA request timed out")
+        return "The AI service is taking longer than expected. Please try again."
+    except Exception as e:
+        logger.error(f"Error calling MIA: {str(e)}", exc_info=True)
+        return "I'm having trouble connecting to our AI service. Please try again in a moment."
 
-def mia_chat_service_full_menu(req: ChatRequest, db: Session) -> ChatResponse:
-    """Full menu chat service - sends complete menu in compact format"""
+def mia_chat_service_full_menu_simple(req: ChatRequest, db: Session) -> ChatResponse:
+    """Simplified full menu chat service - AI handles everything with complete menu"""
     
     try:
         logger.info(f"FULL MENU SERVICE - Request from client {req.client_id}: {req.message[:50]}...")
@@ -112,7 +150,7 @@ def mia_chat_service_full_menu(req: ChatRequest, db: Session) -> ChatResponse:
             logger.info("Blocking AI response for restaurant staff message")
             return ChatResponse(answer="")
     
-        # Check if it's businesses or restaurants table
+        # Get business data
         from sqlalchemy import text
         
         # First try businesses table
@@ -141,28 +179,22 @@ def mia_chat_service_full_menu(req: ChatRequest, db: Session) -> ChatResponse:
             business_name = data.get('restaurant_name', req.restaurant_id)
             menu_items = data.get('menu', [])
         
-        # Build system prompt with personality
+        # Build system prompt
         system_prompt = f"""You are Maria, a friendly server at {business_name}.
 
 Be warm but concise:
-- Sound natural, not robotic
+- Sound natural and conversational
 - Keep responses short (2-4 sentences max)
-- React genuinely but briefly ("Oh, you want steak!")
-- Suggest 2-3 items with a quick reason why they're good
-- Include prices naturally in conversation
-- When customer asks for "X or similar", find X first, then suggest related items
+- React genuinely to customer requests
+- Suggest 2-3 relevant items with prices
+- Handle any type of query naturally
 
-Example for "or similar" requests:
-Customer: "I want steak or things similar"
-You: "Oh, you want something hearty! Our Ribeye ($38.99) is amazing, and we also have the Grilled Lamb Chops ($35.99) or our Beef Medallions ($32.99) if you want other red meats. What sounds good?"
+You have access to our complete menu below. Answer any question about our offerings, make recommendations, handle dietary restrictions, and chat naturally with customers.
 
-Menu items below show [ingredients] and {allergens}."""
+Menu items show: Name (price) [ingredients] {{allergens}}"""
         
         # Build compact menu context
         menu_context = build_compact_menu_context(menu_items, business_type)
-        
-        # For full menu mode, we don't need complex query analysis
-        query_lower = req.message.lower()
         
         # Build full prompt
         full_prompt = f"""{system_prompt}
@@ -172,50 +204,10 @@ Menu items below show [ingredients] and {allergens}."""
 Customer: {req.message}
 Assistant:"""
         
-        logger.info(f"Full menu prompt length: {len(full_prompt)} chars (~{len(full_prompt)//4} tokens)")
+        logger.info(f"Prompt length: {len(full_prompt)} chars (~{len(full_prompt)//4} tokens)")
         
-        # Check for "or similar" pattern and enhance prompt
-        if 'or similar' in query_lower or 'or things similar' in query_lower or 'like' in query_lower:
-            # Extract the main item being requested
-            main_item = None
-            if 'steak' in query_lower:
-                main_item = 'steak'
-            elif 'chicken' in query_lower:
-                main_item = 'chicken'
-            elif 'fish' in query_lower:
-                main_item = 'fish'
-            
-            if main_item:
-                full_prompt = full_prompt.replace("Assistant:", f"""
-Remember: Customer is asking for {main_item} OR similar items. First mention {main_item} options, then suggest related dishes.
-Assistant:""")
-        
-        # DEBUG: Log items with specific ingredients
-        if 'steak' in query_lower:
-            steak_items = []
-            meat_items = []
-            for item in menu_items:
-                name = (item.get('dish') or item.get('name', '')).lower()
-                ingredients = [str(ing).lower() for ing in item.get('ingredients', [])]
-                
-                if 'steak' in name or 'ribeye' in name or 'sirloin' in name:
-                    steak_items.append(f"{item.get('dish', item.get('name', ''))} - {item.get('price', '')}")
-                elif any(meat in name or any(meat in ing for ing in ingredients) for meat in ['beef', 'lamb', 'pork', 'veal']):
-                    meat_items.append(f"{item.get('dish', item.get('name', ''))} - {item.get('price', '')}")
-                    
-            logger.info(f"Steak items found: {len(steak_items)}")
-            for item in steak_items[:3]:
-                logger.info(f"  {item}")
-            logger.info(f"Other meat items found: {len(meat_items)}")
-            for item in meat_items[:3]:
-                logger.info(f"  {item}")
-        
-        # Get AI response with simple parameters
-        params = {
-            "temperature": 0.7,
-            "max_tokens": 300
-        }
-        answer = get_mia_response_hybrid(full_prompt, params)
+        # Get AI response
+        answer = get_mia_response(full_prompt)
         
         # Save to database
         new_message = models.ChatMessage(
@@ -231,16 +223,9 @@ Assistant:""")
         
     except Exception as e:
         logger.error(f"Error in full_menu service: {str(e)}", exc_info=True)
-        # Try to rollback database if needed
         try:
             db.rollback()
         except:
             pass
         
-        # Return a more helpful error message
-        if "timeout" in str(e).lower():
-            return ChatResponse(answer="The AI service is taking longer than expected. Please try again.")
-        elif "connection" in str(e).lower():
-            return ChatResponse(answer="I'm having trouble connecting to our AI service. Please try again in a moment.")
-        else:
-            return ChatResponse(answer="I apologize, but I'm having technical difficulties. Please try again or ask our staff for assistance.")
+        return ChatResponse(answer="I apologize, but I'm having technical difficulties. Please try again or ask our staff for assistance.")
