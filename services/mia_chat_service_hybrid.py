@@ -464,6 +464,7 @@ def mia_chat_service_hybrid(req: ChatRequest, db: Session) -> ChatResponse:
         full_prompt += f"\n\nCustomer: {req.message}\n{get_persona_name(language)}:"
         
         logger.info(f"Prompt length: {len(full_prompt)} chars")
+        logger.info(f"FULL PROMPT BEING SENT TO AI:\n{full_prompt[:1000]}...")
         
         # Get parameters
         params = get_hybrid_parameters(query_type)

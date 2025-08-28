@@ -212,6 +212,8 @@ class UniversalMemoryRAG:
         # Get relevant items/services (works for any business)
         if query_type not in [QueryType.GREETING] and len(req.message) > 10:
             try:
+                found_specific_items = False
+                
                 # For restaurants, check allergen service
                 if business_type == 'restaurant' and any(word in message_lower for word in ['allerg', 'dietary'] + [r.split(':')[1] for r in memory.get('requirements', []) if r.startswith('dietary:')]):
                     # Import allergen service only when needed
@@ -225,6 +227,7 @@ class UniversalMemoryRAG:
                         context_parts.append(f"\nItems suitable for your dietary needs:")
                         for item in suitable_items[:5]:
                             context_parts.append(f"- {item['name']} (${item['price']})")
+                        found_specific_items = True
                 else:
                     # Regular embedding search for any business
                     items = self.embedding_service.search_similar_items(
@@ -239,8 +242,39 @@ class UniversalMemoryRAG:
                         context_parts.append("\nRelevant items/services:")
                         for item in items:
                             context_parts.append(f"- {item['name']} (${item['price']})")
+                        found_specific_items = True
+                
+                # IMPORTANT: If no specific items found, provide general menu context
+                if not found_specific_items and business_type == 'restaurant':
+                    # Get all menu items for restaurants
+                    all_items_query = text("""
+                        SELECT name, price, description, category, ingredients, allergens
+                        FROM menu_items 
+                        WHERE business_id = :business_id
+                        ORDER BY category, name
+                        LIMIT 30
+                    """)
+                    all_items = db.execute(all_items_query, {"business_id": business_id}).fetchall()
+                    
+                    if all_items:
+                        context_parts.append("\nOur full menu includes:")
+                        current_category = None
+                        for item in all_items:
+                            if item.category != current_category:
+                                current_category = item.category
+                                context_parts.append(f"\n{current_category}:")
+                            
+                            desc_part = f": {item.description[:50]}..." if item.description else ""
+                            ing_part = ""
+                            if item.ingredients:
+                                ingredients_list = json.loads(item.ingredients) if isinstance(item.ingredients, str) else item.ingredients
+                                if ingredients_list and any('egg' in ing.lower() for ing in ingredients_list):
+                                    ing_part = f" (contains: {', '.join(ingredients_list[:3])}...)"
+                            
+                            context_parts.append(f"- {item.name} (${item.price}){desc_part}{ing_part}")
+                
             except Exception as e:
-                logger.warning(f"Universal: Search failed: {e}")
+                logger.warning(f"Universal: Search/menu fetch failed: {e}")
         
         # Build prompt
         context = "\n".join(context_parts)
@@ -290,6 +324,7 @@ Response:"""
         try:
             params = get_hybrid_parameters(query_type)
             logger.info(f"Universal: Using params for {query_type.value}: {params}")
+            logger.info(f"UNIVERSAL MEMORY PROMPT BEING SENT:\n{prompt[:1000]}...")
         except Exception as e:
             logger.error(f"Universal: Failed to get params: {e}")
             params = {
