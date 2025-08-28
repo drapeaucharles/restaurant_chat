@@ -194,6 +194,14 @@ try:
 except ImportError:
     logger.warning("Enhanced memory RAG service not available")
 
+# Load full menu service (sends complete menu, no search needed)
+try:
+    from services.mia_chat_service_full_menu import mia_chat_service_full_menu
+    chat_services['full_menu'] = mia_chat_service_full_menu
+    logger.info("Loaded full menu service")
+except ImportError:
+    logger.warning("Full menu service not available")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
