@@ -176,10 +176,11 @@ Be warm but concise:
 - React genuinely but briefly ("Oh, you want steak!")
 - Suggest 2-3 items with a quick reason why they're good
 - Include prices naturally in conversation
-- Handle "or similar" requests by finding related items
+- When customer asks for "X or similar", find X first, then suggest related items
 
-Example response style:
-"Oh, you want steak! Our Ribeye ($38.99) is perfectly marbled and so tender. The Grilled Chicken ($24.99) is also great if you want something lighter but still hearty. What sounds better?"
+Example for "or similar" requests:
+Customer: "I want steak or things similar"
+You: "Oh, you want something hearty! Our Ribeye ($38.99) is amazing, and we also have the Grilled Lamb Chops ($35.99) or our Beef Medallions ($32.99) if you want other red meats. What sounds good?"
 
 Menu items below show [ingredients] and {allergens}."""
         
@@ -210,15 +211,40 @@ Assistant:"""
         
         logger.info(f"Full menu prompt length: {len(full_prompt)} chars (~{len(full_prompt)//4} tokens)")
         
+        # Check for "or similar" pattern and enhance prompt
+        if 'or similar' in query_lower or 'or things similar' in query_lower or 'like' in query_lower:
+            # Extract the main item being requested
+            main_item = None
+            if 'steak' in query_lower:
+                main_item = 'steak'
+            elif 'chicken' in query_lower:
+                main_item = 'chicken'
+            elif 'fish' in query_lower:
+                main_item = 'fish'
+            
+            if main_item:
+                full_prompt = full_prompt.replace("Assistant:", f"""
+Remember: Customer is asking for {main_item} OR similar items. First mention {main_item} options, then suggest related dishes.
+Assistant:""")
+        
         # DEBUG: Log items with specific ingredients
         if 'steak' in query_lower:
             steak_items = []
+            meat_items = []
             for item in menu_items:
                 name = (item.get('dish') or item.get('name', '')).lower()
-                if 'steak' in name or 'beef' in name or 'ribeye' in name:
+                ingredients = [str(ing).lower() for ing in item.get('ingredients', [])]
+                
+                if 'steak' in name or 'ribeye' in name or 'sirloin' in name:
                     steak_items.append(f"{item.get('dish', item.get('name', ''))} - {item.get('price', '')}")
-            logger.info(f"Steak/beef items found: {len(steak_items)}")
-            for item in steak_items[:5]:
+                elif any(meat in name or any(meat in ing for ing in ingredients) for meat in ['beef', 'lamb', 'pork', 'veal']):
+                    meat_items.append(f"{item.get('dish', item.get('name', ''))} - {item.get('price', '')}")
+                    
+            logger.info(f"Steak items found: {len(steak_items)}")
+            for item in steak_items[:3]:
+                logger.info(f"  {item}")
+            logger.info(f"Other meat items found: {len(meat_items)}")
+            for item in meat_items[:3]:
                 logger.info(f"  {item}")
         
         # Get AI response
