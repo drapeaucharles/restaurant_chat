@@ -51,7 +51,6 @@ else:
     )
 
 class QueryType(Enum):
-    GREETING = "greeting"
     MENU_QUERY = "menu_query"
     SPECIFIC_ITEM = "specific_item"
     RECOMMENDATION = "recommendation"
@@ -67,11 +66,7 @@ class HybridQueryClassifier:
         """Classify query into categories"""
         query_lower = query.lower().strip()
         
-        # Check for greetings
-        greeting_words = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 
-                         'bonjour', 'hola', 'ciao', 'salut', 'buenas', 'bom dia']
-        if any(word in query_lower.split() for word in greeting_words):
-            return QueryType.GREETING
+        # No automatic greeting detection - let AI handle naturally
         
         # Check for specific items or ingredients
         food_items = ['pasta', 'pizza', 'dessert', 'wine', 'appetizer', 'salad', 'soup', 
@@ -144,11 +139,7 @@ Important rules:
 4. If asked about items not on the menu, politely explain what similar options are available"""
     
     # Add query-specific guidance
-    if query_type == QueryType.GREETING:
-        base_prompt += f"""
-
-For greetings: Welcome the customer warmly as {persona['name']}. Ask how you can help them today. 
-Do NOT list menu items unless specifically asked."""
+    # Let AI handle all messages naturally without special cases
     
     elif query_type == QueryType.MENU_QUERY:
         base_prompt += """
@@ -180,11 +171,6 @@ def get_hybrid_parameters(query_type: QueryType) -> Dict:
     """Get generation parameters compatible with MIA"""
     
     # Use only parameters that MIA definitely supports
-    if query_type == QueryType.GREETING:
-        return {
-            "temperature": 0.8,
-            "max_tokens": 150
-        }
     elif query_type in [QueryType.MENU_QUERY, QueryType.SPECIFIC_ITEM]:
         return {
             "temperature": 0.3,
@@ -241,9 +227,6 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
     
     context_parts = []
     
-    if query_type == QueryType.GREETING:
-        # Minimal context for greetings
-        return ""
     
     elif query_type == QueryType.SPECIFIC_ITEM:
         # Find specific category items
