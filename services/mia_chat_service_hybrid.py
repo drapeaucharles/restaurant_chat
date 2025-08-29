@@ -6,6 +6,7 @@ Includes Redis caching with graceful fallback
 import requests
 import json
 import re
+import time
 from typing import Dict, Optional, List, Tuple
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -405,16 +406,15 @@ def get_mia_response_hybrid(prompt: str, params: Dict) -> str:
     """Get response from MIA with error handling"""
     try:
         request_data = {
-            "prompt": prompt,
+            "message": prompt,  # Changed from "prompt" to "message"
             "max_tokens": params.get("max_tokens", 200),
-            "temperature": params.get("temperature", 0.7),
-            "source": "restaurant-hybrid"
+            "temperature": params.get("temperature", 0.7)
         }
         
         logger.info(f"Sending to MIA: {json.dumps(request_data)[:200]}...")
         
         response = requests.post(
-            f"{MIA_BACKEND_URL}/api/generate",
+            f"{MIA_BACKEND_URL}/chat",  # Changed from /api/generate to /chat
             json=request_data,
             headers={
                 "Content-Type": "application/json",
@@ -425,10 +425,53 @@ def get_mia_response_hybrid(prompt: str, params: Dict) -> str:
         
         if response.status_code == 200:
             result = response.json()
-            text = result.get("text") or result.get("response") or result.get("answer") or ""
             
+            # Check if it's a job response
+            job_id = result.get("job_id")
+            if job_id:
+                logger.info(f"Job queued with ID: {job_id}, polling for result...")
+                
+                # Poll for result
+                max_polls = 30  # 30 seconds max
+                for i in range(max_polls):
+                    time.sleep(1)
+                    
+                    poll_response = requests.get(
+                        f"{MIA_BACKEND_URL}/job/{job_id}/result",
+                        timeout=5
+                    )
+                    
+                    if poll_response.status_code == 200:
+                        poll_result = poll_response.json()
+                        
+                        # Check if result is ready
+                        if poll_result.get("result"):
+                            # Handle different response formats
+                            result_data = poll_result["result"]
+                            if isinstance(result_data, str):
+                                text = result_data
+                            elif isinstance(result_data, dict):
+                                text = result_data.get("text") or result_data.get("response") or result_data.get("output", "")
+                            else:
+                                text = str(result_data)
+                            
+                            if text:
+                                logger.info(f"Got response from MIA: {text[:100]}...")
+                                return text.strip()
+                        elif poll_result.get("status") == "pending":
+                            logger.debug(f"Job {job_id} still pending... ({i+1}/{max_polls})")
+                            continue
+                    elif poll_response.status_code == 404:
+                        logger.debug(f"Job {job_id} not found yet... ({i+1}/{max_polls})")
+                        continue
+                
+                logger.error(f"Job {job_id} timed out after {max_polls} seconds")
+                return "I apologize, but the response is taking too long. Please try again."
+            
+            # Fallback to direct response if available
+            text = result.get("text") or result.get("response") or result.get("answer") or ""
             if text:
-                logger.info(f"Got response from MIA: {text[:100]}...")
+                logger.info(f"Got direct response from MIA: {text[:100]}...")
                 return text.strip()
             else:
                 logger.warning("MIA returned empty text")
