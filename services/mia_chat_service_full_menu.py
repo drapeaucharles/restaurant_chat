@@ -15,6 +15,7 @@ from services.mia_chat_service_hybrid import (
     get_mia_response_hybrid
 )
 from services.customer_memory_service import CustomerMemoryService
+from models.customer_profile import CustomerProfile
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +174,6 @@ Menu items below show [ingredients] and {{allergens}}."""
         query_lower = req.message.lower()
         
         # Extract and update customer profile
-        from models.customer_profile import CustomerProfile
         extracted_info = CustomerMemoryService.extract_customer_info(req.message)
         if extracted_info:
             profile = CustomerMemoryService.update_customer_profile(
