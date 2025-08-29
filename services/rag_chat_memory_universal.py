@@ -165,7 +165,8 @@ class UniversalMemoryRAG:
         name_match = re.search(r'my name is (\w+)', req.message, re.IGNORECASE)
         if name_match:
             memory['name'] = name_match.group(1).capitalize()
-            logger.info(f"Universal: Captured name: {memory['name']}")
+            logger.info(f"*** UNIVERSAL: NAME CAPTURED: {memory['name']} FROM MESSAGE: {req.message} ***")
+            logger.info(f"*** MEMORY NOW CONTAINS NAME: {memory.get('name')} ***")
         
         # Classify query type
         try:
@@ -338,12 +339,14 @@ class UniversalMemoryRAG:
         
         # Handle specific queries about name
         if ('my name' in message_lower or 'remember' in message_lower) and memory.get('name'):
+            logger.info(f"*** NAME QUERY DETECTED! Memory has name: {memory['name']} ***")
             prompt = f"""{context}
 
 Customer asked: {req.message}
 
 You should acknowledge that you know their name is {memory['name']} and use it in your response.
 Be friendly and professional. NEVER use placeholder text."""
+            logger.info(f"*** SPECIAL NAME PROMPT ACTIVATED ***")
         else:
             # Build strong instructions to prevent placeholders
             name_instruction = ""
@@ -427,6 +430,8 @@ Response:"""
         
         # Save memory for next time
         self.save_memory(business_id, req.client_id, memory)
+        logger.info(f"*** UNIVERSAL: SAVING MEMORY FOR {req.client_id} ***")
+        logger.info(f"*** MEMORY CONTENT: name={memory.get('name')}, history_count={len(memory.get('history', []))}, requirements={memory.get('requirements', [])} ***")
         logger.info(f"Universal: Saved memory for {req.client_id}: name={memory.get('name')}, requirements={len(memory.get('requirements', []))}")
         
         return ChatResponse(
