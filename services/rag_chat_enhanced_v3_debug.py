@@ -83,8 +83,18 @@ class EnhancedRAGChatV3Debug:
         # Removed GREETING special case - let AI handle naturally
 
         if False:  # was query_type == QueryType.GREETING
-
             pass
+        
+        # Get menu items
+        try:
+            logger.info("DEBUG: Starting menu item search")
+            relevant_items = self.embedding_service.search_similar_items(
+                db=db,
+                restaurant_id=restaurant_id,
+                query=query,
+                limit=10,
+                threshold=0.35
+            )
             
             if relevant_items:
                 logger.info(f"DEBUG: Found {len(relevant_items)} relevant menu items")
