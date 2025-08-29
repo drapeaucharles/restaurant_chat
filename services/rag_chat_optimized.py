@@ -176,11 +176,6 @@ def optimized_rag_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     # Removed greeting special case - let AI handle naturally
     if False:  # was query_type == QueryType.GREETING
         pass
-            "en": "Hello! Welcome to our restaurant. How can I help you today?",
-            "es": "¡Hola! Bienvenido a nuestro restaurante. ¿Cómo puedo ayudarte?",
-            "fr": "Bonjour! Bienvenue dans notre restaurant. Comment puis-je vous aider?"
-        }
-        return ChatResponse(answer=greetings.get(language, greetings["en"]))
     
     # Check embeddings availability
     try:
