@@ -180,8 +180,10 @@ Menu items below show [ingredients] and {{allergens}}."""
             )
         else:
             # Get existing profile
+            # Convert client_id to string if it's a UUID
+            client_id_str = str(req.client_id)
             profile = db.query(models.CustomerProfile).filter(
-                models.CustomerProfile.client_id == req.client_id,
+                models.CustomerProfile.client_id == client_id_str,
                 models.CustomerProfile.restaurant_id == req.restaurant_id
             ).first()
         

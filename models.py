@@ -56,8 +56,12 @@ class ChatMessage(Base):
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
 # Import CustomerProfile to make it available through models module
+import sys
+import os
+# Add models directory to path to import customer_profile
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'models'))
 try:
-    from models.customer_profile import CustomerProfile
+    from customer_profile import CustomerProfile
 except ImportError:
     # If import fails, define a placeholder to avoid breaking existing code
     class CustomerProfile:

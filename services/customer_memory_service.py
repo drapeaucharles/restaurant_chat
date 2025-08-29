@@ -111,14 +111,16 @@ class CustomerMemoryService:
         """Update or create customer profile with extracted information"""
         
         # Get or create profile
+        # Convert client_id to string if it's a UUID
+        client_id_str = str(client_id)
         profile = db.query(models.CustomerProfile).filter(
-            models.CustomerProfile.client_id == client_id,
+            models.CustomerProfile.client_id == client_id_str,
             models.CustomerProfile.restaurant_id == restaurant_id
         ).first()
         
         if not profile:
             profile = models.CustomerProfile(
-                client_id=client_id,
+                client_id=client_id_str,
                 restaurant_id=restaurant_id
             )
             db.add(profile)

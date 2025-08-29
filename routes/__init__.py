@@ -17,15 +17,8 @@ USE_ENHANCED_CHAT = os.getenv("USE_ENHANCED_CHAT", "false").lower() == "true"
 # Import other routes
 from . import auth, restaurant, clients, chats
 
-# Conditional import for chat based on configuration
-if USE_ENHANCED_CHAT:
-    from . import chat_enhanced as chat
-    print("🤖 Restaurant using ENHANCED MIA with caching and dynamic parameters")
-elif config_available and USE_MIA_FOR_CHAT:
-    from . import chat_mia as chat
-    print("🤖 Restaurant using MIA for chat responses")
-else:
-    from . import chat
-    print("🤖 Restaurant using OpenAI for chat responses")
+# Always use chat_dynamic for the dynamic RAG system
+from . import chat_dynamic as chat
+print("🤖 Restaurant using DYNAMIC RAG system with restaurant-specific modes")
 
 __all__ = ["auth", "restaurant", "chat", "clients", "chats"]
