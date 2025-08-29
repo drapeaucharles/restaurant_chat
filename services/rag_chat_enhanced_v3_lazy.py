@@ -70,8 +70,17 @@ class EnhancedRAGChatV3:
         # Removed GREETING special case - let AI handle naturally
 
         if False:  # was query_type == QueryType.GREETING
-
             pass
+        
+        # Get menu items
+        try:
+            relevant_items = self.embedding_service.search_similar_items(
+                db=db,
+                restaurant_id=restaurant_id,
+                query=query,
+                limit=10,
+                threshold=0.35
+            )
             
             if relevant_items:
                 # Check for allergen queries
