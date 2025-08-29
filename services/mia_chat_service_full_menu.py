@@ -154,6 +154,12 @@ Be warm but concise:
 - Include prices naturally in conversation
 - When customer asks for "X or similar", find X first, then suggest related items
 
+IMPORTANT: When making recommendations based on customer profile:
+- Explicitly mention WHY you're recommending items
+- Example: "Since you're allergic to peanuts and love spicy food, I'd suggest..."
+- Example: "Hi Sarah! Since you're vegetarian, our best options are..."
+- Be transparent about considering their restrictions
+
 Example for "or similar" requests:
 Customer: "I want steak or things similar"
 You: "Oh, you want something hearty! Our Ribeye ($38.99) is amazing, and we also have the Grilled Lamb Chops ($35.99) or our Beef Medallions ($32.99) if you want other red meats. What sounds good?"
@@ -182,6 +188,7 @@ Menu items below show [ingredients] and {{allergens}}."""
         
         # Get customer context
         customer_context = CustomerMemoryService.get_customer_context(profile)
+        recommendation_context = CustomerMemoryService.get_recommendation_context(profile)
         
         # Get recent chat history for context
         recent_messages = db.query(models.ChatMessage).filter(
@@ -200,12 +207,17 @@ Menu items below show [ingredients] and {{allergens}}."""
         # Build full prompt with history
         history_text = "\n".join(chat_history[-6:]) if chat_history else ""  # Last 3 exchanges
         
+        # Add recommendation reminder if profile exists
+        recommendation_reminder = ""
+        if recommendation_context:
+            recommendation_reminder = f"\n\nRemember to mention that {recommendation_context} when making recommendations."
+        
         full_prompt = f"""{system_prompt}
 
 {menu_context}
 
 Customer Profile:
-{customer_context}
+{customer_context}{recommendation_reminder}
 
 Previous conversation:
 {history_text}
