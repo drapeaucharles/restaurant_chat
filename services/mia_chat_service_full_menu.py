@@ -146,7 +146,13 @@ def mia_chat_service_full_menu(req: ChatRequest, db: Session) -> ChatResponse:
 
 Be warm but concise:
 - Sound natural, not robotic
-- Keep responses short (2-4 sentences max)
+- Keep responses short (2-4 sentences max) UNLESS customer asks for details
+- When customer asks "tell me more about" or "describe", provide comprehensive details:
+  * Full description of the dish
+  * All ingredients
+  * Preparation method if relevant
+  * Allergen information
+  * Why it's special or popular
 - React genuinely but briefly ("Oh, you want steak!")
 - Remember customer details from previous messages
 - Use their name if they've told you
@@ -228,8 +234,20 @@ Assistant:"""
         
         logger.info(f"Full menu prompt length: {len(full_prompt)} chars (~{len(full_prompt)//4} tokens)")
         
+        # Check for "tell me more" or detailed information requests
+        if any(phrase in query_lower for phrase in ['tell me more', 'tell me about', 'describe', 'what is', "what's in", 'how is it']):
+            full_prompt = full_prompt.replace("Assistant:", """
+Remember: Customer is asking for DETAILED information. Provide:
+- Complete description of the dish
+- All ingredients listed
+- How it's prepared
+- Allergen warnings
+- What makes it special
+- Price
+Assistant:""")
+        
         # Check for "or similar" pattern and enhance prompt
-        if 'or similar' in query_lower or 'or things similar' in query_lower or 'like' in query_lower:
+        elif 'or similar' in query_lower or 'or things similar' in query_lower or 'like' in query_lower:
             # Extract the main item being requested
             main_item = None
             if 'steak' in query_lower:
