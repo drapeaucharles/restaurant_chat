@@ -14,6 +14,7 @@ import logging
 from services.mia_chat_service_hybrid import (
     get_mia_response_hybrid
 )
+from services.customer_memory_service import CustomerMemoryService
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +166,23 @@ Menu items below show [ingredients] and {{allergens}}."""
         # For full menu mode, we don't need complex query analysis
         query_lower = req.message.lower()
         
+        # Extract and update customer profile
+        from models.customer_profile import CustomerProfile
+        extracted_info = CustomerMemoryService.extract_customer_info(req.message)
+        if extracted_info:
+            profile = CustomerMemoryService.update_customer_profile(
+                db, req.client_id, req.restaurant_id, extracted_info
+            )
+        else:
+            # Get existing profile
+            profile = db.query(CustomerProfile).filter(
+                CustomerProfile.client_id == req.client_id,
+                CustomerProfile.restaurant_id == req.restaurant_id
+            ).first()
+        
+        # Get customer context
+        customer_context = CustomerMemoryService.get_customer_context(profile)
+        
         # Get recent chat history for context
         recent_messages = db.query(models.ChatMessage).filter(
             models.ChatMessage.restaurant_id == req.restaurant_id,
@@ -185,6 +203,9 @@ Menu items below show [ingredients] and {{allergens}}."""
         full_prompt = f"""{system_prompt}
 
 {menu_context}
+
+Customer Profile:
+{customer_context}
 
 Previous conversation:
 {history_text}
