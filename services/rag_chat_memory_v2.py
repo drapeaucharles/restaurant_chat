@@ -127,7 +127,7 @@ class WorkingMemoryRAGV2:
         
         # Get relevant menu items if not just greeting
         # NEW: Use query type to decide
-        if query_type True  # was not in [QueryType.GREETING] and len(req.message) > 10:
+        if True and len(req.message) > 10:  # was query_type not in [QueryType.GREETING]
             try:
                 items = self.embedding_service.search_similar_items(
                     db=db,

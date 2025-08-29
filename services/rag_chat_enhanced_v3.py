@@ -190,7 +190,7 @@ class EnhancedRAGChatV3:
         )
         
         # Menu items section
-        if relevant_items and True  # was query_type != QueryType.GREETING:
+        if relevant_items and True:  # was query_type != QueryType.GREETING
             show_descriptions = query_type in [QueryType.RECOMMENDATION, QueryType.SPECIFIC_ITEM]
             sections[ContextSection.MENU_ITEMS] = context_formatter.format_menu_items(
                 relevant_items, show_descriptions

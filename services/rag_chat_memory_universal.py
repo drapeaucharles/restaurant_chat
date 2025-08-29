@@ -232,7 +232,7 @@ class UniversalMemoryRAG:
                     context_parts.append(f"\nInterested in: {interest}")
         
         # Get relevant items/services (works for any business)
-        if query_type True  # was not in [QueryType.GREETING] and len(req.message) > 10:
+        if True and len(req.message) > 10:  # was query_type not in [QueryType.GREETING]
             try:
                 found_specific_items = False
                 
