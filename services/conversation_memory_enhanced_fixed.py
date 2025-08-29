@@ -67,12 +67,21 @@ class EnhancedConversationMemory:
         
         if REDIS_AVAILABLE:
             try:
-                self.redis_client = redis.Redis(
-                    host='localhost',
-                    port=6379,
-                    decode_responses=True,
-                    socket_connect_timeout=2
-                )
+                import os
+                redis_url = os.getenv('REDIS_URL')
+                if redis_url:
+                    self.redis_client = redis.from_url(
+                        redis_url,
+                        decode_responses=True,
+                        socket_connect_timeout=2
+                    )
+                else:
+                    self.redis_client = redis.Redis(
+                        host='localhost',
+                        port=6379,
+                        decode_responses=True,
+                        socket_connect_timeout=2
+                    )
                 self.redis_client.ping()
                 self.redis_available = True
                 logger.info("Redis connected for conversation memory")
