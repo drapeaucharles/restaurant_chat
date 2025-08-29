@@ -256,8 +256,12 @@ export const BusinessChatInterface: React.FC<BusinessChatInterfaceProps> = ({
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={`Ask about our ${config.productLabel.toLowerCase()}...`}
-            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 text-black"
-            style={{ focusRingColor: config.primaryColor }}
+            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2"
+            style={{ 
+              focusRingColor: config.primaryColor, 
+              color: '#000000',
+              backgroundColor: '#FFFFFF'
+            }}
             disabled={isLoading}
           />
           <button
