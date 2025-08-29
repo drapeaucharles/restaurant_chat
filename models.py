@@ -55,4 +55,12 @@ class ChatMessage(Base):
     message = Column(Text)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
+# Import CustomerProfile to make it available through models module
+try:
+    from models.customer_profile import CustomerProfile
+except ImportError:
+    # If import fails, define a placeholder to avoid breaking existing code
+    class CustomerProfile:
+        pass
+
 

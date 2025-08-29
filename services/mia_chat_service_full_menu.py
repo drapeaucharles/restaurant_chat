@@ -15,7 +15,6 @@ from services.mia_chat_service_hybrid import (
     get_mia_response_hybrid
 )
 from services.customer_memory_service import CustomerMemoryService
-from models.customer_profile import CustomerProfile
 
 logger = logging.getLogger(__name__)
 
@@ -181,9 +180,9 @@ Menu items below show [ingredients] and {{allergens}}."""
             )
         else:
             # Get existing profile
-            profile = db.query(CustomerProfile).filter(
-                CustomerProfile.client_id == req.client_id,
-                CustomerProfile.restaurant_id == req.restaurant_id
+            profile = db.query(models.CustomerProfile).filter(
+                models.CustomerProfile.client_id == req.client_id,
+                models.CustomerProfile.restaurant_id == req.restaurant_id
             ).first()
         
         # Get customer context
