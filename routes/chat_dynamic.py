@@ -199,8 +199,10 @@ try:
     from services.mia_chat_service_full_menu import mia_chat_service_full_menu
     chat_services['full_menu'] = mia_chat_service_full_menu
     logger.info("Loaded full menu service")
-except ImportError:
-    logger.warning("Full menu service not available")
+except ImportError as e:
+    logger.warning(f"Full menu service not available: {str(e)}")
+except Exception as e:
+    logger.error(f"Full menu service error: {type(e).__name__}: {str(e)}")
 
 # Fallback service
 if not chat_services:

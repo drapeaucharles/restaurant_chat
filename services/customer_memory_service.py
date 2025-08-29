@@ -4,7 +4,7 @@ Customer Memory Service - Extract and store customer information
 import re
 from typing import Dict, List, Optional
 from sqlalchemy.orm import Session
-from models.customer_profile import CustomerProfile
+import models
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ class CustomerMemoryService:
     """Extract and manage customer information from conversations"""
     
     @staticmethod
-    def extract_customer_info(message: str, current_profile: Optional[CustomerProfile] = None) -> Dict:
+    def extract_customer_info(message: str, current_profile: Optional[models.CustomerProfile] = None) -> Dict:
         """Extract customer information from message"""
         info = {}
         message_lower = message.lower()
@@ -107,17 +107,17 @@ class CustomerMemoryService:
         return info
     
     @staticmethod
-    def update_customer_profile(db: Session, client_id: str, restaurant_id: str, extracted_info: Dict) -> CustomerProfile:
+    def update_customer_profile(db: Session, client_id: str, restaurant_id: str, extracted_info: Dict) -> models.CustomerProfile:
         """Update or create customer profile with extracted information"""
         
         # Get or create profile
-        profile = db.query(CustomerProfile).filter(
-            CustomerProfile.client_id == client_id,
-            CustomerProfile.restaurant_id == restaurant_id
+        profile = db.query(models.CustomerProfile).filter(
+            models.CustomerProfile.client_id == client_id,
+            models.CustomerProfile.restaurant_id == restaurant_id
         ).first()
         
         if not profile:
-            profile = CustomerProfile(
+            profile = models.CustomerProfile(
                 client_id=client_id,
                 restaurant_id=restaurant_id
             )
@@ -165,7 +165,7 @@ class CustomerMemoryService:
         return profile
     
     @staticmethod
-    def get_customer_context(profile: Optional[CustomerProfile]) -> str:
+    def get_customer_context(profile: Optional[models.CustomerProfile]) -> str:
         """Generate context string for AI about customer"""
         if not profile:
             return ""
@@ -202,7 +202,7 @@ class CustomerMemoryService:
         return "\n".join(context_parts) if context_parts else ""
     
     @staticmethod
-    def get_recommendation_context(profile: Optional[CustomerProfile]) -> str:
+    def get_recommendation_context(profile: Optional[models.CustomerProfile]) -> str:
         """Generate context for AI to explain recommendations"""
         if not profile:
             return ""
