@@ -158,7 +158,9 @@ class UniversalMemoryRAG:
         business_id = req.restaurant_id
         
         # Get existing memory FIRST
+        logger.info(f"*** MEMORY REQUEST - Business: {business_id}, Client: {req.client_id} ***")
         memory = self.get_memory(business_id, req.client_id)
+        logger.info(f"*** RETRIEVED MEMORY - Has name: {bool(memory.get('name'))}, Name value: {memory.get('name')}, History count: {len(memory.get('history', []))} ***")
         logger.info(f"Universal: Retrieved memory for {req.client_id}: name={memory.get('name')}, history={len(memory.get('history', []))}")
         
         # Extract name from current message
@@ -213,10 +215,13 @@ class UniversalMemoryRAG:
         
         # Add recent history
         if memory.get('history'):
+            logger.info(f"*** ADDING CONVERSATION HISTORY - {len(memory['history'])} total messages ***")
             context_parts.append("\nRecent conversation:")
             for item in memory['history'][-3:]:
+                logger.info(f"*** HISTORY: Customer said: '{item['q']}' ***")
+                logger.info(f"*** HISTORY: AI responded: '{item['a'][:200]}...' ***")
                 context_parts.append(f"Customer: {item['q']}")
-                context_parts.append(f"You: {item['a'][:100]}...")
+                context_parts.append(f"Assistant: {item['a'][:200]}...")  # Increased from 100 to 200 chars
         
         # Add requirements
         if memory.get('requirements'):
@@ -336,6 +341,9 @@ class UniversalMemoryRAG:
         
         # Build prompt
         context = "\n".join(context_parts)
+        logger.info(f"*** FINAL CONTEXT HAS {len(context_parts)} PARTS, TOTAL LENGTH: {len(context)} chars ***")
+        if memory.get('history'):
+            logger.info(f"*** CONTEXT INCLUDES CONVERSATION HISTORY FROM LAST {min(3, len(memory['history']))} MESSAGES ***")
         
         # Handle specific queries about name
         if ('my name' in message_lower or 'remember' in message_lower) and memory.get('name'):
@@ -384,7 +392,9 @@ Response:"""
         try:
             params = get_hybrid_parameters(query_type)
             logger.info(f"Universal: Using params for {query_type.value}: {params}")
-            logger.info(f"UNIVERSAL MEMORY PROMPT BEING SENT:\n{prompt[:1000]}...")
+            logger.info(f"*** UNIVERSAL MEMORY PROMPT BEING SENT (First 2000 chars) ***")
+            logger.info(f"{prompt[:2000]}...")
+            logger.info(f"*** END OF PROMPT PREVIEW ***")
         except Exception as e:
             logger.error(f"Universal: Failed to get params: {e}")
             params = {
