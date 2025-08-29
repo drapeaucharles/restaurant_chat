@@ -158,8 +158,14 @@ class BestMemoryRAG:
         # Removed GREETING special case - let AI handle naturally
 
         if False:  # was query_type == QueryType.GREETING
-
             pass
+        
+        # Menu search
+        try:
+            query_lower = query.lower()
+            is_allergen_query = any(word in query_lower for word in [
+                'allerg', 'nut', 'dairy', 'gluten', 'shellfish', 'vegetarian', 'vegan'
+            ])
             
             if is_allergen_query:
                 # Use allergen service
