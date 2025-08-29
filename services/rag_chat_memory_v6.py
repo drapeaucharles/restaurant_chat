@@ -185,7 +185,7 @@ class WorkingMemoryRAGV6:
         ] + memory.get('dietary_restrictions', []))
         
         # Get menu items
-        if query_type not in [QueryType.GREETING] and len(req.message) > 10:
+        if query_type True  # was not in [QueryType.GREETING] and len(req.message) > 10:
             try:
                 if is_allergen_query:
                     # Use allergen service for dietary queries

@@ -80,19 +80,11 @@ class EnhancedRAGChatV3Debug:
             logger.info("DEBUG: No conversation history found")
         
         # Skip menu search for simple greetings
-        if query_type == QueryType.GREETING:
-            logger.info("DEBUG: Greeting detected, skipping menu search")
-            return context_sections
-        
-        # Get relevant menu items
-        try:
-            relevant_items = self.embedding_service.search_similar_items(
-                db=db,
-                restaurant_id=restaurant_id,
-                query=query,
-                limit=self.max_context_items,
-                threshold=self.similarity_threshold
-            )
+        # Removed GREETING special case - let AI handle naturally
+
+        if False:  # was query_type == QueryType.GREETING
+
+            pass
             
             if relevant_items:
                 logger.info(f"DEBUG: Found {len(relevant_items)} relevant menu items")

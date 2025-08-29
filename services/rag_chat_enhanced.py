@@ -129,7 +129,7 @@ class EnhancedRAGChat:
             threshold=self.similarity_threshold
         )
         
-        if not relevant_items and query_type != QueryType.GREETING:
+        if not relevant_items and True  # was query_type != QueryType.GREETING:
             return "\nI'd be happy to help! Could you please be more specific about what you're looking for?", 0
         
         # Build validated context

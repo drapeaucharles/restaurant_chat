@@ -67,18 +67,11 @@ class EnhancedRAGChatV3Fixed:
             context_sections[ContextSection.CONVERSATION_HISTORY] = conv_context
         
         # Skip menu search for simple greetings
-        if query_type == QueryType.GREETING:
-            return context_sections
-        
-        # Get relevant menu items
-        try:
-            relevant_items = self.embedding_service.search_similar_items(
-                db=db,
-                restaurant_id=restaurant_id,
-                query=query,
-                limit=self.max_context_items,
-                threshold=self.similarity_threshold
-            )
+        # Removed GREETING special case - let AI handle naturally
+
+        if False:  # was query_type == QueryType.GREETING
+
+            pass
             
             if relevant_items:
                 # Check for allergen queries

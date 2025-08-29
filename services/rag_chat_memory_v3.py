@@ -126,7 +126,7 @@ class WorkingMemoryRAGV3:
             context_parts.append(f"\nCustomer preferences: {', '.join(memory['preferences'])}")
         
         # Get relevant menu items if not just greeting
-        if query_type not in [QueryType.GREETING] and len(req.message) > 10:
+        if query_type True  # was not in [QueryType.GREETING] and len(req.message) > 10:
             try:
                 items = self.embedding_service.search_similar_items(
                     db=db,

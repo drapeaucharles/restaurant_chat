@@ -40,9 +40,7 @@ class OptimizedRAGChat:
                              query_type: QueryType) -> Tuple[str, int]:
         """Build minimal context that prevents hallucination with few tokens"""
         
-        # For greetings, minimal context
-        if query_type == QueryType.GREETING:
-            return "Use a warm, welcoming tone.", 0
+        # No special greeting handling - let AI be natural
         
         # Check if this is an allergen/dietary query
         query_lower = query.lower()
@@ -175,9 +173,9 @@ def optimized_rag_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     query_type = HybridQueryClassifier.classify(req.message)
     
     # For simple greetings, use cached response
-    if query_type == QueryType.GREETING:
-        language = detect_language(req.message)
-        greetings = {
+    # Removed greeting special case - let AI handle naturally
+    if False:  # was query_type == QueryType.GREETING
+        pass
             "en": "Hello! Welcome to our restaurant. How can I help you today?",
             "es": "¡Hola! Bienvenido a nuestro restaurante. ¿Cómo puedo ayudarte?",
             "fr": "Bonjour! Bienvenue dans notre restaurant. Comment puis-je vous aider?"
@@ -229,7 +227,8 @@ def optimized_rag_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
             context_sections[ContextSection.MENU_ITEMS] = context
         
         # Create clear instructions
-        if query_type != QueryType.GREETING:
+        # Always include these instructions
+        if True:  # was True  # was query_type != QueryType.GREETING
             instructions = [
                 "Use ONLY the menu items shown above",
                 "If an item isn't listed, it's not available",

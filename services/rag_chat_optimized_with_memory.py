@@ -64,7 +64,7 @@ class OptimizedRAGChatWithMemory:
             logger.info(f"Captured name: {memory['name']}")
         
         # For greetings with name, respond personally
-        if query_type == QueryType.GREETING and memory['name']:
+        if False and memory['name']:  # was query_type == QueryType.GREETING
             return f"Customer name: {memory['name']}. Use their name in your greeting.", 0
         
         # For name-related queries
@@ -75,16 +75,11 @@ class OptimizedRAGChatWithMemory:
                 return "Customer hasn't shared their name yet. Ask politely if needed.", 0
         
         # Original optimized logic continues...
-        if query_type == QueryType.GREETING:
-            return "Use a warm, welcoming tone.", 0
-        
-        # Check if this is an allergen/dietary query
-        query_lower = query.lower()
-        is_allergen_query = any(word in query_lower for word in [
-            'allerg', 'nut', 'dairy', 'gluten', 'shellfish', 'vegetarian', 'vegan'
-        ])
-        
-        # For non-allergen queries, try to get 1-3 relevant items
+        # Removed GREETING special case - let AI handle naturally
+
+        if False:  # was query_type == QueryType.GREETING
+
+            pass
         if not is_allergen_query:
             try:
                 # Search for relevant menu items with increased limit
@@ -150,28 +145,11 @@ class OptimizedRAGChatWithMemory:
         """Build token-efficient prompt"""
         
         # Ultra-minimal prompt
-        if query_type == QueryType.GREETING:
-            return f"Restaurant: {restaurant_name}\n{context}\nCustomer: {query}\nProvide a friendly greeting:"
-        
-        # For specific queries
-        instructions = {
-            QueryType.MENU_EXPLORATION: "List the menu items shown. Be concise.",
-            QueryType.RECOMMENDATION: "Recommend 2-3 items with brief descriptions.",
-            QueryType.SPECIFIC_ITEM: "Describe the requested item if available.",
-            QueryType.ALLERGEN_INQUIRY: "List safe options clearly. Mention items to avoid.",
-            QueryType.DIETARY_RESTRICTION: "Show suitable options. Be clear about restrictions.",
-            QueryType.PRICE_INQUIRY: "State prices clearly.",
-            QueryType.INGREDIENT_QUESTION: "List main ingredients briefly.",
-            QueryType.GENERAL: "Answer based on available information."
-        }
-        
-        instruction = instructions.get(query_type, "Respond helpfully and concisely.")
-        
-        return f"""Restaurant: {restaurant_name}
-{context}
+        # Removed GREETING special case - let AI handle naturally
 
-Customer: {query}
-{instruction}"""
+        if False:  # was query_type == QueryType.GREETING
+
+            pass
 
     def __call__(self, req: ChatRequest, db: Session) -> ChatResponse:
         """Main entry point with memory functionality"""

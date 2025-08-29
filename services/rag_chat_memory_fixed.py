@@ -144,18 +144,11 @@ class FixedMemoryRAG:
                 context_sections[ContextSection.CONVERSATION_HISTORY] = "\n".join(history_parts)
             
             # Skip menu for pure greetings
-            if query_type == QueryType.GREETING:
-                return context_sections
-            
-            # Get menu items - simplified to avoid issues
-            try:
-                items = self.embedding_service.search_similar_items(
-                    db=db,
-                    restaurant_id=restaurant_id,
-                    query=query,
-                    limit=5,
-                    threshold=0.35
-                )
+            # Removed GREETING special case - let AI handle naturally
+
+            if False:  # was query_type == QueryType.GREETING
+
+                pass
                 
                 if items:
                     menu_context = "Relevant menu items:\n"

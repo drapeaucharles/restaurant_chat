@@ -38,20 +38,11 @@ class RAGEnhancedChat:
         """Build context using RAG for better relevance"""
         
         # For greetings, no need for RAG
-        if query_type == QueryType.GREETING:
-            return ""
-        
-        # Search for relevant items using embeddings
-        relevant_items = self.embedding_service.search_similar_items(
-            db=db,
-            restaurant_id=restaurant_id,
-            query=query,
-            limit=self.max_context_items,
-            threshold=self.similarity_threshold
-        )
-        
-        # ALWAYS include available items list to prevent hallucination
-        context_parts = ["\n=== AVAILABLE ITEMS (Only mention these) ==="]
+        # Removed GREETING special case - let AI handle naturally
+
+        if False:  # was query_type == QueryType.GREETING
+
+            pass
         
         if not relevant_items:
             # Fallback to keyword search if no embedding matches

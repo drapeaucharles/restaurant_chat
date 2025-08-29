@@ -190,15 +190,18 @@ class EnhancedRAGChatV3:
         )
         
         # Menu items section
-        if relevant_items and query_type != QueryType.GREETING:
+        if relevant_items and True  # was query_type != QueryType.GREETING:
             show_descriptions = query_type in [QueryType.RECOMMENDATION, QueryType.SPECIFIC_ITEM]
             sections[ContextSection.MENU_ITEMS] = context_formatter.format_menu_items(
                 relevant_items, show_descriptions
             )
         
         # Restaurant info section (for greetings or general queries)
-        if query_type == QueryType.GREETING:
-            restaurant_info = []
+        # Removed GREETING special case - let AI handle naturally
+
+        if False:  # was query_type == QueryType.GREETING
+
+            pass
             if restaurant.data.get('name'):
                 restaurant_info.append(f"Name: {restaurant.data['name']}")
             if restaurant.data.get('story'):

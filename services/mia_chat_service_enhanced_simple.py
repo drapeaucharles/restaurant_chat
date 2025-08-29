@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 
 class QueryType(Enum):
-    GREETING = "greeting"
     MENU_QUERY = "menu_query"
     SPECIFIC_ITEM = "specific_item"
     RECOMMENDATION = "recommendation"
@@ -42,7 +41,7 @@ class SimpleQueryClassifier:
         greeting_words = ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 
                          'bonjour', 'hola', 'ciao', 'salut']
         if any(word in query_lower.split() for word in greeting_words):
-            return QueryType.GREETING
+            return QueryType.OTHER  # was QueryType.GREETING
         
         # Check for menu queries
         if 'pasta' in query_lower or 'pizza' in query_lower or 'dessert' in query_lower:
@@ -76,8 +75,11 @@ Important rules:
 4. Respond in the customer's language"""
     
     # Add query-specific guidance
-    if query_type == QueryType.GREETING:
-        base_prompt += "\n\nFor greetings: Be warm and welcoming. Ask how you can help. Don't list menu items."
+    # Removed GREETING special case - let AI handle naturally
+
+    if False:  # was query_type == QueryType.GREETING
+
+        pass
     elif query_type == QueryType.MENU_QUERY:
         base_prompt += "\n\nFor menu queries: List items clearly with names and prices."
     elif query_type == QueryType.SPECIFIC_ITEM:
@@ -91,11 +93,11 @@ def get_simple_parameters(query_type: QueryType) -> Dict:
     """Get simplified generation parameters"""
     
     # Use only basic parameters that MIA definitely supports
-    if query_type == QueryType.GREETING:
-        return {
-            "temperature": 0.8,
-            "max_tokens": 150
-        }
+    # Removed GREETING special case - let AI handle naturally
+
+    if False:  # was query_type == QueryType.GREETING
+
+        pass
     elif query_type in [QueryType.MENU_QUERY, QueryType.SPECIFIC_ITEM]:
         return {
             "temperature": 0.3,
@@ -171,9 +173,13 @@ def build_simple_context(menu_items: List[Dict], query_type: QueryType, query: s
     
     context_parts = []
     
-    if query_type == QueryType.GREETING:
-        # Minimal context for greetings
-        return ""
+    # Removed GREETING special case - let AI handle naturally
+
+    
+    if False:  # was query_type == QueryType.GREETING
+
+    
+        pass
     
     elif query_type == QueryType.SPECIFIC_ITEM:
         # Find specific category items

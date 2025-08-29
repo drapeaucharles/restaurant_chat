@@ -34,7 +34,6 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
 class QueryType(Enum):
-    GREETING = "greeting"
     MENU_QUERY = "menu_query"
     SPECIFIC_ITEM = "specific_item"
     RECOMMENDATION = "recommendation"
@@ -94,7 +93,7 @@ class ResponseCache:
             
         try:
             key = self.get_cache_key(query, restaurant_id, language)
-            ttl = self.greeting_ttl if query_type == QueryType.GREETING else self.ttl
+            ttl = self.ttl  # was self.greeting_ttl if query_type == QueryType.GREETING else self.ttl
             
             data = {
                 "response": response,
@@ -189,7 +188,7 @@ class QueryAnalyzer:
         for pattern in self.greeting_patterns:
             if re.search(pattern, query_lower):
                 return {
-                    "type": QueryType.GREETING,
+                    "type": QueryType.OTHER,  # was QueryType.GREETING,
                     "language": language,
                     "keywords": []
                 }
@@ -304,8 +303,11 @@ Règles importantes:
     base_prompt = personalities.get(language, personalities["en"])
     
     # Add query-specific guidance
-    if query_type == QueryType.GREETING:
-        base_prompt += "\n\nFor greetings: Respond warmly and ask how you can help. Don't list menu items unless asked."
+    # Removed GREETING special case - let AI handle naturally
+
+    if False:  # was query_type == QueryType.GREETING
+
+        pass
     elif query_type == QueryType.MENU_QUERY:
         base_prompt += "\n\nFor menu queries: Organize items by category. Include name, price, and a brief description."
     elif query_type == QueryType.RECOMMENDATION:
@@ -319,13 +321,6 @@ def get_dynamic_parameters(query_type: QueryType) -> Dict:
     """Get optimized generation parameters based on query type"""
     
     params = {
-        QueryType.GREETING: {
-            "temperature": 0.8,
-            "top_p": 0.95,
-            "frequency_penalty": 0.5,
-            "presence_penalty": 0.3,
-            "max_tokens": 100
-        },
         QueryType.MENU_QUERY: {
             "temperature": 0.3,
             "top_p": 0.85,
@@ -424,9 +419,13 @@ def build_context_for_query(menu_items: List[Dict], query_analysis: Dict, restau
     query_type = query_analysis["type"]
     context_parts = []
     
-    if query_type == QueryType.GREETING:
-        # Minimal context for greetings
-        context_parts.append(f"Restaurant hours: {restaurant_data.get('opening_hours', 'Not specified')}")
+    # Removed GREETING special case - let AI handle naturally
+
+    
+    if False:  # was query_type == QueryType.GREETING
+
+    
+        pass
         
     elif query_type == QueryType.MENU_QUERY:
         # Organize menu by categories

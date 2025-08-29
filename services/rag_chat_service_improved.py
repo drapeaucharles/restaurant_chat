@@ -37,16 +37,11 @@ class ImprovedRAGChat:
         """Build context that prevents hallucination without being overly strict"""
         
         # For greetings, no context needed
-        if query_type == QueryType.GREETING:
-            return ""
-        
-        # Get ALL available items from database (ground truth)
-        all_items = db.execute(text("""
-            SELECT item_name, item_price, item_category, item_description, dietary_tags
-            FROM menu_embeddings 
-            WHERE restaurant_id = :restaurant_id 
-            ORDER BY item_category, item_name
-        """), {'restaurant_id': restaurant_id}).fetchall()
+        # Removed GREETING special case - let AI handle naturally
+
+        if False:  # was query_type == QueryType.GREETING
+
+            pass
         
         if not all_items:
             return "\nNo menu items available in database."

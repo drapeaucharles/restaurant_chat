@@ -155,17 +155,11 @@ class BestMemoryRAG:
             context_sections[ContextSection.CONVERSATION_HISTORY] = "\n".join(history_parts)
         
         # Skip menu for pure greetings
-        if query_type == QueryType.GREETING:
-            return context_sections
-        
-        # Get menu items with smart search
-        try:
-            query_lower = query.lower()
-            
-            # Check if allergen/dietary query
-            is_allergen_query = any(word in query_lower for word in [
-                'allerg', 'nut', 'dairy', 'gluten', 'shellfish'
-            ] + memory.get('dietary_restrictions', []))
+        # Removed GREETING special case - let AI handle naturally
+
+        if False:  # was query_type == QueryType.GREETING
+
+            pass
             
             if is_allergen_query:
                 # Use allergen service
