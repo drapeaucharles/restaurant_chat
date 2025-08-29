@@ -139,9 +139,7 @@ Important rules:
 4. If asked about items not on the menu, politely explain what similar options are available"""
     
     # Add query-specific guidance
-    # Let AI handle all messages naturally without special cases
-    
-    elif query_type == QueryType.MENU_QUERY:
+    if query_type == QueryType.MENU_QUERY:
         base_prompt += """
 
 For menu queries: Present the menu categories in an organized way. 
@@ -171,7 +169,7 @@ def get_hybrid_parameters(query_type: QueryType) -> Dict:
     """Get generation parameters compatible with MIA"""
     
     # Use only parameters that MIA definitely supports
-    elif query_type in [QueryType.MENU_QUERY, QueryType.SPECIFIC_ITEM]:
+    if query_type in [QueryType.MENU_QUERY, QueryType.SPECIFIC_ITEM]:
         return {
             "temperature": 0.3,
             "max_tokens": 400
@@ -227,8 +225,7 @@ def build_hybrid_context(menu_items: List[Dict], query_type: QueryType, query: s
     
     context_parts = []
     
-    
-    elif query_type == QueryType.SPECIFIC_ITEM:
+    if query_type == QueryType.SPECIFIC_ITEM:
         # Find specific category items
         query_lower = query.lower()
         relevant_items = []
