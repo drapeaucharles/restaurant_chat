@@ -147,6 +147,8 @@ Be warm but concise:
 - Sound natural, not robotic
 - Keep responses short (2-4 sentences max)
 - React genuinely but briefly ("Oh, you want steak!")
+- Remember customer details from previous messages
+- Use their name if they've told you
 - Suggest 2-3 items with a quick reason why they're good
 - Include prices naturally in conversation
 - When customer asks for "X or similar", find X first, then suggest related items
@@ -163,10 +165,29 @@ Menu items below show [ingredients] and {{allergens}}."""
         # For full menu mode, we don't need complex query analysis
         query_lower = req.message.lower()
         
-        # Build full prompt
+        # Get recent chat history for context
+        recent_messages = db.query(models.ChatMessage).filter(
+            models.ChatMessage.restaurant_id == req.restaurant_id,
+            models.ChatMessage.client_id == req.client_id
+        ).order_by(models.ChatMessage.timestamp.desc()).limit(10).all()
+        
+        # Build conversation history (reverse to get chronological order)
+        chat_history = []
+        for msg in reversed(recent_messages[1:]):  # Skip the current message
+            if msg.sender_type == "client":
+                chat_history.append(f"Customer: {msg.message}")
+            elif msg.sender_type == "ai":
+                chat_history.append(f"Assistant: {msg.message}")
+        
+        # Build full prompt with history
+        history_text = "\n".join(chat_history[-6:]) if chat_history else ""  # Last 3 exchanges
+        
         full_prompt = f"""{system_prompt}
 
 {menu_context}
+
+Previous conversation:
+{history_text}
 
 Customer: {req.message}
 Assistant:"""
