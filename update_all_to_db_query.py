@@ -36,8 +36,7 @@ def update_all_businesses_to_db_query():
         # Update all businesses
         result = conn.execute(text("""
             UPDATE businesses 
-            SET rag_mode = 'db_query',
-                updated_at = CURRENT_TIMESTAMP
+            SET rag_mode = 'db_query'
             WHERE rag_mode IS NULL OR rag_mode != 'db_query'
         """))
         
