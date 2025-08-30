@@ -204,6 +204,26 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"Full menu service error: {type(e).__name__}: {str(e)}")
 
+# Load smart menu service (fetches details on demand)
+try:
+    from services.mia_chat_service_smart_menu import mia_chat_service_smart_menu
+    chat_services['smart_menu'] = mia_chat_service_smart_menu
+    logger.info("Loaded smart menu service")
+except ImportError as e:
+    logger.warning(f"Smart menu service not available: {str(e)}")
+except Exception as e:
+    logger.error(f"Smart menu service error: {type(e).__name__}: {str(e)}")
+
+# Load DB query service (AI queries database as needed)
+try:
+    from services.mia_chat_service_db_query import mia_chat_service_db_query
+    chat_services['db_query'] = mia_chat_service_db_query
+    logger.info("Loaded DB query service")
+except ImportError as e:
+    logger.warning(f"DB query service not available: {str(e)}")
+except Exception as e:
+    logger.error(f"DB query service error: {type(e).__name__}: {str(e)}")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")

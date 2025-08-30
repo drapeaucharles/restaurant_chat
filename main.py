@@ -227,6 +227,15 @@ async def lifespan(app: FastAPI):
         whatsapp_monitor_thread.start()
         print("✅ WhatsApp service monitor started")
     
+    # Pre-warm MIA backend to keep model hot
+    try:
+        from services.mia_prewarm import start_prewarm_thread, periodic_keepalive
+        start_prewarm_thread()  # Initial warm-up
+        periodic_keepalive(interval_minutes=5)  # Keep warm every 5 minutes
+        print("🔥 MIA pre-warming started (keeps model hot in GPU)")
+    except Exception as e:
+        print(f"⚠️ Could not start MIA pre-warming: {e}")
+    
     print("✅ FastAPI startup complete")
     
     yield
