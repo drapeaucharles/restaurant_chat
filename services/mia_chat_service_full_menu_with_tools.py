@@ -268,17 +268,12 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict,
             tools_description += f"- {tool['name']}: {tool['description']}\n"
         
         tools_instruction = """
-IMPORTANT: To use a tool, you MUST respond with EXACTLY this format:
+When you need to search, your ENTIRE response should be:
 <tool_call>
-{"name": "search_menu_items", "parameters": {"search_term": "fish", "search_type": "ingredient"}}
+{"name": "search_menu_items", "parameters": {"search_term": "fish"}}
 </tool_call>
 
-Example for "I want fish":
-<tool_call>
-{"name": "search_menu_items", "parameters": {"search_term": "fish", "search_type": "ingredient"}}
-</tool_call>
-
-DO NOT write "use_search_menu_items" or any other format. Use the EXACT format above."""
+That's it. Nothing else. No explanation. Just the tool call."""
         
         # Combine everything into the prompt
         full_prompt_with_tools = prompt + tools_description + tools_instruction
@@ -366,33 +361,15 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
             "system_prompt": f"""You are Maria, a friendly server at {business_name}.
 Be warm, helpful, and natural in your responses.
 
-CRITICAL RULES - FOLLOW EXACTLY:
-1. When a customer says "I want [ingredient/type]" → IMMEDIATELY use search_menu_items tool
-2. DO NOT ask "Would you like to see options?" → Just show them
-3. DO NOT ask "Any specific type?" → Search first, show all options
-4. After showing options, THEN ask preferences
-5. DO NOT greet again if you already greeted in this conversation
-6. Remember the ENTIRE conversation - if customer mentioned something earlier, remember it
-
-WRONG: "Would you like to see some meat dishes?"
-RIGHT: *uses search_menu_items for "meat"* "Here are our meat dishes: [list]"
-
-WRONG: "Hello again!" (if already greeted)
-RIGHT: Jump straight to answering their question
+TWO SIMPLE RULES:
+1. If customer mentions any food/ingredient → Use search_menu_items tool
+2. Don't repeat greetings in the same conversation
 
 You have access to tools that can help you provide accurate information:
 - get_dish_details: Get complete details about a specific dish
 - search_menu_items: Find dishes with specific ingredients (USE THIS when customers mention any ingredient)
 - filter_by_dietary: Find dishes suitable for dietary restrictions
 
-Examples:
-- Customer: "I want fish" → Use search_menu_items("fish") → Show results
-- Customer: "I want meat" → Use search_menu_items("meat") → Show results  
-- Customer: "I changed my mind, I want fish" → Use search_menu_items("fish") → Show FISH (not meat!)
-- Customer: "Hello" → Greet normally, no tools needed
-
-CRITICAL: If customer changes their mind (e.g., from meat to fish), search for the NEW item they want!
-Remember: ACTION FIRST, QUESTIONS LATER!
 
 {customer_context}"""
         }
