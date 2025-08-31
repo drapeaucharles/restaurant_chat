@@ -505,6 +505,8 @@ Now provide a natural, friendly response to the customer using this information:
                 )
                 
                 response = final_response
+            else:
+                logger.warning("Tool call detected but couldn't extract parameters")
         
         # Clean up any remaining tool syntax from response
         response = response.replace("<tool_call>", "").replace("</tool_call>", "")
@@ -516,6 +518,12 @@ Now provide a natural, friendly response to the customer using this information:
             response = response[10:].strip()
         elif response.startswith("Maria:"):
             response = response[6:].strip()
+        
+        # If response is just "search_menu_items", it means tool wasn't executed properly
+        if response.strip() == "search_menu_items" or response.strip().startswith("search_menu_items"):
+            logger.warning("Response is just tool name - tool execution may have failed")
+            # Try to provide a helpful fallback
+            response = "Let me find those options for you. Please give me a moment..."
         
         # Get or create client first
         get_or_create_client(db, req.client_id, req.restaurant_id)
