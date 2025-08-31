@@ -284,12 +284,19 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict,
             tools_description += f"- {tool['name']}: {tool['description']}\n"
         
         tools_instruction = """
-When you need to search, your ENTIRE response should be:
+TOOL USAGE INSTRUCTIONS:
+When a customer asks about food (like "I want fish"), you MUST:
+1. First respond with ONLY the tool call
+2. Wait for results
+3. Then give your response
+
+Example - Customer says "I want fish":
+YOU RESPOND WITH ONLY THIS:
 <tool_call>
-{"name": "search_menu_items", "parameters": {"search_term": "fish"}}
+{"name": "search_menu_items", "parameters": {"search_term": "fish", "search_type": "ingredient"}}
 </tool_call>
 
-That's it. Nothing else. No explanation. Just the tool call."""
+DO NOT say "Let me search" or anything else. ONLY the tool call above."""
         
         # Combine everything into the prompt
         full_prompt_with_tools = prompt + tools_description + tools_instruction
@@ -519,11 +526,11 @@ Now provide a natural, friendly response to the customer using this information:
         elif response.startswith("Maria:"):
             response = response[6:].strip()
         
-        # If response is just "search_menu_items", it means tool wasn't executed properly
-        if response.strip() == "search_menu_items" or response.strip().startswith("search_menu_items"):
-            logger.warning("Response is just tool name - tool execution may have failed")
-            # Try to provide a helpful fallback
-            response = "Let me find those options for you. Please give me a moment..."
+        # If response is still just a tool name, something went wrong
+        if response.strip() in ["search_menu_items", "get_dish_details", "filter_by_dietary"]:
+            logger.error(f"ERROR: Final response is just tool name '{response.strip()}' - tool execution failed!")
+            # Provide a helpful error message
+            response = "I apologize, I'm having trouble accessing the menu right now. Let me try another way to help you."
         
         # Get or create client first
         get_or_create_client(db, req.client_id, req.restaurant_id)
