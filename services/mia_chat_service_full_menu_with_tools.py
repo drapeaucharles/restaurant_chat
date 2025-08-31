@@ -332,6 +332,20 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
         ).first()
         customer_context = CustomerMemoryService.get_customer_context(customer_profile)
         
+        # Get recent chat history for better context
+        recent_messages = db.query(models.ChatMessage).filter(
+            models.ChatMessage.restaurant_id == req.restaurant_id,
+            models.ChatMessage.client_id == req.client_id
+        ).order_by(models.ChatMessage.timestamp.desc()).limit(6).all()
+        
+        # Build conversation history
+        chat_history = []
+        for msg in reversed(recent_messages[1:]):  # Skip current message
+            if msg.sender_type == "client":
+                chat_history.append(f"Customer: {msg.message}")
+            elif msg.sender_type == "ai":
+                chat_history.append(f"Maria: {msg.message}")
+        
         # Prepare minimal context for tool-based approach
         system_context = {
             "restaurant_name": business_name,
@@ -339,22 +353,30 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
             "system_prompt": f"""You are Maria, a friendly server at {business_name}.
 Be warm, helpful, and natural in your responses.
 
+IMPORTANT GUIDELINES:
+- When customers express preferences (e.g., "I want fish", "something spicy", "vegetarian options"), IMMEDIATELY use tools to find matching dishes
+- Don't ask for clarification when you can search and show options first
+- Remember what customers told you throughout the conversation
+- Be action-oriented: show options first, then ask for preferences
+
 You have access to tools that can help you provide accurate information:
 - get_dish_details: Get complete details about a specific dish
-- search_menu_items: Find dishes with specific ingredients
+- search_menu_items: Find dishes with specific ingredients (USE THIS when customers mention any ingredient)
 - filter_by_dietary: Find dishes suitable for dietary restrictions
 
-Use these tools when they would help provide better, more accurate answers.
-For general greetings or casual conversation, you don't need to use tools.
+Example: If someone says "I want fish", use search_menu_items to find ALL fish/seafood dishes, then present 2-3 options.
 
 {customer_context}"""
         }
         
-        # Prepare the prompt
+        # Prepare the prompt with conversation history
+        conversation_context = "\n".join(chat_history) if chat_history else ""
+        
         full_prompt = f"""{system_context['system_prompt']}
 
+{f"Recent conversation:{chr(10)}{conversation_context}{chr(10)}" if conversation_context else ""}
 Customer: {req.message}
-Assistant:"""
+Maria:"""
         
         # Try to use tools
         logger.info(f"Sending prompt with {len(AVAILABLE_TOOLS)} tools: {[t['name'] for t in AVAILABLE_TOOLS]}")
