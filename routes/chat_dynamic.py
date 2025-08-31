@@ -204,6 +204,16 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"Full menu service error: {type(e).__name__}: {str(e)}")
 
+# Load full menu with tools service (experimental - extends full_menu with tool calling)
+try:
+    from services.mia_chat_service_full_menu_with_tools import generate_response_full_menu_with_tools
+    chat_services['full_menu_with_tools'] = generate_response_full_menu_with_tools
+    logger.info("Loaded full menu with tools service")
+except ImportError as e:
+    logger.warning(f"Full menu with tools service not available: {str(e)}")
+except Exception as e:
+    logger.error(f"Full menu with tools service error: {type(e).__name__}: {str(e)}")
+
 # Load smart menu service (fetches details on demand)
 try:
     from services.mia_chat_service_smart_menu import mia_chat_service_smart_menu
@@ -269,6 +279,21 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             rag_mode = os.getenv("DEFAULT_RAG_MODE", "hybrid_smart")
         
         logger.info(f"Restaurant {req.restaurant_id} using RAG mode: {rag_mode}")
+        
+        # Check if we should use tool-enabled version of full_menu
+        if rag_mode == 'full_menu' and os.getenv("ENABLE_FULL_MENU_TOOLS", "false").lower() == "true":
+            # Check if the query might benefit from tools
+            query_lower = req.message.lower()
+            tool_patterns = [
+                'tell me more about', 'tell me about', 'describe', 'what is in',
+                'ingredients', 'allergen', 'dietary', 'vegetarian', 'vegan', 
+                'gluten', 'contain', 'made with', 'details about', 'information about'
+            ]
+            
+            if any(pattern in query_lower for pattern in tool_patterns):
+                if 'full_menu_with_tools' in chat_services:
+                    rag_mode = 'full_menu_with_tools'
+                    logger.info(f"Upgrading to {rag_mode} for tool-enabled query")
         
         # Select appropriate service
         if rag_mode in chat_services:
