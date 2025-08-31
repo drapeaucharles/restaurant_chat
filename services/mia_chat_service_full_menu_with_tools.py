@@ -425,6 +425,10 @@ Assistant:"""
         response = response.replace("<tool_call>", "").replace("</tool_call>", "")
         response = response.replace("TOOL_CALL:", "")
         
+        # Remove "Assistant:" prefix if model adds it
+        if response.strip().startswith("Assistant:"):
+            response = response.strip()[10:].strip()
+        
         # Get or create client first
         get_or_create_client(db, req.client_id, req.restaurant_id)
         
