@@ -117,9 +117,25 @@ def execute_tool(tool_name: str, parameters: Dict, menu_items: List[Dict]) -> Di
                         match = True
                 
                 elif search_type == "ingredient":
+                    # Check both name and ingredients for better results
+                    item_name = (item.get('dish') or item.get('name', '')).lower()
                     ingredients = [str(ing).lower() for ing in item.get('ingredients', [])]
-                    if any(search_term in ing for ing in ingredients):
-                        match = True
+                    
+                    # Expand search for related terms
+                    if search_term == "fish":
+                        related_terms = ["fish", "salmon", "seafood", "tuna", "cod", "halibut", "sea bass"]
+                        if any(term in item_name for term in related_terms) or \
+                           any(any(term in ing for term in related_terms) for ing in ingredients):
+                            match = True
+                    elif search_term == "meat":
+                        related_terms = ["meat", "beef", "steak", "chicken", "pork", "lamb", "veal"]
+                        if any(term in item_name for term in related_terms) or \
+                           any(any(term in ing for term in related_terms) for ing in ingredients):
+                            match = True
+                    else:
+                        # Standard search
+                        if search_term in item_name or any(search_term in ing for ing in ingredients):
+                            match = True
                 
                 elif search_type == "category":
                     category = (item.get('subcategory') or item.get('category', '')).lower()
