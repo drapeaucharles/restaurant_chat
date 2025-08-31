@@ -278,28 +278,22 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict,
     Returns: (response_text, used_tools)
     """
     try:
-        # Create the full prompt with tool instructions
-        tools_description = "\n\nAvailable tools:\n"
-        for tool in tools:
-            tools_description += f"- {tool['name']}: {tool['description']}\n"
-        
-        tools_instruction = """
-TOOL USAGE INSTRUCTIONS:
-When a customer asks about food (like "I want fish"), you MUST:
-1. First respond with ONLY the tool call
-2. Wait for results
-3. Then give your response
+        # Put tools FIRST in the prompt
+        tools_instruction = """IMPORTANT: You have access to tools that help you search the menu.
 
-Example - Customer says "I want fish":
-YOU RESPOND WITH ONLY THIS:
+When a customer asks about food (like "I want fish"), you MUST respond with ONLY:
 <tool_call>
 {"name": "search_menu_items", "parameters": {"search_term": "fish", "search_type": "ingredient"}}
 </tool_call>
 
-DO NOT say "Let me search" or anything else. ONLY the tool call above."""
+Available tools:
+"""
+        tools_description = ""
+        for tool in tools:
+            tools_description += f"- {tool['name']}: {tool['description']}\n"
         
-        # Combine everything into the prompt
-        full_prompt_with_tools = prompt + tools_description + tools_instruction
+        # Tools come FIRST, then the conversation
+        full_prompt_with_tools = tools_instruction + tools_description + "\n" + prompt
         
         logger.info(f"Sending to MIA with {len(tools)} tools available")
         logger.debug(f"Full prompt preview: {full_prompt_with_tools[:300]}...")
@@ -400,21 +394,21 @@ You have access to tools that can help you provide accurate information:
         # Prepare the prompt with conversation history
         conversation_context = "\n".join(chat_history) if chat_history else ""
         
-        full_prompt = f"""{system_context['system_prompt']}
-
-{f"Recent conversation:{chr(10)}{conversation_context}{chr(10)}" if conversation_context else ""}
+        # Structure prompt with tools FIRST, then personality
+        full_prompt = f"""{f"Recent conversation:{chr(10)}{conversation_context}{chr(10)}" if conversation_context else ""}
 Customer: {req.message}
-Maria:"""
+Assistant:"""
         
         # Try to use tools
         logger.info(f"Sending prompt with {len(AVAILABLE_TOOLS)} tools: {[t['name'] for t in AVAILABLE_TOOLS]}")
         logger.info(f"Current message: {req.message}")
         logger.info(f"Conversation history included: {len(chat_history)} messages")
         
+        # Send without personality first - tools will be added by send_to_mia_with_tools
         response, used_tools = send_to_mia_with_tools(
             full_prompt,
             AVAILABLE_TOOLS,
-            system_context,
+            system_context,  # personality context saved for later
             max_rounds=2
         )
         logger.info(f"Response from MIA, used_tools={used_tools}")
