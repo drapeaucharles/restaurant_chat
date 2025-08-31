@@ -262,20 +262,28 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict,
     Returns: (response_text, used_tools)
     """
     try:
-        # Round 1: Initial request with tools
-        request_data = {
-            "message": prompt,
-            "tools": tools,
-            "context": context,
-            "max_tokens": 300,
-            "temperature": 0.7
-        }
+        # Create the full prompt with tool instructions
+        tools_description = "\n\nAvailable tools:\n"
+        for tool in tools:
+            tools_description += f"- {tool['name']}: {tool['description']}\n"
+        
+        tools_instruction = """
+To use a tool, respond with:
+<tool_call>
+{"name": "tool_name", "parameters": {"param": "value"}}
+</tool_call>
+
+Use tools when they would help provide accurate information."""
+        
+        # Combine everything into the prompt
+        full_prompt_with_tools = prompt + tools_description + tools_instruction
         
         logger.info(f"Sending to MIA with {len(tools)} tools available")
+        logger.debug(f"Full prompt preview: {full_prompt_with_tools[:300]}...")
         
-        # Use the hybrid service to communicate with MIA
+        # Send to MIA using the standard format
         response = get_mia_response_hybrid(
-            json.dumps(request_data),  # Convert to string as expected
+            full_prompt_with_tools,
             {"max_tokens": 300, "temperature": 0.7}
         )
         
@@ -444,15 +452,15 @@ Maria:"""
                 formatted_result = format_tool_result(tool_name, tool_result)
                 
                 # Second round: Send tool results back to MIA
-                follow_up_prompt = f"""{system_context['system_prompt']}
+                follow_up_prompt = f"""You are Maria at {business_name}.
 
+Previous conversation:
 Customer: {req.message}
+You used a tool and got this result:
 
-Tool Result:
 {formatted_result}
 
-Now provide a natural, friendly response to the customer using this information:
-Assistant:"""
+Now provide a natural, friendly response to the customer using this information:"""
                 
                 # Get final response
                 final_response = get_mia_response_hybrid(
