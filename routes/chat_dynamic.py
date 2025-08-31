@@ -282,18 +282,9 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         
         # Check if we should use tool-enabled version of full_menu
         if rag_mode == 'full_menu' and os.getenv("ENABLE_FULL_MENU_TOOLS", "false").lower() == "true":
-            # Check if the query might benefit from tools
-            query_lower = req.message.lower()
-            tool_patterns = [
-                'tell me more about', 'tell me about', 'describe', 'what is in',
-                'ingredients', 'allergen', 'dietary', 'vegetarian', 'vegan', 
-                'gluten', 'contain', 'made with', 'details about', 'information about'
-            ]
-            
-            if any(pattern in query_lower for pattern in tool_patterns):
-                if 'full_menu_with_tools' in chat_services:
-                    rag_mode = 'full_menu_with_tools'
-                    logger.info(f"Upgrading to {rag_mode} for tool-enabled query")
+            if 'full_menu_with_tools' in chat_services:
+                rag_mode = 'full_menu_with_tools'
+                logger.info(f"Using {rag_mode} - AI will decide when to use tools")
         
         # Select appropriate service
         if rag_mode in chat_services:

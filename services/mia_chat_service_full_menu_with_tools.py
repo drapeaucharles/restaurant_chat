@@ -321,25 +321,8 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
         business_name = restaurant.data.get('restaurant_name', req.restaurant_id)
         business_type = restaurant.data.get('business_type', 'restaurant')
         
-        # Check if query might benefit from tools
-        query_lower = req.message.lower()
-        use_tools = False
-        
-        # Patterns that suggest tool usage
-        tool_patterns = [
-            'tell me more about', 'tell me about', 'describe', 'what is in',
-            'ingredients', 'allergen', 'dietary', 'vegetarian', 'vegan', 
-            'gluten', 'contain', 'made with', 'details about', 'information about'
-        ]
-        
-        if any(pattern in query_lower for pattern in tool_patterns):
-            use_tools = True
-            logger.info("Query suggests tool usage would be helpful")
-        
-        # If not using tools, fall back to regular full_menu
-        if not use_tools:
-            logger.info("Using standard full_menu approach (no tools)")
-            return mia_chat_service_full_menu(req, db)
+        # Always use tools - let AI decide when to use them
+        logger.info("FULL MENU WITH TOOLS - AI will decide when to use tools")
         
         # Get customer profile for context
         client_id_str = str(req.client_id)
@@ -356,11 +339,13 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
             "system_prompt": f"""You are Maria, a friendly server at {business_name}.
 Be warm, helpful, and natural in your responses.
 
-IMPORTANT: When customers ask about specific dishes, ingredients, or dietary restrictions, 
-you MUST use the available tools to get accurate, detailed information instead of guessing.
-- Use get_dish_details for specific dish inquiries
-- Use search_menu_items to find dishes with specific ingredients
-- Use filter_by_dietary for dietary restriction queries
+You have access to tools that can help you provide accurate information:
+- get_dish_details: Get complete details about a specific dish
+- search_menu_items: Find dishes with specific ingredients
+- filter_by_dietary: Find dishes suitable for dietary restrictions
+
+Use these tools when they would help provide better, more accurate answers.
+For general greetings or casual conversation, you don't need to use tools.
 
 {customer_context}"""
         }
