@@ -375,8 +375,10 @@ You have access to tools that can help you provide accurate information:
 Examples:
 - Customer: "I want fish" → Use search_menu_items("fish") → Show results
 - Customer: "I want meat" → Use search_menu_items("meat") → Show results  
+- Customer: "I changed my mind, I want fish" → Use search_menu_items("fish") → Show FISH (not meat!)
 - Customer: "Hello" → Greet normally, no tools needed
 
+CRITICAL: If customer changes their mind (e.g., from meat to fish), search for the NEW item they want!
 Remember: ACTION FIRST, QUESTIONS LATER!
 
 {customer_context}"""
@@ -393,6 +395,9 @@ Maria:"""
         
         # Try to use tools
         logger.info(f"Sending prompt with {len(AVAILABLE_TOOLS)} tools: {[t['name'] for t in AVAILABLE_TOOLS]}")
+        logger.info(f"Current message: {req.message}")
+        logger.info(f"Conversation history included: {len(chat_history)} messages")
+        
         response, used_tools = send_to_mia_with_tools(
             full_prompt,
             AVAILABLE_TOOLS,
@@ -400,6 +405,7 @@ Maria:"""
             max_rounds=2
         )
         logger.info(f"Response from MIA, used_tools={used_tools}")
+        logger.info(f"Raw response preview: {response[:200]}...")
         
         # If tools were requested, execute them
         if used_tools and ("<tool_call>" in response or "TOOL_CALL:" in response):
