@@ -415,7 +415,7 @@ Maria:"""
         
         # If tools were requested, execute them (be flexible with format)
         if used_tools or any(tool['name'] in response for tool in AVAILABLE_TOOLS):
-            logger.info("Processing tool calls from MIA")
+            logger.info(f"Processing tool calls from MIA. Response: {response[:100]}...")
             
             # Extract tool call (flexible pattern matching)
             tool_call = None
@@ -432,27 +432,48 @@ Maria:"""
             
             # Try alternate formats
             if not tool_call:
-                # Handle "use_search_menu_items" format
+                # Handle various formats
                 if "search_menu_items" in response:
-                    # Extract search term
-                    import re
-                    patterns = [
-                        r'search_menu_items.*?"(\w+)"',  # quoted term
-                        r'search_menu_items.*?\("(\w+)"\)',  # function style
-                        r'"search_term":\s*"(\w+)"',  # JSON style
-                        r'ingredient.*?"(\w+)"',  # ingredient style
-                    ]
+                    logger.info("Detected search_menu_items in response, extracting...")
                     
-                    for pattern in patterns:
-                        match = re.search(pattern, response, re.IGNORECASE)
-                        if match:
-                            search_term = match.group(1)
+                    # If response is just "search_menu_items", use context from the message
+                    if response.strip() == "search_menu_items" or response.strip().startswith("search_menu_items"):
+                        # Extract what the customer wants from their message
+                        customer_message = req.message.lower()
+                        search_term = None
+                        
+                        # Common food requests
+                        for food in ["fish", "meat", "chicken", "beef", "seafood", "pasta", "vegetarian", "vegan"]:
+                            if food in customer_message:
+                                search_term = food
+                                break
+                        
+                        if search_term:
                             tool_call = {
                                 "name": "search_menu_items",
                                 "parameters": {"search_term": search_term, "search_type": "ingredient"}
                             }
-                            logger.info(f"Extracted tool call from alternate format: {tool_call}")
-                            break
+                            logger.info(f"Inferred search term '{search_term}' from customer message")
+                    else:
+                        # Try to extract search term from various patterns
+                        import re
+                        patterns = [
+                            r'search_menu_items.*?"(\w+)"',  # quoted term
+                            r'search_menu_items.*?\("(\w+)"\)',  # function style
+                            r'"search_term":\s*"(\w+)"',  # JSON style
+                            r'ingredient.*?"(\w+)"',  # ingredient style
+                        ]
+                        
+                        for pattern in patterns:
+                            match = re.search(pattern, response, re.IGNORECASE)
+                            if match:
+                                search_term = match.group(1)
+                                tool_call = {
+                                    "name": "search_menu_items",
+                                    "parameters": {"search_term": search_term, "search_type": "ingredient"}
+                                }
+                                logger.info(f"Extracted tool call from pattern: {tool_call}")
+                                break
             
             if tool_call:
                 # Execute the tool
@@ -461,6 +482,7 @@ Maria:"""
                 
                 logger.info(f"Executing tool: {tool_name} with params: {parameters}")
                 tool_result = execute_tool(tool_name, parameters, menu_items)
+                logger.info(f"Tool result: {tool_result}")
                 
                 # Format result and send back to MIA
                 formatted_result = format_tool_result(tool_name, tool_result)
