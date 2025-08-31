@@ -268,12 +268,17 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict,
             tools_description += f"- {tool['name']}: {tool['description']}\n"
         
         tools_instruction = """
-To use a tool, respond with:
+IMPORTANT: To use a tool, you MUST respond with EXACTLY this format:
 <tool_call>
-{"name": "tool_name", "parameters": {"param": "value"}}
+{"name": "search_menu_items", "parameters": {"search_term": "fish", "search_type": "ingredient"}}
 </tool_call>
 
-Use tools when they would help provide accurate information."""
+Example for "I want fish":
+<tool_call>
+{"name": "search_menu_items", "parameters": {"search_term": "fish", "search_type": "ingredient"}}
+</tool_call>
+
+DO NOT write "use_search_menu_items" or any other format. Use the EXACT format above."""
         
         # Combine everything into the prompt
         full_prompt_with_tools = prompt + tools_description + tools_instruction
@@ -415,12 +420,14 @@ Maria:"""
         logger.info(f"Response from MIA, used_tools={used_tools}")
         logger.info(f"Raw response preview: {response[:200]}...")
         
-        # If tools were requested, execute them
-        if used_tools and ("<tool_call>" in response or "TOOL_CALL:" in response):
+        # If tools were requested, execute them (be flexible with format)
+        if used_tools or any(tool['name'] in response for tool in AVAILABLE_TOOLS):
             logger.info("Processing tool calls from MIA")
             
-            # Extract tool call (basic pattern matching)
+            # Extract tool call (flexible pattern matching)
             tool_call = None
+            
+            # Try standard format first
             if "<tool_call>" in response:
                 start = response.find("<tool_call>") + len("<tool_call>")
                 end = response.find("</tool_call>")
@@ -428,17 +435,31 @@ Maria:"""
                     try:
                         tool_call = json.loads(response[start:end].strip())
                     except:
-                        logger.error("Failed to parse tool call")
-            elif "TOOL_CALL:" in response:
-                start = response.find("TOOL_CALL:") + len("TOOL_CALL:")
-                try:
-                    # Find the JSON part
-                    json_start = response[start:].find("{")
-                    if json_start >= 0:
-                        json_str = response[start + json_start:].split("\n")[0]
-                        tool_call = json.loads(json_str)
-                except:
-                    logger.error("Failed to parse TOOL_CALL format")
+                        logger.error("Failed to parse standard tool call")
+            
+            # Try alternate formats
+            if not tool_call:
+                # Handle "use_search_menu_items" format
+                if "search_menu_items" in response:
+                    # Extract search term
+                    import re
+                    patterns = [
+                        r'search_menu_items.*?"(\w+)"',  # quoted term
+                        r'search_menu_items.*?\("(\w+)"\)',  # function style
+                        r'"search_term":\s*"(\w+)"',  # JSON style
+                        r'ingredient.*?"(\w+)"',  # ingredient style
+                    ]
+                    
+                    for pattern in patterns:
+                        match = re.search(pattern, response, re.IGNORECASE)
+                        if match:
+                            search_term = match.group(1)
+                            tool_call = {
+                                "name": "search_menu_items",
+                                "parameters": {"search_term": search_term, "search_type": "ingredient"}
+                            }
+                            logger.info(f"Extracted tool call from alternate format: {tool_call}")
+                            break
             
             if tool_call:
                 # Execute the tool
