@@ -279,12 +279,14 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict,
     """
     try:
         # Put tools FIRST in the prompt
-        tools_instruction = """IMPORTANT: You have access to tools that help you search the menu.
+        tools_instruction = """TOOLS (only use for food/menu questions):
 
-When a customer asks about food (like "I want fish"), you MUST respond with ONLY:
+IF customer asks about food/menu (like "I want fish", "what vegetarian options"), respond with ONLY:
 <tool_call>
 {"name": "search_menu_items", "parameters": {"search_term": "fish", "search_type": "ingredient"}}
 </tool_call>
+
+IF customer says hello, thanks, or non-food things, just respond normally without tools.
 
 Available tools:
 """
@@ -292,8 +294,11 @@ Available tools:
         for tool in tools:
             tools_description += f"- {tool['name']}: {tool['description']}\n"
         
-        # Tools come FIRST, then the conversation
-        full_prompt_with_tools = tools_instruction + tools_description + "\n" + prompt
+        # Add personality context for non-tool responses
+        personality = f"\nYou are Maria, a friendly server at {context.get('restaurant_name', 'the restaurant')}.\n\n"
+        
+        # Tools come FIRST, then personality, then conversation
+        full_prompt_with_tools = tools_instruction + tools_description + personality + prompt
         
         logger.info(f"Sending to MIA with {len(tools)} tools available")
         logger.debug(f"Full prompt preview: {full_prompt_with_tools[:300]}...")
