@@ -234,6 +234,16 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"DB query service error: {type(e).__name__}: {str(e)}")
 
+# Load OpenAI tools service (uses proper OpenAI Tools API with vLLM)
+try:
+    from services.mia_chat_service_openai_tools import generate_response_openai_tools
+    chat_services['openai_tools'] = generate_response_openai_tools
+    logger.info("Loaded OpenAI tools service")
+except ImportError as e:
+    logger.warning(f"OpenAI tools service not available: {str(e)}")
+except Exception as e:
+    logger.error(f"OpenAI tools service error: {type(e).__name__}: {str(e)}")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
