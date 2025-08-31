@@ -358,9 +358,14 @@ CRITICAL RULES - FOLLOW EXACTLY:
 2. DO NOT ask "Would you like to see options?" → Just show them
 3. DO NOT ask "Any specific type?" → Search first, show all options
 4. After showing options, THEN ask preferences
+5. DO NOT greet again if you already greeted in this conversation
+6. Remember the ENTIRE conversation - if customer mentioned something earlier, remember it
 
 WRONG: "Would you like to see some meat dishes?"
 RIGHT: *uses search_menu_items for "meat"* "Here are our meat dishes: [list]"
+
+WRONG: "Hello again!" (if already greeted)
+RIGHT: Jump straight to answering their question
 
 You have access to tools that can help you provide accurate information:
 - get_dish_details: Get complete details about a specific dish
@@ -455,9 +460,12 @@ Assistant:"""
         response = response.replace("<tool_call>", "").replace("</tool_call>", "")
         response = response.replace("TOOL_CALL:", "")
         
-        # Remove "Assistant:" prefix if model adds it
-        if response.strip().startswith("Assistant:"):
-            response = response.strip()[10:].strip()
+        # Remove "Assistant:" or "Maria:" prefix if model adds it
+        response = response.strip()
+        if response.startswith("Assistant:"):
+            response = response[10:].strip()
+        elif response.startswith("Maria:"):
+            response = response[6:].strip()
         
         # Get or create client first
         get_or_create_client(db, req.client_id, req.restaurant_id)
