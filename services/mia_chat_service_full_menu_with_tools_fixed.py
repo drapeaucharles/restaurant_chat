@@ -222,6 +222,121 @@ def execute_tool(tool_name: str, parameters: Dict, menu_items: List[Dict]) -> Di
             "error": str(e)
         }
 
+def calculate_match_confidence(query: str, item_name: str) -> float:
+    """Calculate confidence score for matching query to item name"""
+    query_lower = query.lower().strip()
+    item_lower = item_name.lower().strip()
+    
+    # Exact match
+    if query_lower == item_lower:
+        return 1.0
+    
+    # Contains full query
+    if query_lower in item_lower:
+        return 0.9
+    
+    # Item name contains all words from query
+    query_words = set(query_lower.split())
+    item_words = set(item_lower.split())
+    if query_words.issubset(item_words):
+        return 0.85
+    
+    # Partial word matches
+    matching_words = query_words.intersection(item_words)
+    if matching_words:
+        return len(matching_words) / len(query_words) * 0.8
+    
+    # Check if query is substring of any word in item
+    for item_word in item_words:
+        if query_lower in item_word:
+            return 0.7
+    
+    return 0.0
+
+def find_menu_matches(query: str, menu_items: List[Dict]) -> Tuple[List[Dict], str]:
+    """
+    Find matching menu items and determine match type
+    Returns: (matches, hint_type)
+    """
+    query_lower = query.lower().strip()
+    matches = []
+    
+    # Check each menu item
+    for item in menu_items:
+        item_name = item.get('dish') or item.get('name', '')
+        if not item_name:
+            continue
+            
+        confidence = calculate_match_confidence(query, item_name)
+        if confidence > 0.6:  # Threshold for considering a match
+            matches.append({
+                'item': item,
+                'name': item_name,
+                'confidence': confidence,
+                'id': f"dish:{item_name.lower().replace(' ', '_')}"
+            })
+    
+    # Sort by confidence
+    matches.sort(key=lambda x: x['confidence'], reverse=True)
+    
+    # Determine hint type
+    if not matches:
+        return [], "none"
+    elif len(matches) == 1 and matches[0]['confidence'] > 0.85:
+        return matches[:1], "single"
+    elif len(matches) == 1:
+        return matches[:1], "partial"
+    else:
+        # Check if all matches are same category
+        categories = set(m['item'].get('category', '') for m in matches)
+        if len(categories) == 1 and categories != {''}:
+            return matches, "category"
+        return matches, "multi"
+
+def generate_structured_hint(query: str, menu_items: List[Dict], last_topic: Optional[str] = None) -> str:
+    """Generate structured hint for AI context"""
+    matches, hint_type = find_menu_matches(query, menu_items)
+    
+    # Handle ambiguous phrases with last topic
+    ambiguous_phrases = ["yes", "tell me more", "details", "more info", "information", "about that", "about it"]
+    is_ambiguous = any(phrase in query.lower() for phrase in ambiguous_phrases)
+    
+    if is_ambiguous and last_topic:
+        # Try to find matches for last topic
+        topic_matches, topic_hint_type = find_menu_matches(last_topic, menu_items)
+        if topic_matches:
+            if len(topic_matches) == 1:
+                return f'[Hint type=single query="{query}" focus="{topic_matches[0]["name"]}" ids={topic_matches[0]["id"]} confidence={topic_matches[0]["confidence"]:.2f} prefer_tool=get_dish_details max_options=3]'
+            else:
+                candidates = ",".join(m['name'] for m in topic_matches[:3])
+                return f'[Hint type=ambiguous query="{query}" last_topic="{last_topic}" pending="{candidates}" prefer_tool=ask_clarification max_options=3]'
+    
+    # Generate hint based on match type
+    if hint_type == "none":
+        # Try to find similar items
+        all_items = [item.get('dish') or item.get('name', '') for item in menu_items if item.get('dish') or item.get('name')]
+        # Simple similarity check - could be enhanced
+        suggestions = [name for name in all_items if any(word in name.lower() for word in query.lower().split())][:3]
+        suggest_str = f' suggest="{",".join(suggestions)}"' if suggestions else ''
+        return f'[Hint type=none query="{query}"{suggest_str} prefer_tool=ask_clarification max_options=3]'
+    
+    elif hint_type == "single":
+        match = matches[0]
+        return f'[Hint type=single query="{query}" focus="{match["name"]}" ids={match["id"]} confidence={match["confidence"]:.2f} prefer_tool=get_dish_details max_options=3]'
+    
+    elif hint_type == "partial":
+        match = matches[0]
+        return f'[Hint type=partial query="{query}" focus="{match["name"]}" ids={match["id"]} confidence={match["confidence"]:.2f} prefer_tool=get_dish_details max_options=3]'
+    
+    elif hint_type == "category":
+        category = matches[0]['item'].get('category', 'items')
+        candidates = ",".join(m['name'] for m in matches[:3])
+        return f'[Hint type=category query="{query}" focus="{category}" ids=cat:{category.lower()} candidates="{candidates}" prefer_tool=search_menu_items max_options=3]'
+    
+    else:  # multi
+        candidates = ",".join(m['name'] for m in matches[:3])
+        return f'[Hint type=multi query="{query}" candidates="{candidates}" prefer_tool=ask_clarification max_options=3]'
+
 def format_tool_result(tool_name: str, result: Dict) -> str:
     """Format tool result into natural language"""
     if not result.get("success"):
@@ -382,7 +497,15 @@ IMPORTANT TOOL USAGE RULES:
 5. For greetings and general chat → respond naturally without tools
 6. If a tool returns "not found" or the customer asks about something not on our menu → politely inform them and suggest alternatives
 
-CONTEXT AWARENESS: Always consider the previous messages in the conversation when interpreting requests.
+STRUCTURED HINTS: You'll receive hints in format [Hint type=X ...] to guide your actions:
+- type=single with high confidence → use get_dish_details with the focus item
+- type=partial with lower confidence → verify before using tool
+- type=multi or type=ambiguous → ask customer to clarify which item they want
+- type=category → list the options and ask which one
+- type=none → politely say item not found, check suggestions if provided
+- prefer_tool indicates recommended action
+
+CONTEXT AWARENESS: Always consider the previous messages and hints when interpreting requests.
 
 NEVER make up dish details - always use tools to get accurate information from our database. If an item isn't found, be honest about it.
 
@@ -405,44 +528,33 @@ NEVER make up dish details - always use tools to get accurate information from o
         
         conversation_context = "\n".join(chat_history) if chat_history else ""
         
-        # Build prompt with enhanced context
-        # If the message is ambiguous, add context hint
-        ambiguous_phrases = ["yes", "tell me more", "details", "more info", "information", "about that", "about it"]
-        is_ambiguous = any(phrase in req.message.lower() for phrase in ambiguous_phrases)
-        
-        if is_ambiguous and recent_messages:
-            # Find the last mentioned dish by checking raw messages in reverse order
-            last_dish_mentioned = None
-            # Check last 10 messages, prioritizing most recent customer messages
-            for msg in recent_messages[:10]:  # recent_messages is already in desc order
-                if msg.sender_type == "client":
-                    msg_lower = msg.message.lower()
-                    # Check against menu items for exact matches first
-                    for item in menu_items:
-                        item_name = (item.get('dish') or item.get('name', '')).lower()
-                        # Check if dish name appears in customer message
-                        if item_name and len(item_name) > 3:  # Skip very short names
-                            # Check for exact word match or partial match
-                            if item_name in msg_lower or any(word in msg_lower for word in item_name.split()):
-                                last_dish_mentioned = item_name
-                                break
-                    
-                    # If no exact menu match, check common food words
-                    if not last_dish_mentioned:
-                        for word in ["tuna", "salmon", "scallops", "pasta", "steak", "chicken", "lobster", "shrimp", "fish", "pizza", "burger", "salad", "soup"]:
-                            if word in msg_lower:
-                                last_dish_mentioned = word
-                                break
+        # Build prompt with structured hints
+        # Find last mentioned food topic from recent messages
+        last_topic = None
+        for msg in recent_messages[:10]:  # recent_messages is already in desc order
+            if msg.sender_type == "client":
+                msg_lower = msg.message.lower()
+                # Check against menu items
+                for item in menu_items:
+                    item_name = (item.get('dish') or item.get('name', '')).lower()
+                    if item_name and len(item_name) > 3:
+                        if item_name in msg_lower or any(word in msg_lower for word in item_name.split()):
+                            last_topic = item_name
+                            break
                 
-                if last_dish_mentioned:
+                # Check common food words if no menu match
+                if not last_topic:
+                    for word in ["tuna", "salmon", "scallops", "pasta", "steak", "chicken", "lobster", "shrimp", "fish", "pizza", "burger", "salad", "soup"]:
+                        if word in msg_lower:
+                            last_topic = word
+                            break
+                
+                if last_topic:
                     break
-            
-            if last_dish_mentioned:
-                full_prompt = f"""Customer: {req.message} [Context: Customer is asking about {last_dish_mentioned}]"""
-            else:
-                full_prompt = f"""Customer: {req.message}"""
-        else:
-            full_prompt = f"""Customer: {req.message}"""
+        
+        # Generate structured hint
+        hint = generate_structured_hint(req.message, menu_items, last_topic)
+        full_prompt = f"""Customer: {req.message} {hint}"""
         
         if conversation_context:
             full_prompt = f"Recent conversation:\n{conversation_context}\n\n{full_prompt}"
