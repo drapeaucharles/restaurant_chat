@@ -358,7 +358,17 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
         business_name = restaurant_data.get('business_name', 'our restaurant')
         menu_items = restaurant_data.get('menu', [])
         
-        # Build system context
+        # Get customer profile first
+        client_id_str = str(req.client_id)
+        customer_profile = db.query(models.CustomerProfile).filter(
+            models.CustomerProfile.client_id == client_id_str,
+            models.CustomerProfile.restaurant_id == req.restaurant_id
+        ).first()
+        
+        # Get customer context
+        customer_context = CustomerMemoryService.get_customer_context(customer_profile)
+        
+        # Build system context with customer info
         system_context = {
             "business_name": business_name,
             "restaurant_name": business_name,
@@ -374,16 +384,6 @@ NEVER make up dish details - always use tools to get accurate information from o
 
 {customer_context}"""
         }
-        
-        # Get customer profile
-        client_id_str = str(req.client_id)
-        customer_profile = db.query(models.CustomerProfile).filter(
-            models.CustomerProfile.client_id == client_id_str,
-            models.CustomerProfile.restaurant_id == req.restaurant_id
-        ).first()
-        
-        # Get customer context
-        customer_context = CustomerMemoryService.get_customer_context(customer_profile)
         
         # Get recent chat history for context
         recent_messages = db.query(models.ChatMessage).filter(
