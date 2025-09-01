@@ -380,10 +380,11 @@ IMPORTANT TOOL USAGE RULES:
 3. When customer asks what dishes contain an ingredient (fish, chicken, vegetarian, etc) → USE search_menu_items tool
 4. When customer asks about dietary restrictions → USE filter_by_dietary tool
 5. For greetings and general chat → respond naturally without tools
+6. If a tool returns "not found" or the customer asks about something not on our menu → politely inform them and suggest alternatives
 
 CONTEXT AWARENESS: Always consider the previous messages in the conversation when interpreting requests.
 
-NEVER make up dish details - always use tools to get accurate information from our database.
+NEVER make up dish details - always use tools to get accurate information from our database. If an item isn't found, be honest about it.
 
 {customer_context}"""
         }
@@ -428,7 +429,7 @@ NEVER make up dish details - always use tools to get accurate information from o
                     
                     # If no exact menu match, check common food words
                     if not last_dish_mentioned:
-                        for word in ["tuna", "salmon", "scallops", "pasta", "steak", "chicken", "lobster", "shrimp", "fish"]:
+                        for word in ["tuna", "salmon", "scallops", "pasta", "steak", "chicken", "lobster", "shrimp", "fish", "pizza", "burger", "salad", "soup"]:
                             if word in msg_lower:
                                 last_dish_mentioned = word
                                 break
