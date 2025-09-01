@@ -33,7 +33,7 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_dish_details",
-            "description": "Use this when customer asks for 'more info', 'details', or 'tell me about' a specific dish. Returns complete details including full description, all ingredients, preparation method, and allergens",
+            "description": "Use this when customer asks for 'more info', 'details', 'tell me about' a specific dish, OR when they say 'yes' to your offer for more information. IMPORTANT: Check conversation history to identify which dish they're referring to. Returns complete details including full description, all ingredients, preparation method, and allergens",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -375,10 +375,13 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
             "system_prompt": f"""You are Maria, a friendly server at {business_name}.
 
 IMPORTANT TOOL USAGE RULES:
-1. When customer asks for "more info", "details", "tell me about", or "information" about a specific dish → USE get_dish_details tool
-2. When customer asks what dishes contain an ingredient (fish, chicken, vegetarian, etc) → USE search_menu_items tool
-3. When customer asks about dietary restrictions → USE filter_by_dietary tool
-4. For greetings and general chat → respond naturally without tools
+1. When customer asks for "more info", "details", "tell me about", "information", or says "yes" to a request for details → USE get_dish_details tool
+2. ALWAYS check the conversation history - if discussing a specific dish and customer wants details, use get_dish_details with that dish
+3. When customer asks what dishes contain an ingredient (fish, chicken, vegetarian, etc) → USE search_menu_items tool
+4. When customer asks about dietary restrictions → USE filter_by_dietary tool
+5. For greetings and general chat → respond naturally without tools
+
+CONTEXT AWARENESS: Always consider the previous messages in the conversation when interpreting requests.
 
 NEVER make up dish details - always use tools to get accurate information from our database.
 
@@ -401,8 +404,31 @@ NEVER make up dish details - always use tools to get accurate information from o
         
         conversation_context = "\n".join(chat_history) if chat_history else ""
         
-        # Build prompt
-        full_prompt = f"""Customer: {req.message}"""
+        # Build prompt with enhanced context
+        # If the message is ambiguous, add context hint
+        ambiguous_phrases = ["yes", "tell me more", "details", "more info", "information", "about that", "about it"]
+        is_ambiguous = any(phrase in req.message.lower() for phrase in ambiguous_phrases)
+        
+        if is_ambiguous and chat_history:
+            # Find the last mentioned dish in conversation
+            last_dish_mentioned = None
+            for msg in reversed(chat_history):
+                msg_lower = msg.lower()
+                # Check for common dish names or food items
+                if "customer:" in msg_lower:
+                    for word in ["tuna", "salmon", "scallops", "pasta", "steak", "chicken", "lobster", "shrimp"]:
+                        if word in msg_lower:
+                            last_dish_mentioned = word
+                            break
+                if last_dish_mentioned:
+                    break
+            
+            if last_dish_mentioned:
+                full_prompt = f"""Customer: {req.message} [Context: Customer is asking about {last_dish_mentioned}]"""
+            else:
+                full_prompt = f"""Customer: {req.message}"""
+        else:
+            full_prompt = f"""Customer: {req.message}"""
         
         if conversation_context:
             full_prompt = f"Recent conversation:\n{conversation_context}\n\n{full_prompt}"
