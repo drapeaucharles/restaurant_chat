@@ -22,6 +22,7 @@ from services.mia_chat_service_hybrid import (
     MIA_BACKEND_URL
 )
 from services.customer_memory_service import CustomerMemoryService
+import models
 import requests
 
 logger = logging.getLogger(__name__)
@@ -369,16 +370,36 @@ IMPORTANT TOOL USAGE RULES:
 3. When customer asks about dietary restrictions → USE filter_by_dietary tool
 4. For greetings and general chat → respond naturally without tools
 
-NEVER make up dish details - always use tools to get accurate information from our database."""
+NEVER make up dish details - always use tools to get accurate information from our database.
+
+{customer_context}"""
         }
         
-        # Get conversation history
-        customer_memory = CustomerMemoryService(db)
-        memory_data = customer_memory.get_memory(req.client_id, req.restaurant_id)
-        chat_history = memory_data.get('chat_history', [])
+        # Get customer profile
+        client_id_str = str(req.client_id)
+        customer_profile = db.query(models.CustomerProfile).filter(
+            models.CustomerProfile.client_id == client_id_str,
+            models.CustomerProfile.restaurant_id == req.restaurant_id
+        ).first()
+        
+        # Get customer context
+        customer_context = CustomerMemoryService.get_customer_context(customer_profile)
+        
+        # Get recent chat history for context
+        recent_messages = db.query(models.ChatMessage).filter(
+            models.ChatMessage.restaurant_id == req.restaurant_id,
+            models.ChatMessage.client_id == req.client_id
+        ).order_by(models.ChatMessage.timestamp.desc()).limit(6).all()
         
         # Build conversation context
-        conversation_context = "\n".join(chat_history[-5:]) if chat_history else ""  # Last 5 messages
+        chat_history = []
+        for msg in reversed(recent_messages[1:]):  # Skip current message
+            if msg.sender_type == "client":
+                chat_history.append(f"Customer: {msg.message}")
+            elif msg.sender_type == "ai":
+                chat_history.append(f"Maria: {msg.message}")
+        
+        conversation_context = "\n".join(chat_history) if chat_history else ""
         
         # Build prompt
         full_prompt = f"""Customer: {req.message}"""
@@ -419,13 +440,12 @@ Please provide a natural, friendly response based on this information."""
             
             response = final_response
         
-        # Update conversation history
-        customer_memory.update_conversation(
-            req.client_id,
-            req.restaurant_id,
-            req.message,
-            response
-        )
+        # Extract and update customer profile if needed
+        extracted_info = CustomerMemoryService.extract_customer_info(req.message)
+        if extracted_info:
+            CustomerMemoryService.update_customer_profile(
+                db, req.client_id, req.restaurant_id, extracted_info
+            )
         
         return ChatResponse(answer=response)
     
