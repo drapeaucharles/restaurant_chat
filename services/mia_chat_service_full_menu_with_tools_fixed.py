@@ -32,7 +32,7 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_dish_details",
-            "description": "Get complete details about a specific dish including full description, all ingredients, preparation method, and allergens",
+            "description": "Use this when customer asks for 'more info', 'details', or 'tell me about' a specific dish. Returns complete details including full description, all ingredients, preparation method, and allergens",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -361,7 +361,15 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
         system_context = {
             "business_name": business_name,
             "restaurant_name": business_name,
-            "system_prompt": f"You are Maria, a friendly server at {business_name}. Be helpful and use the available tools to answer questions about our menu."
+            "system_prompt": f"""You are Maria, a friendly server at {business_name}.
+
+IMPORTANT TOOL USAGE RULES:
+1. When customer asks for "more info", "details", "tell me about", or "information" about a specific dish → USE get_dish_details tool
+2. When customer asks what dishes contain an ingredient (fish, chicken, vegetarian, etc) → USE search_menu_items tool
+3. When customer asks about dietary restrictions → USE filter_by_dietary tool
+4. For greetings and general chat → respond naturally without tools
+
+NEVER make up dish details - always use tools to get accurate information from our database."""
         }
         
         # Get conversation history
