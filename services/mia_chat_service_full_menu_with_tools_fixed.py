@@ -409,17 +409,30 @@ NEVER make up dish details - always use tools to get accurate information from o
         ambiguous_phrases = ["yes", "tell me more", "details", "more info", "information", "about that", "about it"]
         is_ambiguous = any(phrase in req.message.lower() for phrase in ambiguous_phrases)
         
-        if is_ambiguous and chat_history:
-            # Find the last mentioned dish in conversation
+        if is_ambiguous and recent_messages:
+            # Find the last mentioned dish by checking raw messages in reverse order
             last_dish_mentioned = None
-            for msg in reversed(chat_history):
-                msg_lower = msg.lower()
-                # Check for common dish names or food items
-                if "customer:" in msg_lower:
-                    for word in ["tuna", "salmon", "scallops", "pasta", "steak", "chicken", "lobster", "shrimp"]:
-                        if word in msg_lower:
-                            last_dish_mentioned = word
-                            break
+            # Check last 10 messages, prioritizing most recent customer messages
+            for msg in recent_messages[:10]:  # recent_messages is already in desc order
+                if msg.sender_type == "client":
+                    msg_lower = msg.message.lower()
+                    # Check against menu items for exact matches first
+                    for item in menu_items:
+                        item_name = (item.get('dish') or item.get('name', '')).lower()
+                        # Check if dish name appears in customer message
+                        if item_name and len(item_name) > 3:  # Skip very short names
+                            # Check for exact word match or partial match
+                            if item_name in msg_lower or any(word in msg_lower for word in item_name.split()):
+                                last_dish_mentioned = item_name
+                                break
+                    
+                    # If no exact menu match, check common food words
+                    if not last_dish_mentioned:
+                        for word in ["tuna", "salmon", "scallops", "pasta", "steak", "chicken", "lobster", "shrimp", "fish"]:
+                            if word in msg_lower:
+                                last_dish_mentioned = word
+                                break
+                
                 if last_dish_mentioned:
                     break
             
