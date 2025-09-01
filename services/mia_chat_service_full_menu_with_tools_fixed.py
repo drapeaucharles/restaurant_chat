@@ -260,21 +260,37 @@ def find_menu_matches(query: str, menu_items: List[Dict]) -> Tuple[List[Dict], s
     """
     query_lower = query.lower().strip()
     matches = []
+    category_matches = []
     
-    # Check each menu item
+    # First check if query matches a category
     for item in menu_items:
         item_name = item.get('dish') or item.get('name', '')
-        if not item_name:
-            continue
-            
-        confidence = calculate_match_confidence(query, item_name)
-        if confidence > 0.6:  # Threshold for considering a match
-            matches.append({
+        category = item.get('category', '').lower()
+        subcategory = item.get('subcategory', '').lower()
+        
+        # Check category match
+        if query_lower == category or query_lower == subcategory:
+            category_matches.append({
                 'item': item,
                 'name': item_name,
-                'confidence': confidence,
+                'confidence': 1.0,  # Exact category match
                 'id': f"dish:{item_name.lower().replace(' ', '_')}"
             })
+        
+        # Check dish name match
+        if item_name:
+            confidence = calculate_match_confidence(query, item_name)
+            if confidence > 0.6:  # Threshold for considering a match
+                matches.append({
+                    'item': item,
+                    'name': item_name,
+                    'confidence': confidence,
+                    'id': f"dish:{item_name.lower().replace(' ', '_')}"
+                })
+    
+    # If we found category matches, use those
+    if category_matches:
+        return category_matches, "category"
     
     # Sort by confidence
     matches.sort(key=lambda x: x['confidence'], reverse=True)
@@ -313,6 +329,11 @@ def generate_structured_hint(query: str, menu_items: List[Dict], last_topic: Opt
     
     # Generate hint based on match type
     if hint_type == "none":
+        # Check if query might be a category term
+        category_keywords = ["pasta", "pizza", "seafood", "salad", "appetizer", "dessert", "soup", "sandwich"]
+        if query.lower() in category_keywords:
+            return f'[Hint type=possible_category query="{query}" context="Customer might be asking about a category. Check menu for {query} dishes" prefer_tool=search_menu_items max_options=10]'
+        
         # Try to find similar items
         all_items = [item.get('dish') or item.get('name', '') for item in menu_items if item.get('dish') or item.get('name')]
         # Simple similarity check - could be enhanced
@@ -502,8 +523,11 @@ STRUCTURED HINTS: You'll receive hints in format [Hint type=X ...] to guide your
 - type=partial with lower confidence → verify before using tool
 - type=multi or type=ambiguous → ask customer to clarify which item they want
 - type=category → list the options and ask which one
+- type=possible_category → use search_menu_items to find all items in that category
 - type=none → politely say item not found, check suggestions if provided
 - prefer_tool indicates recommended action
+
+IMPORTANT: When customers mention general terms like "pasta", "pizza", "seafood" - these are likely categories. Use search_menu_items with search_type="category" to find all dishes in that category, then ask which specific one they'd like.
 
 CONTEXT AWARENESS: Always consider the previous messages and hints when interpreting requests.
 
@@ -540,6 +564,14 @@ NEVER make up dish details - always use tools to get accurate information from o
                     if item_name and len(item_name) > 3:
                         if item_name in msg_lower or any(word in msg_lower for word in item_name.split()):
                             last_topic = item_name
+                            break
+                
+                # Check categories
+                if not last_topic:
+                    categories = set(item.get('category', '').lower() for item in menu_items)
+                    for category in categories:
+                        if category and category in msg_lower:
+                            last_topic = category
                             break
                 
                 # Check common food words if no menu match
