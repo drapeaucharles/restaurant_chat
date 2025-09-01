@@ -504,7 +504,11 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
         # Get customer context
         customer_context = CustomerMemoryService.get_customer_context(customer_profile)
         
-        # Build system context with customer info
+        # Build compact menu context
+        business_type = restaurant_data.get('business_type', 'restaurant')
+        menu_context = build_compact_menu_context(menu_items, business_type)
+        
+        # Build system context with customer info and menu
         system_context = {
             "business_name": business_name,
             "restaurant_name": business_name,
@@ -533,6 +537,9 @@ CONTEXT AWARENESS: Always consider the previous messages and hints when interpre
 
 NEVER make up dish details - always use tools to get accurate information from our database. If an item isn't found, be honest about it.
 
+{menu_context}
+
+Customer Profile:
 {customer_context}"""
         }
         
