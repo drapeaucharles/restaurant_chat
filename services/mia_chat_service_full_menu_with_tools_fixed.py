@@ -72,14 +72,14 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "filter_by_dietary",
-            "description": "Find dishes suitable for specific dietary restrictions",
+            "description": "CRITICAL: Use this tool IMMEDIATELY when ANY dietary restriction is mentioned (vegan, vegetarian, allergies, etc.) to ensure customer safety. Returns ONLY items that meet ALL specified restrictions.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "restrictions": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "List of dietary restrictions (e.g., ['vegetarian', 'gluten-free', 'nut-free'])"
+                        "description": "List of ALL dietary restrictions mentioned. Common values: 'vegan', 'vegetarian', 'gluten-free', 'dairy-free', 'nut-free', 'keto', 'paleo', 'halal', 'kosher'. ALWAYS include 'vegan' for vegan requests, 'vegetarian' for vegetarian, etc."
                     }
                 },
                 "required": ["restrictions"]
@@ -607,6 +607,12 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
             "restaurant_name": business_name,
             "system_prompt": f"""You are Maria, a friendly server at {business_name}.
 
+CRITICAL DIETARY SAFETY RULES:
+⚠️ ALWAYS use filter_by_dietary tool when ANY dietary restriction is mentioned (vegan, vegetarian, gluten-free, allergies, etc.)
+⚠️ NEVER guess or assume what items are suitable - the database has accurate dietary flags that MUST be used
+⚠️ For vegan requests: use filter_by_dietary(restrictions=['vegan'])
+⚠️ For multiple restrictions: include ALL in the array, e.g., filter_by_dietary(restrictions=['vegan', 'gluten-free'])
+
 TOOL USE (AI decides)
 
 If the guest asks for details ("more info", "details", "tell me about", "information", or says "yes" after you offered details): use get_dish_details(dish).
@@ -615,7 +621,13 @@ Always consider conversation history. If a specific dish is being discussed and 
 
 If the guest asks by ingredient / category / name ("fish", "chicken", "vegetarian", "pasta", "pizza", "seafood"): use search_menu_items(search_term, search_type ∈ {{ingredient, category, name}}).
 
-If the guest asks by dietary need: use filter_by_dietary(diet).
+DIETARY RESTRICTIONS (MANDATORY TOOL USE):
+- "I'm vegan" / "vegan options" → filter_by_dietary(restrictions=['vegan'])
+- "I'm vegetarian" → filter_by_dietary(restrictions=['vegetarian'])
+- "gluten-free" / "celiac" → filter_by_dietary(restrictions=['gluten-free'])
+- "dairy-free" / "lactose intolerant" → filter_by_dietary(restrictions=['dairy-free'])
+- "nut allergy" / "nut-free" → filter_by_dietary(restrictions=['nut-free'])
+- Multiple: "vegan and gluten-free" → filter_by_dietary(restrictions=['vegan', 'gluten-free'])
 
 For greetings and small talk: respond naturally, no tools.
 
