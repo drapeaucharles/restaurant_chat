@@ -206,9 +206,9 @@ except Exception as e:
 
 # Load full menu with tools service (experimental - extends full_menu with tool calling)
 try:
-    from services.mia_chat_service_full_menu_with_tools_fixed import mia_chat_service_full_menu_with_tools_fixed as generate_response_full_menu_with_tools
+    from services.mia_chat_service_full_menu_with_dietary_audit import mia_chat_service_full_menu_with_dietary_audit as generate_response_full_menu_with_tools
     chat_services['full_menu_with_tools'] = generate_response_full_menu_with_tools
-    logger.info("Loaded full menu with tools service")
+    logger.info("Loaded full menu with tools service (dietary audit)")
 except ImportError as e:
     logger.warning(f"Full menu with tools service not available: {str(e)}")
 except Exception as e:
