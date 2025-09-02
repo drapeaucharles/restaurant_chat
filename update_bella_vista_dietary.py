@@ -119,7 +119,7 @@ BELLA_VISTA_DIETARY_INFO = {
     },
     "French Onion Soup": {
         "is_vegan": False,
-        "is_vegetarian": True,
+        "is_vegetarian": False,  # Contains beef broth
         "is_gluten_free": False,  # Contains bread
         "is_dairy_free": False,   # Contains gruyere
         "is_nut_free": True,
