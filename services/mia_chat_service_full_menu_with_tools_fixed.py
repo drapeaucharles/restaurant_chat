@@ -217,33 +217,61 @@ def execute_tool(tool_name: str, parameters: Dict, menu_items: List[Dict]) -> Di
             
             for item in menu_items:
                 suitable = True
-                allergens = [a.lower() for a in item.get('allergens', [])]
-                ingredients_str = ' '.join(item.get('ingredients', [])).lower()
+                
+                # Check if item has dietary fields in database
+                has_dietary_fields = any(
+                    field in item for field in 
+                    ['is_vegan', 'is_vegetarian', 'is_gluten_free', 'is_dairy_free', 'is_nut_free']
+                )
                 
                 for restriction in restrictions:
                     restriction_lower = restriction.lower()
                     
-                    if restriction_lower == "vegetarian":
-                        meat_words = ['meat', 'chicken', 'beef', 'pork', 'lamb', 'fish', 'seafood', 'shrimp']
-                        if any(word in ingredients_str for word in meat_words):
+                    if has_dietary_fields:
+                        # Use database fields for accurate filtering
+                        if restriction_lower == "vegan" and not item.get('is_vegan'):
                             suitable = False
-                    
-                    elif restriction_lower == "vegan":
-                        non_vegan = ['meat', 'chicken', 'beef', 'fish', 'egg', 'dairy', 'cheese', 'milk', 'cream', 'butter']
-                        if any(word in ingredients_str for word in non_vegan):
+                        elif restriction_lower == "vegetarian" and not item.get('is_vegetarian'):
                             suitable = False
-                    
-                    elif "gluten" in restriction_lower:
-                        if "gluten" in allergens or "wheat" in allergens:
+                        elif "gluten" in restriction_lower and not item.get('is_gluten_free'):
                             suitable = False
-                    
-                    elif "nut" in restriction_lower:
-                        if any("nut" in a for a in allergens):
+                        elif "dairy" in restriction_lower and not item.get('is_dairy_free'):
                             suitable = False
-                    
-                    elif "dairy" in restriction_lower:
-                        if "dairy" in allergens or "lactose" in allergens:
+                        elif "nut" in restriction_lower and not item.get('is_nut_free'):
                             suitable = False
+                        # Check dietary tags for other restrictions
+                        elif restriction_lower in ["keto", "paleo", "halal", "kosher"]:
+                            dietary_tags = item.get('dietary_tags', [])
+                            if restriction_lower not in dietary_tags:
+                                suitable = False
+                    else:
+                        # Fallback to pattern matching for items without dietary fields
+                        allergens = [a.lower() for a in item.get('allergens', [])]
+                        ingredients_str = ' '.join(item.get('ingredients', [])).lower()
+                        
+                        if restriction_lower == "vegetarian":
+                            meat_words = ['meat', 'chicken', 'beef', 'pork', 'lamb', 'fish', 'seafood', 'shrimp', 
+                                          'bacon', 'prosciutto', 'anchovies', 'tuna', 'salmon']
+                            if any(word in ingredients_str for word in meat_words):
+                                suitable = False
+                        
+                        elif restriction_lower == "vegan":
+                            non_vegan = ['meat', 'chicken', 'beef', 'fish', 'egg', 'dairy', 'cheese', 'milk', 
+                                         'cream', 'butter', 'mozzarella', 'parmesan', 'ricotta', 'mascarpone']
+                            if any(word in ingredients_str for word in non_vegan):
+                                suitable = False
+                        
+                        elif "gluten" in restriction_lower:
+                            if "gluten" in allergens or "wheat" in allergens:
+                                suitable = False
+                        
+                        elif "nut" in restriction_lower:
+                            if any("nut" in a for a in allergens):
+                                suitable = False
+                        
+                        elif "dairy" in restriction_lower:
+                            if "dairy" in allergens or "lactose" in allergens:
+                                suitable = False
                 
                 if suitable:
                     results.append({

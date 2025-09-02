@@ -88,6 +88,24 @@ def apply_menu_fallbacks(menu_items: list) -> list:
             if item_dict.get("photo_url"):
                 processed_item["photo_url"] = item_dict["photo_url"]
             
+            # Add dietary fields
+            processed_item["is_vegan"] = item_dict.get("is_vegan")
+            processed_item["is_vegetarian"] = item_dict.get("is_vegetarian")
+            processed_item["is_gluten_free"] = item_dict.get("is_gluten_free")
+            processed_item["is_dairy_free"] = item_dict.get("is_dairy_free")
+            processed_item["is_nut_free"] = item_dict.get("is_nut_free")
+            
+            # Handle dietary tags - ensure it's a list
+            dietary_tags = item_dict.get("dietary_tags", [])
+            if isinstance(dietary_tags, str):
+                processed_item["dietary_tags"] = [dietary_tags] if dietary_tags else []
+            else:
+                processed_item["dietary_tags"] = dietary_tags or []
+            
+            # Add restaurant-defined category if present
+            if item_dict.get("restaurant_category"):
+                processed_item["restaurant_category"] = item_dict["restaurant_category"]
+            
             fallback_items.append(processed_item)
             
         except Exception as e:

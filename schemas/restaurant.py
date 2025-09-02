@@ -25,6 +25,14 @@ class MenuItem(BaseModel):
     # Restaurant-defined category
     restaurant_category: Optional[str] = Field(None, description="Restaurant-defined category like Pasta, Pizza, Salads")
     
+    # Dietary fields
+    is_vegan: Optional[bool] = Field(None, description="True if the item is vegan (no animal products)")
+    is_vegetarian: Optional[bool] = Field(None, description="True if the item is vegetarian (no meat/fish)")
+    is_gluten_free: Optional[bool] = Field(None, description="True if the item is gluten-free")
+    is_dairy_free: Optional[bool] = Field(None, description="True if the item is dairy-free")
+    is_nut_free: Optional[bool] = Field(None, description="True if the item is nut-free")
+    dietary_tags: Optional[List[str]] = Field(default_factory=list, description="Additional dietary tags (e.g., 'keto', 'paleo', 'halal', 'kosher')")
+    
     @root_validator(pre=True)
     def handle_legacy_fields(cls, values):
         """Handle legacy field mapping before validation."""
@@ -98,7 +106,13 @@ class MenuItem(BaseModel):
                 "ingredients": [
                     "Buffalo ribeye", "chimichurri", "seasonal vegetables", "olive oil", "garlic"
                 ],
-                "allergens": ["none"]
+                "allergens": ["none"],
+                "is_vegan": false,
+                "is_vegetarian": false,
+                "is_gluten_free": true,
+                "is_dairy_free": true,
+                "is_nut_free": true,
+                "dietary_tags": ["paleo", "keto-friendly"]
             }
         }
 
