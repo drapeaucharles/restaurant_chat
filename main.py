@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 
 from database import engine
 import models
-from routes import auth, restaurant, chat_dynamic, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version, embeddings, migration, db_management, embeddings_admin, redis_check, memory_debug, diagnostic, businesses, memory_check
+from routes import auth, restaurant, chat_dynamic, clients, chats, whatsapp, speech, smartlamp, update_subcategories, restaurant_categories, debug, version, embeddings, migration, db_management, embeddings_admin, redis_check, memory_debug, diagnostic, businesses, memory_check, chat_context_enhanced
 # TODO: Fix businesses_secure authentication
 # from routes import businesses_secure
 
@@ -276,6 +276,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(auth.router)
 app.include_router(restaurant.router)
 app.include_router(chat_dynamic.router)  # Dynamic chat with restaurant-specific AI mode - handles /chat
+app.include_router(chat_context_enhanced.router)  # Context-enhanced chat with state line
 app.include_router(clients.router)  # New client management router
 app.include_router(chats.router, prefix="/chat")  # Chat management - handles /chat/logs/*, etc
 app.include_router(whatsapp.router)  # WhatsApp integration routes
