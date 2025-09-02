@@ -107,11 +107,11 @@ class MenuItem(BaseModel):
                     "Buffalo ribeye", "chimichurri", "seasonal vegetables", "olive oil", "garlic"
                 ],
                 "allergens": ["none"],
-                "is_vegan": false,
-                "is_vegetarian": false,
-                "is_gluten_free": true,
-                "is_dairy_free": true,
-                "is_nut_free": true,
+                "is_vegan": False,
+                "is_vegetarian": False,
+                "is_gluten_free": True,
+                "is_dairy_free": True,
+                "is_nut_free": True,
                 "dietary_tags": ["paleo", "keto-friendly"]
             }
         }
