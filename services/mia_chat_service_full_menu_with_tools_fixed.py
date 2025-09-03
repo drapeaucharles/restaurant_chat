@@ -579,8 +579,21 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
             models.CustomerProfile.restaurant_id == req.restaurant_id
         ).first()
         
+        # DEBUG: Log profile info
+        if customer_profile:
+            logger.info(f"PROFILE DEBUG - Found profile for {client_id_str}")
+            logger.info(f"PROFILE DEBUG - Allergies: {customer_profile.allergies}")
+            logger.info(f"PROFILE DEBUG - Dietary restrictions: {customer_profile.dietary_restrictions}")
+            logger.info(f"PROFILE DEBUG - Preferences: {customer_profile.preferences}")
+        else:
+            logger.info(f"PROFILE DEBUG - No profile found for {client_id_str}")
+        
         # Get customer context
         customer_context = CustomerMemoryService.get_customer_context(customer_profile)
+        
+        # DEBUG: Log what context manager receives
+        logger.info(f"CONTEXT DEBUG - Profile passed to ContextManager: {customer_profile}")
+        logger.info(f"CONTEXT DEBUG - Message: {req.message}")
         
         # Determine which context to use based on profile and message
         context_type, context_data = ContextManager.determine_context(

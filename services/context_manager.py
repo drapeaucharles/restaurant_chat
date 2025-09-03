@@ -45,6 +45,7 @@ class ContextManager:
         
         # If no profile, use default
         if not customer_profile:
+            logger.info("CONTEXT_MANAGER DEBUG - No customer profile provided")
             return ContextType.DEFAULT, {}
         
         # Extract profile data - handle both old and new formats
@@ -55,6 +56,14 @@ class ContextManager:
         
         # Get dietary preferences from correct location
         dietary_preferences = customer_profile.dietary_restrictions or profile_data.get('dietary_preferences', [])
+        
+        # DEBUG: Log what we found
+        logger.info(f"CONTEXT_MANAGER DEBUG - Profile exists: {customer_profile}")
+        logger.info(f"CONTEXT_MANAGER DEBUG - Allergens found: {allergens}")
+        logger.info(f"CONTEXT_MANAGER DEBUG - Dietary preferences found: {dietary_preferences}")
+        logger.info(f"CONTEXT_MANAGER DEBUG - Profile.allergies: {customer_profile.allergies}")
+        logger.info(f"CONTEXT_MANAGER DEBUG - Profile.dietary_restrictions: {customer_profile.dietary_restrictions}")
+        logger.info(f"CONTEXT_MANAGER DEBUG - Profile.preferences: {customer_profile.preferences}")
         
         # Determine primary context based on profile
         if allergens:
