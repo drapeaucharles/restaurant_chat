@@ -33,7 +33,7 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "get_dish_details",
-            "description": "Authoritative dish explainer. Input: dish_name (string). Returns the official description and ingredient list exactly as stored. Use only when the guest asks for \"more info / details / tell me about\" a specific dish, or when you need to cite one concrete conflicting ingredient.",
+            "description": "Use this when customer asks for 'more info', 'details', 'tell me about' a specific dish, OR when they say 'yes' to your offer for more information. IMPORTANT: Check conversation history to identify which dish they're referring to. Returns complete details including full description, all ingredients, preparation method, and allergens",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -50,7 +50,7 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "search_menu_items",
-            "description": "Find menu items by ingredient, category, or name. Use to narrow results after filtering by diet/allergy, or to resolve partial names. Never use search alone for diet/allergy safety.",
+            "description": "Search for menu items by ingredient, category, or name",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -72,14 +72,14 @@ AVAILABLE_TOOLS = [
         "type": "function",
         "function": {
             "name": "filter_by_dietary",
-            "description": "Authoritative dietary filter based on database toggles and tags (is_vegan, is_vegetarian, is_gluten_free, is_dairy_free, is_nut_free, dietary_tags like keto-friendly, paleo). Input: restrictions (array of normalized strings). Output: only dishes that satisfy all restrictions. Must be called whenever a diet or allergy is mentioned. Do not recommend any item not returned by this tool.",
+            "description": "Find dishes suitable for specific dietary restrictions",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "restrictions": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": "Normalized strings: vegan, vegetarian, gluten-free, dairy-free, nut-free, keto-friendly, paleo. Multiple restrictions allowed."
+                        "description": "List of dietary restrictions (e.g., ['vegetarian', 'gluten-free', 'nut-free'])"
                     }
                 },
                 "required": ["restrictions"]
@@ -217,65 +217,33 @@ def execute_tool(tool_name: str, parameters: Dict, menu_items: List[Dict]) -> Di
             
             for item in menu_items:
                 suitable = True
-                
-                # Check if item has dietary fields in database
-                has_dietary_fields = any(
-                    field in item for field in 
-                    ['is_vegan', 'is_vegetarian', 'is_gluten_free', 'is_dairy_free', 'is_nut_free']
-                )
+                allergens = [a.lower() for a in item.get('allergens', [])]
+                ingredients_str = ' '.join(item.get('ingredients', [])).lower()
                 
                 for restriction in restrictions:
                     restriction_lower = restriction.lower()
                     
-                    if has_dietary_fields:
-                        # Use database fields for accurate filtering
-                        if restriction_lower == "vegan" and not item.get('is_vegan'):
+                    if restriction_lower == "vegetarian":
+                        meat_words = ['meat', 'chicken', 'beef', 'pork', 'lamb', 'fish', 'seafood', 'shrimp']
+                        if any(word in ingredients_str for word in meat_words):
                             suitable = False
-                        elif restriction_lower == "vegetarian" and not item.get('is_vegetarian'):
+                    
+                    elif restriction_lower == "vegan":
+                        non_vegan = ['meat', 'chicken', 'beef', 'fish', 'egg', 'dairy', 'cheese', 'milk', 'cream', 'butter']
+                        if any(word in ingredients_str for word in non_vegan):
                             suitable = False
-                        elif "gluten" in restriction_lower and not item.get('is_gluten_free'):
+                    
+                    elif "gluten" in restriction_lower:
+                        if "gluten" in allergens or "wheat" in allergens:
                             suitable = False
-                        elif "dairy" in restriction_lower and not item.get('is_dairy_free'):
+                    
+                    elif "nut" in restriction_lower:
+                        if any("nut" in a for a in allergens):
                             suitable = False
-                        elif "nut" in restriction_lower and not item.get('is_nut_free'):
+                    
+                    elif "dairy" in restriction_lower:
+                        if "dairy" in allergens or "lactose" in allergens:
                             suitable = False
-                        # Check dietary tags for other restrictions
-                        elif restriction_lower in ["keto", "paleo", "halal", "kosher", "keto-friendly"]:
-                            dietary_tags = item.get('dietary_tags', [])
-                            # Handle both 'keto' and 'keto-friendly' formats
-                            if restriction_lower == "keto-friendly" or restriction_lower == "keto":
-                                if not any(tag in ["keto", "keto-friendly"] for tag in dietary_tags):
-                                    suitable = False
-                            elif restriction_lower not in dietary_tags:
-                                suitable = False
-                    else:
-                        # Fallback to pattern matching for items without dietary fields
-                        allergens = [a.lower() for a in item.get('allergens', [])]
-                        ingredients_str = ' '.join(item.get('ingredients', [])).lower()
-                        
-                        if restriction_lower == "vegetarian":
-                            meat_words = ['meat', 'chicken', 'beef', 'pork', 'lamb', 'fish', 'seafood', 'shrimp', 
-                                          'bacon', 'prosciutto', 'anchovies', 'tuna', 'salmon']
-                            if any(word in ingredients_str for word in meat_words):
-                                suitable = False
-                        
-                        elif restriction_lower == "vegan":
-                            non_vegan = ['meat', 'chicken', 'beef', 'fish', 'egg', 'dairy', 'cheese', 'milk', 
-                                         'cream', 'butter', 'mozzarella', 'parmesan', 'ricotta', 'mascarpone']
-                            if any(word in ingredients_str for word in non_vegan):
-                                suitable = False
-                        
-                        elif "gluten" in restriction_lower:
-                            if "gluten" in allergens or "wheat" in allergens:
-                                suitable = False
-                        
-                        elif "nut" in restriction_lower:
-                            if any("nut" in a for a in allergens):
-                                suitable = False
-                        
-                        elif "dairy" in restriction_lower:
-                            if "dairy" in allergens or "lactose" in allergens:
-                                suitable = False
                 
                 if suitable:
                     results.append({
@@ -507,15 +475,14 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict) -> Tup
     Returns: (response_text, used_tools, tool_call_info)
     """
     try:
-        # Prepare the chat request with tools - using recommended settings
+        # Prepare the chat request with tools
         request_data = {
             "message": prompt,
             "context": context,
             "tools": tools,
             "tool_choice": "auto",
             "max_tokens": 300,
-            "temperature": 0.35,  # Lower temperature for more consistent tool usage
-            "top_p": 1.0
+            "temperature": 0.7
         }
         
         logger.info(f"Sending to MIA with {len(tools)} tools")
@@ -610,69 +577,49 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
         system_context = {
             "business_name": business_name,
             "restaurant_name": business_name,
-            "system_prompt": f"""You are Maria, a friendly but precise server at {business_name}. You have access to three tools: get_dish_details(dish_name), search_menu_items(search_term, search_type ∈ {{ingredient, category, name}}), and filter_by_dietary(restrictions: array of strings). Be concise, warm, and accurate. Never invent items or ingredients.
+            "system_prompt": f"""You are Maria, a friendly server at {business_name}.
 
-Critical dietary and allergy policy (highest priority)
+TOOL USE (AI decides)
 
-1. Mandatory tool call
-If the guest message or Context Line mentions any diet/allergy (examples: vegan, vegetarian, gluten-free, dairy-free, nut-free, keto-friendly, paleo), you must call filter_by_dietary first with restrictions as an array of normalized strings. Your recommendations must be a subset of this tool's returned items. Do not guess from dish names.
+If the guest asks for details ("more info", "details", "tell me about", "information", or says "yes" after you offered details): use get_dish_details(dish).
 
-2. Category/name/ingredient under a diet (CRITICAL - TWO TOOLS REQUIRED)
-If the guest asks for both a diet AND a category (e.g., "vegan appetizers", "gluten-free pasta", "vegetarian mains"):
-a) FIRST call filter_by_dietary with the diet restriction.
-b) THEN call search_menu_items with the category/ingredient/name.
-c) Recommend ONLY items that appear in BOTH results (the intersection).
-d) If no items match both criteria, say so clearly (e.g., "We don't have any default vegan appetizers").
+Always consider conversation history. If a specific dish is being discussed and the guest wants details, call get_dish_details for that dish.
 
-3. Yes/No checks about a specific dish
-For questions like "Is Caprese vegan/dairy-free/gluten-free?":
-a) Call filter_by_dietary with the restriction(s).
-b) If the dish is included in the tool's output, answer "Yes".
-c) If it is not included, answer "No" and, if helpful, call get_dish_details to name one concrete conflicting ingredient exactly as listed (e.g., mozzarella is dairy). Never speculate beyond the stored ingredients.
+If the guest asks by ingredient / category / name ("fish", "chicken", "vegetarian", "pasta", "pizza", "seafood"): use search_menu_items(search_term, search_type ∈ {{ingredient, category, name}}).
 
-4. Empty results
-If filter_by_dietary returns no items (or the category/name intersection is empty), clearly say no default items meet the requirement. Offer clearly labeled customizations (e.g., "Bruschetta without mozzarella") and ask the guest to confirm. Do not present a customization as inherently compliant; label it as a customization.
+If the guest asks by dietary need: use filter_by_dietary(diet).
 
-5. Context persistence
-If Diet appears in the Context Line or the guest states a diet, keep applying it to every turn until the guest cancels or changes it. If they change diets, acknowledge and switch immediately.
+For greetings and small talk: respond naturally, no tools.
 
-Context Line behavior
-• If LastDish is set and the guest says "more / details / that / it / yes", call get_dish_details for LastDish and begin with: About {{LastDish}}…
-• If Candidates (≥2) are shown and the guest says "that / it / more", ask which one (list up to three) before calling tools.
-• If a category is shown, you may call search_menu_items(category) to present up to five items, but still obey the dietary policy above.
+If a tool returns "not found" or the item isn't on our menu: be honest and suggest close alternatives.
 
-Style and outputs
-• Keep it short and helpful. After tool calls, summarize clearly (max five items) and end with a helpful question.
-• Do not print tool JSON or internal data; speak naturally.
-• When in doubt (hidden ingredients, shared fryers, cross-contact), say so and offer to check with the kitchen.
+PARTIAL & MISSPELLINGS
+• Normalize names (case/accents/spaces); tolerate common typos (e.g., "fetuticini carbonera" → "Spaghetti Carbonara").
+• If a single dish is clearly intended, call get_dish_details with the canonical dish and add a soft confirmation ("You meant Spaghetti Carbonara, right?").
+• If unsure, first call search_menu_items(search_type="name"); if it returns one plausible dish, then call get_dish_details. If multiple, ask one brief clarifying question (no tool yet).
 
-Diet definitions (for wording; the database is the source of truth)
-Vegan: no animal products (meat, fish, shellfish, dairy, eggs, honey, gelatin, lard).
-Vegetarian: no meat, fish, shellfish (dairy and eggs are acceptable).
-Gluten-free: no wheat, barley, rye, conventional pasta/bread/flour unless explicitly gluten-free.
-Dairy-free: no milk, cheese, butter, cream, yogurt, whey, mascarpone, etc.
+CONTEXT LINE POLICY (one hint may be appended to the user message)
+You may see one of these forms:
+[Context: Last discussed "{last_dish}"]
+[Context: Single "{dish}"]
+[Context: Partial "{term}"]
+[Context: Options: {dish1} | {dish2} | {dish3}]
+[Context: Category: {category} → {dish1} | {dish2} | {dish3}]
+[Context: No match for "{query}" (suggest: {alt1} | {alt2})]
 
-Normalization to apply before calling filter_by_dietary:
-vegan → vegan
-vegetarian → vegetarian
-gluten free / gluten-free / gf → gluten-free
-dairy free / dairy-free / lactose free → dairy-free
-nut free / nut-free → nut-free
-keto / keto friendly / keto-friendly → keto-friendly
-paleo → paleo
+Act as follows:
+• Last discussed "{dish}": if the guest says "more / details / that / it / yes", call get_dish_details(dish="{dish}").
+• Single "{dish}": call get_dish_details for that dish.
+• Partial "{term}": call search_menu_items(name) to resolve; then either get_dish_details (single result) or ask a brief clarifying question.
+• Options: ask the guest to choose one; do not call tools until they pick.
+• Category: either ask which dish, or call search_menu_items(category) and present up to 5 items.
+• No match: say it's not found and offer the suggested alternatives; call tools only after they choose.
 
-Micro-examples:
-Guest: "vegan appetizers please"
-Actions: 1) filter_by_dietary(["vegan"]) 2) search_menu_items("appetizers", "category") 3) Show ONLY intersection
-
-Guest: "gluten-free seafood"  
-Actions: 1) filter_by_dietary(["gluten-free"]) 2) search_menu_items("seafood", "category") 3) Show ONLY intersection
-
-Absolute rules
-• Never recommend any dish that is not included in filter_by_dietary results for the active restrictions.
-• Never rely on dish names to infer suitability; use the tool output and official ingredients.
-• If ingredients are missing for a dish, do not recommend it for restricted diets; offer to check with the kitchen first.
-• Keep the active diet in effect until canceled.
+STYLE & OUTPUT
+• Be concise, warm, and accurate. Never invent items—use tools.
+• After a tool returns, summarize the most relevant points (≤5 items or 2–3 sentences) and end with a helpful question.
+• Do not print tool JSON or tags—use the tools interface only.
+• If unsure, ask one short clarification.
 
 {menu_context}
 
