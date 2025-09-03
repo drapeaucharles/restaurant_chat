@@ -546,6 +546,16 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
     try:
         logger.info(f"FULL MENU WITH TOOLS (Fixed) - Request from {req.client_id}: {req.message[:50]}...")
         
+        # SAFETY IMPROVEMENT: Detect dietary queries for special handling
+        dietary_keywords = ['vegan', 'vegetarian', 'allergy', 'allergic', 'nut', 'peanut',
+                           'gluten', 'dairy', 'lactose', 'celiac', 'dietary', 'intolerance']
+        query_lower = req.message.lower()
+        is_dietary_query = any(keyword in query_lower for keyword in dietary_keywords)
+        
+        # Log dietary queries for safety monitoring
+        if is_dietary_query:
+            logger.warning(f"DIETARY SAFETY QUERY DETECTED - Client: {req.client_id}, Message: {req.message}")
+        
         # Get restaurant and menu data
         restaurant = db.query(models.Restaurant).filter(
             models.Restaurant.restaurant_id == req.restaurant_id
@@ -574,11 +584,25 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
         menu_context = build_compact_menu_context(menu_items, business_type)
         
         # Build system context with customer info and menu
+        # Add safety warning for dietary queries
+        safety_section = ""
+        if is_dietary_query:
+            safety_section = """
+CRITICAL DIETARY SAFETY RULES:
+- For ANY dietary question (vegan, allergies, gluten-free, etc), you MUST use the appropriate tools
+- NEVER assume ingredients based on dish names - always check the actual data
+- Use filter_by_dietary() for general dietary needs (e.g., "vegan options", "nut-free items")
+- Use get_dish_details() to check specific dishes (e.g., "is the tiramisu nut-free?")
+- If unsure, say "Let me check that for you" and use the tools
+- Trust the tool results even if they contradict common assumptions
+
+"""
+        
         system_context = {
             "business_name": business_name,
             "restaurant_name": business_name,
             "system_prompt": f"""You are Maria, a friendly server at {business_name}.
-
+{safety_section}
 TOOL USE (AI decides)
 
 If the guest asks for details ("more info", "details", "tell me about", "information", or says "yes" after you offered details): use get_dish_details(dish).
@@ -730,6 +754,13 @@ Please provide a natural, friendly response based on this information."""
             )
             
             response = final_response
+        
+        # SAFETY LOGGING: Log dietary query responses for monitoring
+        if is_dietary_query:
+            logger.warning(f"DIETARY RESPONSE - Client: {req.client_id}, Tools Used: {used_tools}, Tool: {tool_name if used_tools else 'None'}")
+            # Log if response contains potentially dangerous assumptions
+            if 'arrabbiata' in query_lower and 'dairy' in response.lower():
+                logger.error(f"POTENTIAL SAFETY ISSUE: Response mentions dairy for arrabbiata - Client: {req.client_id}")
         
         # Extract and update customer profile if needed
         extracted_info = CustomerMemoryService.extract_customer_info(req.message)
