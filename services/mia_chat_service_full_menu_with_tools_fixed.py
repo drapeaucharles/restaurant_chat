@@ -25,6 +25,7 @@ from services.customer_memory_service import CustomerMemoryService
 import models
 import requests
 from services.response_safety_validator import post_process_response
+from services.context_manager import ContextManager, ContextType
 
 logger = logging.getLogger(__name__)
 
@@ -580,15 +581,44 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
         # Get customer context
         customer_context = CustomerMemoryService.get_customer_context(customer_profile)
         
+        # Determine which context to use based on profile and message
+        context_type, context_data = ContextManager.determine_context(
+            customer_profile=customer_profile,
+            current_message=req.message
+        )
+        
+        logger.info(f"Using context type: {context_type.value} for client: {req.client_id}")
+        
         # Build compact menu context
         business_type = restaurant_data.get('business_type', 'restaurant')
         menu_context = build_compact_menu_context(menu_items, business_type)
         
-        # Build system context with customer info and menu
-        # Add safety warning for dietary queries
-        safety_section = ""
-        if is_dietary_query:
-            safety_section = """
+        # Build system context based on context type
+        if context_type in [ContextType.ALLERGEN_SAFETY, ContextType.DIETARY_PREFERENCE, 
+                           ContextType.MIXED_RESTRICTIONS, ContextType.REGULAR_CUSTOMER]:
+            # Use specialized context prompt
+            base_prompt = f"You are Maria, a friendly server at {business_name}."
+            system_prompt = ContextManager.build_context_prompt(
+                context_type=context_type,
+                context_data=context_data,
+                business_name=business_name,
+                base_prompt=base_prompt
+            )
+            
+            # For safety contexts, always include tool instructions
+            if context_type in [ContextType.ALLERGEN_SAFETY, ContextType.MIXED_RESTRICTIONS]:
+                system_prompt += """
+
+MANDATORY TOOL USAGE:
+- You MUST use filter_by_dietary() before making ANY food recommendations
+- You MUST use get_dish_details() when asked about specific dishes
+- NEVER make claims without tool verification
+"""
+        else:
+            # Default context with dietary query handling
+            safety_section = ""
+            if is_dietary_query:
+                safety_section = """
 CRITICAL DIETARY SAFETY RULES:
 - For ANY dietary question (vegan, allergies, gluten-free, etc), you MUST use the appropriate tools
 - NEVER assume ingredients based on dish names - always check the actual data
@@ -597,18 +627,9 @@ CRITICAL DIETARY SAFETY RULES:
 - If unsure, say "Let me check that for you" and use the tools
 - Trust the tool results even if they contradict common assumptions
 
-RESPONSE STYLE:
-- NEVER start with "Oh, you want..." or "Oh, you're looking for..."
-- Be direct and professional
-- Good: "Here are our gluten-free options..."
-- Bad: "Oh, you want something gluten-free!"
-
 """
-        
-        system_context = {
-            "business_name": business_name,
-            "restaurant_name": business_name,
-            "system_prompt": f"""You are Maria, a friendly server at {business_name}.
+            
+            system_prompt = f"""You are Maria, a friendly server at {business_name}.
 {safety_section}
 TOOL USE (AI decides)
 
@@ -624,38 +645,31 @@ For greetings and small talk: respond naturally, no tools.
 
 If a tool returns "not found" or the item isn't on our menu: be honest and suggest close alternatives.
 
-PARTIAL & MISSPELLINGS
-• Normalize names (case/accents/spaces); tolerate common typos (e.g., "fetuticini carbonera" → "Spaghetti Carbonara").
-• If a single dish is clearly intended, call get_dish_details with the canonical dish and add a soft confirmation ("You meant Spaghetti Carbonara, right?").
-• If unsure, first call search_menu_items(search_type="name"); if it returns one plausible dish, then call get_dish_details. If multiple, ask one brief clarifying question (no tool yet).
-
-CONTEXT LINE POLICY (one hint may be appended to the user message)
-You may see one of these forms:
-[Context: Last discussed "{last_dish}"]
-[Context: Single "{dish}"]
-[Context: Partial "{term}"]
-[Context: Options: {dish1} | {dish2} | {dish3}]
-[Context: Category: {category} → {dish1} | {dish2} | {dish3}]
-[Context: No match for "{query}" (suggest: {alt1} | {alt2})]
-
-Act as follows:
-• Last discussed "{dish}": if the guest says "more / details / that / it / yes", call get_dish_details(dish="{dish}").
-• Single "{dish}": call get_dish_details for that dish.
-• Partial "{term}": call search_menu_items(name) to resolve; then either get_dish_details (single result) or ask a brief clarifying question.
-• Options: ask the guest to choose one; do not call tools until they pick.
-• Category: either ask which dish, or call search_menu_items(category) and present up to 5 items.
-• No match: say it's not found and offer the suggested alternatives; call tools only after they choose.
-
-STYLE & OUTPUT
-• Be concise, warm, and accurate. Never invent items—use tools.
-• After a tool returns, summarize the most relevant points (≤5 items or 2–3 sentences) and end with a helpful question.
-• Do not print tool JSON or tags—use the tools interface only.
-• If unsure, ask one short clarification.
+RESPONSE STYLE:
+- NEVER start with "Oh, you want..." or "Oh, you're looking for..."
+- Be direct and professional
+- Good: "Here are our gluten-free options..."
+- Bad: "Oh, you want something gluten-free!"
 
 {menu_context}
 
 Customer Profile:
 {customer_context}"""
+        
+        # Add style rules for all contexts
+        if context_type != ContextType.DEFAULT:
+            system_prompt += """
+
+RESPONSE STYLE:
+- NEVER start with "Oh, you want..." or "Oh, you're looking for..."
+- Be direct and professional
+- Reference their restrictions naturally: "Based on your nut allergy..." not "Oh, you want nut-free!"
+"""
+        
+        system_context = {
+            "business_name": business_name,
+            "restaurant_name": business_name,
+            "system_prompt": system_prompt
         }
         
         # Get recent chat history for context
@@ -779,6 +793,37 @@ Please provide a natural, friendly response based on this information."""
         
         # Extract and update customer profile if needed
         extracted_info = CustomerMemoryService.extract_customer_info(req.message)
+        
+        # Check if context should be updated based on conversation
+        context_updates = ContextManager.should_update_context(
+            current_context=context_type,
+            message=req.message,
+            ai_response=response
+        )
+        
+        # Merge updates
+        if context_updates:
+            if not extracted_info:
+                extracted_info = {}
+            
+            # Handle allergen updates
+            if 'add_allergen' in context_updates:
+                current_allergens = extracted_info.get('allergens', [])
+                new_allergen = context_updates['add_allergen']
+                if new_allergen not in current_allergens:
+                    current_allergens.append(new_allergen)
+                    extracted_info['allergens'] = current_allergens
+                    logger.info(f"Adding allergen '{new_allergen}' to customer profile")
+            
+            # Handle dietary preference updates
+            if 'add_dietary_preference' in context_updates:
+                current_prefs = extracted_info.get('dietary_preferences', [])
+                new_pref = context_updates['add_dietary_preference']
+                if new_pref not in current_prefs:
+                    current_prefs.append(new_pref)
+                    extracted_info['dietary_preferences'] = current_prefs
+                    logger.info(f"Adding dietary preference '{new_pref}' to customer profile")
+        
         if extracted_info:
             CustomerMemoryService.update_customer_profile(
                 db, req.client_id, req.restaurant_id, extracted_info
