@@ -67,12 +67,25 @@ class CustomerMemoryService:
         # Check for allergy addition
         elif any(keyword in message_lower for keyword in allergy_keywords):
             allergies = []
-            common_allergens = ['nuts', 'peanuts', 'shellfish', 'dairy', 'milk', 'eggs', 'gluten', 'soy']
-            for allergen in common_allergens:
-                if allergen in message_lower:
-                    allergies.append(allergen)
+            # Check for both singular and plural forms
+            allergen_patterns = [
+                ('nuts', ['nut ', 'nuts', 'tree nut', 'peanut', 'almond', 'walnut', 'cashew']),
+                ('dairy', ['dairy', 'milk', 'lactose', 'cheese', 'butter', 'cream']),
+                ('gluten', ['gluten', 'wheat', 'celiac']),
+                ('eggs', ['egg', 'eggs']),
+                ('shellfish', ['shellfish', 'shrimp', 'lobster', 'crab']),
+                ('soy', ['soy', 'soya']),
+                ('fish', ['fish', 'salmon', 'tuna'])
+            ]
+            
+            for allergen_category, patterns in allergen_patterns:
+                if any(pattern in message_lower for pattern in patterns):
+                    allergies.append(allergen_category)
+                    logger.info(f"EXTRACTION DEBUG - Found allergy '{allergen_category}' from message: {message_lower}")
+            
             if allergies:
                 info['allergies'] = allergies
+                logger.info(f"EXTRACTION DEBUG - Final allergies extracted: {allergies}")
         
         # Extract preferences
         if 'spicy' in message_lower or 'spice' in message_lower:
