@@ -24,6 +24,7 @@ from services.mia_chat_service_hybrid import (
 from services.customer_memory_service import CustomerMemoryService
 import models
 import requests
+from services.response_safety_validator import post_process_response
 
 logger = logging.getLogger(__name__)
 
@@ -596,6 +597,12 @@ CRITICAL DIETARY SAFETY RULES:
 - If unsure, say "Let me check that for you" and use the tools
 - Trust the tool results even if they contradict common assumptions
 
+RESPONSE STYLE:
+- NEVER start with "Oh, you want..." or "Oh, you're looking for..."
+- Be direct and professional
+- Good: "Here are our gluten-free options..."
+- Bad: "Oh, you want something gluten-free!"
+
 """
         
         system_context = {
@@ -755,12 +762,20 @@ Please provide a natural, friendly response based on this information."""
             
             response = final_response
         
+        # SAFETY VALIDATION: Post-process response for safety and quality
+        response = post_process_response(
+            response=response,
+            query=req.message,
+            used_tools=used_tools,
+            is_dietary=is_dietary_query
+        )
+        
         # SAFETY LOGGING: Log dietary query responses for monitoring
         if is_dietary_query:
             logger.warning(f"DIETARY RESPONSE - Client: {req.client_id}, Tools Used: {used_tools}, Tool: {tool_name if used_tools else 'None'}")
-            # Log if response contains potentially dangerous assumptions
-            if 'arrabbiata' in query_lower and 'dairy' in response.lower():
-                logger.error(f"POTENTIAL SAFETY ISSUE: Response mentions dairy for arrabbiata - Client: {req.client_id}")
+            # Log if response was modified by safety validator
+            if response != final_response if used_tools else response:
+                logger.warning(f"Response modified by safety validator for client: {req.client_id}")
         
         # Extract and update customer profile if needed
         extracted_info = CustomerMemoryService.extract_customer_info(req.message)
