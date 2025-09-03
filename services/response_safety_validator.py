@@ -25,7 +25,12 @@ def post_process_response(response: str, query: str, used_tools: bool, is_dietar
     """
     
     # Step 1: Remove repetitive/annoying openings
+    original_response = response
     response = remove_repetitive_openings(response)
+    
+    # Log if changed
+    if response != original_response:
+        logger.info(f"VALIDATOR: Removed opening phrase from response")
     
     # Step 2: For dietary queries, ensure safety
     if is_dietary:
@@ -45,31 +50,81 @@ def post_process_response(response: str, query: str, used_tools: bool, is_dietar
 def remove_repetitive_openings(response: str) -> str:
     """Remove annoying repetitive phrases like 'Oh, you want...'"""
     
-    # Patterns to remove at the beginning of responses
+    original = response
+    cleaned = response
+    
+    # Log what we're trying to clean
+    logger.debug(f"Attempting to clean response: {response[:100]}...")
+    
+    # First, handle exact case-sensitive patterns at the beginning
+    if response.startswith("Oh, you want something"):
+        cleaned = response[len("Oh, you want something"):]
+        # If next char is punctuation, remove it too
+        if cleaned and cleaned[0] in "!.?":
+            cleaned = cleaned[1:]
+        cleaned = cleaned.strip()
+        logger.info(f"Removed 'Oh, you want something' prefix")
+    
+    # Comprehensive regex patterns for beginning of responses
     opening_patterns = [
-        # "Oh" patterns
-        r"^Oh,?\s+you\s+(?:want|need|'re looking for|'re asking about)\s+[^.!?]*[.!?]\s*",
-        r"^Oh,?\s+[^.!?]*[.!?]\s*",
+        # More specific "Oh" patterns first
+        r"^Oh,?\s+you\s+want\s+something\s+[^.!?]*[.!?]\s*",
+        r"^Oh,?\s+you're\s+looking\s+for\s+something\s+[^.!?]*[.!?]\s*",
+        r"^Oh,?\s+you\s+need\s+something\s+[^.!?]*[.!?]\s*",
+        
+        # General "Oh" patterns
+        r"^Oh[,!]?\s+you\s+(?:want|need|'re looking for|'re asking about)\s+[^.!?]*[.!?]\s*",
+        r"^Oh[,!]?\s+[^.!?]*[.!?]\s*",
         
         # Other repetitive patterns  
         r"^So\s+you\s+(?:want|need|'re looking for)\s+[^.!?]*[.!?]\s*",
         r"^I\s+see\s+you\s+(?:want|need|'re looking for)\s+[^.!?]*[.!?]\s*",
-        r"^You\s+(?:want|need|mentioned)\s+[^.!?]*[.!?]\s*Let's\s+",
+        r"^You\s+(?:want|need|mentioned)\s+[^.!?]*[.!?]\s*(?:Let's\s+)?",
+        r"^Ah[,!]?\s+you\s+(?:want|need|'re looking for)\s+[^.!?]*[.!?]\s*",
     ]
     
-    cleaned = response
+    # Apply regex patterns
     for pattern in opening_patterns:
+        before_len = len(cleaned)
         cleaned = re.sub(pattern, "", cleaned, count=1, flags=re.IGNORECASE)
+        if len(cleaned) < before_len:
+            logger.info(f"Regex pattern '{pattern}' removed {before_len - len(cleaned)} chars")
+            break  # Stop after first match
     
-    # Also replace mid-sentence occurrences
+    # Case-sensitive replacements for anywhere in the text
     replacements = [
+        # Most common exact matches
+        ("Oh, you want something special", "Here are some special options"),
+        ("Oh, you want something", "Here are some options"),
+        
+        # General replacements
         ("Oh, you want ", "For "),
         ("Oh, you need ", "For "),
         ("Oh, you're looking for ", "Looking for "),
+        ("Oh! You want ", "For "),
+        ("Oh! You need ", "For "),
+        
+        # Additional annoying patterns
+        ("Ah, you want ", "For "),
+        ("Ah, you need ", "For "),
+        ("So you want ", "For "),
+        ("I see you want ", "For "),
     ]
     
     for old, new in replacements:
-        cleaned = cleaned.replace(old, new)
+        if old in cleaned:
+            cleaned = cleaned.replace(old, new)
+            logger.info(f"Replaced '{old}' with '{new}'")
+    
+    # Final cleanup - ensure we don't have empty start
+    cleaned = cleaned.strip()
+    
+    # Log result
+    if cleaned != original:
+        logger.info(f"CLEANED: Original started with: '{original[:50]}...'")
+        logger.info(f"CLEANED: Result starts with: '{cleaned[:50]}...'")
+    else:
+        logger.debug("No cleaning performed - response unchanged")
     
     return cleaned
 

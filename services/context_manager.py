@@ -47,10 +47,14 @@ class ContextManager:
         if not customer_profile:
             return ContextType.DEFAULT, {}
         
-        # Extract profile data
+        # Extract profile data - handle both old and new formats
         profile_data = customer_profile.preferences or {}
-        allergens = profile_data.get('allergens', [])
-        dietary_preferences = profile_data.get('dietary_preferences', [])
+        
+        # Get allergens from correct location (profile.allergies not preferences['allergens'])
+        allergens = customer_profile.allergies or profile_data.get('allergens', [])
+        
+        # Get dietary preferences from correct location
+        dietary_preferences = customer_profile.dietary_restrictions or profile_data.get('dietary_preferences', [])
         
         # Determine primary context based on profile
         if allergens:
