@@ -5,6 +5,7 @@ Uses proper OpenAI tool format instead of text conversion
 import json
 import time
 import logging
+import hashlib
 from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 import models
@@ -587,7 +588,8 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
             current_message=req.message
         )
         
-        logger.info(f"Using context type: {context_type.value} for client: {req.client_id}")
+        logger.info(f"CONTEXT DEBUG - Type: {context_type.value}, Data: {context_data}")
+        logger.info(f"CONTEXT DEBUG - Client: {req.client_id}, Message: {req.message[:50]}")
         
         # Build compact menu context
         business_type = restaurant_data.get('business_type', 'restaurant')
@@ -671,6 +673,13 @@ RESPONSE STYLE:
             "restaurant_name": business_name,
             "system_prompt": system_prompt
         }
+        
+        # Log the actual prompt being used
+        logger.info(f"PROMPT DEBUG - Context type: {context_type.value}")
+        logger.info(f"PROMPT DEBUG - Length: {len(system_prompt)}")
+        logger.info(f"PROMPT DEBUG - First 300 chars: {system_prompt[:300]}")
+        logger.info(f"PROMPT DEBUG - Contains ALLERGEN_SAFETY: {'ALLERGEN_SAFETY' in system_prompt}")
+        logger.info(f"PROMPT DEBUG - Contains filter_by_dietary: {'filter_by_dietary' in system_prompt}")
         
         # Get recent chat history for context
         recent_messages = db.query(models.ChatMessage).filter(
@@ -777,12 +786,21 @@ Please provide a natural, friendly response based on this information."""
             response = final_response
         
         # SAFETY VALIDATION: Post-process response for safety and quality
+        original_response = response
         response = post_process_response(
             response=response,
             query=req.message,
             used_tools=used_tools,
             is_dietary=is_dietary_query
         )
+        
+        # Log validation changes
+        if response != original_response:
+            logger.info(f"VALIDATION DEBUG - Response was modified")
+            logger.info(f"VALIDATION DEBUG - Original: {original_response[:100]}")
+            logger.info(f"VALIDATION DEBUG - Modified: {response[:100]}")
+        else:
+            logger.info(f"VALIDATION DEBUG - No changes made to response")
         
         # SAFETY LOGGING: Log dietary query responses for monitoring
         if is_dietary_query:
@@ -829,7 +847,23 @@ Please provide a natural, friendly response based on this information."""
                 db, req.client_id, req.restaurant_id, extracted_info
             )
         
-        return ChatResponse(answer=response)
+        # Add debug information to response for testing
+        debug_info = {
+            "context_type": context_type.value,
+            "context_data": str(context_data),
+            "is_dietary_query": is_dietary_query,
+            "used_tools": used_tools,
+            "tool_name": tool_name if used_tools else "none",
+            "response_modified": response != (final_response if 'final_response' in locals() else response),
+            "prompt_length": len(system_prompt),
+            "prompt_hash": hashlib.md5(system_prompt.encode()).hexdigest()[:8],
+            "prompt_preview": system_prompt[:200].replace('\n', ' ')
+        }
+        
+        # Temporarily append debug info to response
+        response_with_debug = response + f"\n\n[DEBUG: {json.dumps(debug_info, indent=2)}]"
+        
+        return ChatResponse(answer=response_with_debug)
     
     except Exception as e:
         logger.error(f"Error in tool service: {e}", exc_info=True)
