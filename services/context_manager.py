@@ -40,8 +40,8 @@ class ContextManager:
         # Check for context override in current message
         override = ContextManager._check_context_override(current_message)
         if override:
-            logger.info(f"Context override detected: {override}")
-            return override, {}
+            logger.info(f"CONTEXT_MANAGER DEBUG - Override detected! Message: '{current_message}', Override: {override}")
+            return override[0], override[1]
         
         # If no profile, use default
         if not customer_profile:
@@ -115,8 +115,10 @@ class ContextManager:
         # Override to default context
         default_triggers = [
             "show me everything",
-            "show all options",
+            "show all options", 
             "i'm asking for someone else",
+            "i'm ordering for someone else",
+            "ordering for someone else",
             "asking for a friend",
             "not for me",
             "i'm not allergic anymore",
@@ -125,6 +127,7 @@ class ContextManager:
         ]
         
         if any(trigger in message_lower for trigger in default_triggers):
+            logger.info(f"CONTEXT_OVERRIDE DEBUG - Trigger '{[t for t in default_triggers if t in message_lower][0]}' found in message: '{message_lower}'")
             return ContextType.DEFAULT, {'override_reason': 'user_requested'}
         
         # Override to safety context
