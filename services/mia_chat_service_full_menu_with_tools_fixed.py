@@ -860,28 +860,99 @@ Please provide a natural, friendly response based on this information."""
                 db, req.client_id, req.restaurant_id, extracted_info
             )
         
-        # Add debug information to response for testing
-        debug_info = {
+        # Add comprehensive debug information for testing
+        debug_flow = []
+        
+        # 1. Profile detection flow
+        debug_flow.append({
+            "step": "profile_detection",
+            "client_id": client_id_str,
+            "profile_found": customer_profile is not None,
+            "allergies": customer_profile.allergies if customer_profile else None,
+            "dietary_restrictions": customer_profile.dietary_restrictions if customer_profile else None
+        })
+        
+        # 2. Context determination flow
+        debug_flow.append({
+            "step": "context_determination", 
             "context_type": context_type.value,
-            "context_data": str(context_data),
-            "is_dietary_query": is_dietary_query,
-            "used_tools": used_tools,
-            "tool_name": tool_name if used_tools else "none",
-            "response_modified": response != (final_response if 'final_response' in locals() else response),
+            "context_data": context_data,
+            "message": req.message[:50] + "..." if len(req.message) > 50 else req.message
+        })
+        
+        # 3. Prompt generation flow
+        debug_flow.append({
+            "step": "prompt_generation",
             "prompt_length": len(system_prompt),
             "prompt_hash": hashlib.md5(system_prompt.encode()).hexdigest()[:8],
-            "prompt_preview": system_prompt[:200].replace('\n', ' ')
+            "prompt_type": "safety" if "CRITICAL SAFETY MODE" in system_prompt else "default"
+        })
+        
+        # 4. Tool usage flow
+        debug_flow.append({
+            "step": "tool_usage",
+            "is_dietary_query": is_dietary_query,
+            "used_tools": used_tools,
+            "tool_name": tool_name if used_tools else None,
+            "tool_result_preview": str(tool_result)[:100] if 'tool_result' in locals() else None
+        })
+        
+        # 5. Response validation flow
+        original_length = len(original_response) if 'original_response' in locals() else 0
+        final_length = len(response)
+        debug_flow.append({
+            "step": "response_validation",
+            "response_modified": response != (original_response if 'original_response' in locals() else response),
+            "original_length": original_length,
+            "final_length": final_length,
+            "length_change": final_length - original_length
+        })
+        
+        # 6. Customer info extraction flow
+        debug_flow.append({
+            "step": "info_extraction",
+            "extracted_info": extracted_info if 'extracted_info' in locals() else None,
+            "context_updates": context_updates if 'context_updates' in locals() else None
+        })
+        
+        # Compile full debug info
+        debug_info = {
+            "flow": debug_flow,
+            "summary": {
+                "context_type": context_type.value,
+                "used_tools": used_tools,
+                "response_modified": response != (original_response if 'original_response' in locals() else response)
+            },
+            "errors": []
         }
         
-        # Temporarily append debug info to response
+        # Add debug info to response
         response_with_debug = response + f"\n\n[DEBUG: {json.dumps(debug_info, indent=2)}]"
         
         return ChatResponse(answer=response_with_debug)
     
     except Exception as e:
         logger.error(f"Error in tool service: {e}", exc_info=True)
-        # Fall back to regular service
-        return mia_chat_service_full_menu(req, db)
+        
+        # Return error with debug info
+        error_debug = {
+            "flow": [{
+                "step": "error",
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "client_id": str(req.client_id),
+                "message": req.message[:50] + "..." if len(req.message) > 50 else req.message
+            }],
+            "summary": {
+                "context_type": "error",
+                "used_tools": False,
+                "response_modified": False
+            },
+            "errors": [str(e)]
+        }
+        
+        error_response = f"I apologize, but I encountered an error. Please try again.\n\n[DEBUG: {json.dumps(error_debug, indent=2)}]"
+        return ChatResponse(answer=error_response)
 
 # Export the fixed function
 mia_chat_service_full_menu_with_tools_fixed = generate_response_full_menu_with_tools
