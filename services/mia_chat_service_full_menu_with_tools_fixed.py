@@ -503,8 +503,19 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict) -> Tup
         
         if response.status_code == 200:
             result = response.json()
-            job_id = result.get("job_id")
             
+            # Check if it's a direct response (push architecture)
+            if result.get("status") == "completed" and result.get("response") is not None:
+                logger.info("Direct response from push architecture")
+                # Extract tool calls if present
+                tool_calls = result.get("tool_calls", [])
+                if tool_calls:
+                    logger.info(f"Tool calls detected: {tool_calls}")
+                    return result["response"], True, tool_calls[0] if tool_calls else None
+                return result["response"], False, None
+            
+            # Otherwise, check for job-based response (queue fallback)
+            job_id = result.get("job_id")
             if job_id:
                 logger.info(f"Job queued: {job_id}, polling for result...")
                 
@@ -523,14 +534,18 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict) -> Tup
                         if poll_result.get("status") == "completed":
                             result_data = poll_result.get("result", {})
                             
-                            # Check for tool call
-                            if result_data.get("tool_call"):
-                                logger.info(f"Tool call detected: {result_data['tool_call']}")
-                                return result_data.get("response", ""), True, result_data["tool_call"]
-                            
-                            return result_data.get("response", ""), False, None
+                            # Safely check for tool call
+                            if result_data and isinstance(result_data, dict):
+                                if result_data.get("tool_call"):
+                                    logger.info(f"Tool call detected: {result_data['tool_call']}")
+                                    return result_data.get("response", ""), True, result_data["tool_call"]
+                                
+                                return result_data.get("response", ""), False, None
+                            elif isinstance(result_data, str):
+                                # Sometimes result is just a string
+                                return result_data, False, None
             
-            # Direct response (no job)
+            # Fallback for any other response format
             return result.get("response", str(result)), False, None
         
         else:
