@@ -37,7 +37,7 @@ class ContextManager:
             (context_type, context_data)
         """
         
-        # Check for context override in current message
+        # Check for context override in current message (for cancellations only)
         override = ContextManager._check_context_override(current_message)
         if override:
             logger.info(f"CONTEXT_MANAGER DEBUG - Override detected! Message: '{current_message}', Override: {override}")
@@ -130,17 +130,9 @@ class ContextManager:
             logger.info(f"CONTEXT_OVERRIDE DEBUG - Trigger '{[t for t in default_triggers if t in message_lower][0]}' found in message: '{message_lower}'")
             return ContextType.DEFAULT, {'override_reason': 'user_requested'}
         
-        # Override to safety context
-        safety_triggers = [
-            "i'm allergic to",
-            "i have an allergy",
-            "severe allergy",
-            "celiac disease",
-            "anaphylactic"
-        ]
-        
-        if any(trigger in message_lower for trigger in safety_triggers):
-            return ContextType.ALLERGEN_SAFETY, {'override_reason': 'safety_detected'}
+        # Note: We no longer check for safety triggers here
+        # Allergy detection is handled by CustomerMemoryService.extract_customer_info
+        # which runs BEFORE context determination
         
         return None
     

@@ -579,6 +579,19 @@ def generate_response_full_menu_with_tools(req: ChatRequest, db: Session) -> Cha
             models.CustomerProfile.restaurant_id == req.restaurant_id
         ).first()
         
+        # CRITICAL: Extract customer info from current message BEFORE determining context
+        # This ensures allergies/dietary restrictions are detected on first message
+        extracted_info = CustomerMemoryService.extract_customer_info(req.message, customer_profile)
+        
+        # If we found allergies/dietary restrictions in the message, update profile immediately
+        if extracted_info and (extracted_info.get('allergies') or extracted_info.get('dietary_restrictions')):
+            logger.info(f"EXTRACTION DEBUG - Found restrictions in message: {extracted_info}")
+            customer_profile = CustomerMemoryService.update_customer_profile(
+                db, req.client_id, req.restaurant_id, extracted_info
+            )
+            # Clear extracted_info so we don't update twice later
+            extracted_info = None
+        
         # DEBUG: Log profile info
         if customer_profile:
             logger.info(f"PROFILE DEBUG - Found profile for {client_id_str}")
@@ -822,8 +835,9 @@ Please provide a natural, friendly response based on this information."""
             if response != final_response if used_tools else response:
                 logger.warning(f"Response modified by safety validator for client: {req.client_id}")
         
-        # Extract and update customer profile if needed
-        extracted_info = CustomerMemoryService.extract_customer_info(req.message)
+        # Extract and update customer profile if needed (but not if already done above)
+        if extracted_info is None:
+            extracted_info = CustomerMemoryService.extract_customer_info(req.message)
         
         # Check if context should be updated based on conversation
         context_updates = ContextManager.should_update_context(
