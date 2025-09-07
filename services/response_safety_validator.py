@@ -24,6 +24,11 @@ def post_process_response(response: str, query: str, used_tools: bool, is_dietar
         Cleaned and validated response
     """
     
+    # Safety check for None response
+    if response is None:
+        logger.error("post_process_response received None response")
+        return "I apologize, but I couldn't generate a response. Please try again."
+    
     # Step 1: Remove repetitive/annoying openings
     original_response = response
     response = remove_repetitive_openings(response)
@@ -50,11 +55,16 @@ def post_process_response(response: str, query: str, used_tools: bool, is_dietar
 def remove_repetitive_openings(response: str) -> str:
     """Remove annoying repetitive phrases like 'Oh, you want...'"""
     
+    # Safety check for None
+    if response is None:
+        logger.warning("remove_repetitive_openings received None response")
+        return ""
+    
     original = response
     cleaned = response
     
     # Log what we're trying to clean
-    logger.debug(f"Attempting to clean response: {response[:100]}...")
+    logger.debug(f"Attempting to clean response: {response[:100] if len(response) > 100 else response}...")
     
     # First, handle exact case-sensitive patterns at the beginning
     if response.startswith("Oh, you want something"):

@@ -544,9 +544,13 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict) -> Tup
                             elif isinstance(result_data, str):
                                 # Sometimes result is just a string
                                 return result_data, False, None
+                
+                # If we exit the polling loop without a result, return timeout message
+                logger.warning(f"Polling timeout for job {job_id}")
+                return "I'm still processing your request. Please try again in a moment.", False, None
             
             # Fallback for any other response format
-            return result.get("response", str(result)), False, None
+            return result.get("response", "I couldn't process your request."), False, None
         
         else:
             logger.error(f"MIA error: {response.status_code} - {response.text}")
@@ -801,9 +805,30 @@ RESPONSE STYLE:
         )
         
         # If tool was called, execute it
-        if used_tools and tool_call:
-            tool_name = tool_call.get("name")
-            parameters = tool_call.get("parameters", {})
+        if used_tools and tool_call is not None:
+            # Handle different tool_call formats
+            if isinstance(tool_call, dict):
+                # Direct dict format
+                if "function" in tool_call:
+                    # OpenAI format: {"function": {"name": "...", "arguments": "..."}}
+                    tool_name = tool_call["function"].get("name")
+                    # Parse arguments if they're a string
+                    args = tool_call["function"].get("arguments", "{}")
+                    if isinstance(args, str):
+                        try:
+                            parameters = json.loads(args)
+                        except:
+                            parameters = {}
+                    else:
+                        parameters = args
+                else:
+                    # Simple format: {"name": "...", "parameters": {...}}
+                    tool_name = tool_call.get("name")
+                    parameters = tool_call.get("parameters", {})
+            else:
+                logger.error(f"Unexpected tool_call format: {type(tool_call)}")
+                tool_name = None
+                parameters = {}
             
             logger.info(f"Executing tool: {tool_name} with params: {parameters}")
             tool_result = execute_tool(tool_name, parameters, menu_items)
@@ -827,6 +852,10 @@ Please provide a natural, friendly response based on this information."""
             response = final_response
         
         # SAFETY VALIDATION: Post-process response for safety and quality
+        if response is None:
+            logger.error("Response is None before post-processing")
+            response = "I apologize, but I couldn't process your request. Please try again."
+        
         original_response = response
         response = post_process_response(
             response=response,
