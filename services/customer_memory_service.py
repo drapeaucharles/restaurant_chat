@@ -51,9 +51,13 @@ class CustomerMemoryService:
                 restrictions.append('kosher')
             info['dietary_restrictions'] = restrictions
         
-        # Extract allergies (with removal support)
-        allergy_keywords = ['allergic', 'allergy', "can't have", "cannot have"]
-        negative_keywords = ['not allergic', 'no allergy', 'not have allergy']
+        # Extract allergies AND intolerances (treat them the same for safety)
+        allergy_keywords = [
+            'allergic', 'allergy', "can't have", "cannot have", "can't eat", "cannot eat",
+            'intolerant', 'intolerance', 'sensitive to', 'reaction to',
+            'celiac', 'coeliac', "doesn't agree", "makes me sick"
+        ]
+        negative_keywords = ['not allergic', 'no allergy', 'not have allergy', 'not intolerant']
         
         # Check for allergy removal
         if any(keyword in message_lower for keyword in negative_keywords):

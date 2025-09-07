@@ -66,25 +66,25 @@ class ContextManager:
         logger.info(f"CONTEXT_MANAGER DEBUG - Profile.preferences: {customer_profile.preferences}")
         
         # Determine primary context based on profile
-        if allergens:
-            # Safety is highest priority
-            if len(allergens) > 2 or any(a in ['nuts', 'peanuts', 'shellfish'] for a in allergens):
-                context_type = ContextType.ALLERGEN_SAFETY
-            else:
-                context_type = ContextType.DIETARY_PREFERENCE
-                
+        # CRITICAL FIX: ANY allergy or dietary restriction should trigger ALLERGEN_SAFETY
+        if allergens or dietary_preferences:
+            # Combine all restrictions for maximum safety
+            all_restrictions = []
+            if allergens:
+                all_restrictions.extend(allergens)
+            if dietary_preferences:
+                all_restrictions.extend(dietary_preferences)
+            
+            # Always use ALLERGEN_SAFETY for any food restriction
+            context_type = ContextType.ALLERGEN_SAFETY
             context_data = {
                 'allergens': allergens,
                 'dietary_preferences': dietary_preferences,
+                'all_restrictions': all_restrictions,
                 'strict_mode': True
             }
             
-        elif dietary_preferences:
-            context_type = ContextType.DIETARY_PREFERENCE
-            context_data = {
-                'dietary_preferences': dietary_preferences,
-                'strict_mode': False
-            }
+            logger.info(f"CONTEXT_MANAGER DEBUG - Setting ALLERGEN_SAFETY for restrictions: {all_restrictions}")
             
         else:
             # Check if regular customer
@@ -173,25 +173,35 @@ class ContextManager:
     @staticmethod
     def _build_safety_prompt(context_data: Dict, business_name: str) -> str:
         """Build prompt for allergen safety context"""
+        all_restrictions = context_data.get('all_restrictions', [])
         allergens = context_data.get('allergens', [])
-        allergen_list = ', '.join(allergens)
+        dietary_prefs = context_data.get('dietary_preferences', [])
+        
+        # Combine all restrictions for display
+        restrictions_list = ', '.join(all_restrictions) if all_restrictions else 'unspecified restrictions'
         
         return f"""You are Maria, a safety-conscious server at {business_name}.
 
-CRITICAL SAFETY MODE ACTIVE - Customer has severe allergies to: {allergen_list}
+CRITICAL SAFETY MODE ACTIVE - Customer has food restrictions: {restrictions_list}
 
 MANDATORY RULES:
-1. ONLY recommend items that are 100% free from {allergen_list}
-2. ALWAYS use filter_by_dietary([{allergen_list}]) before ANY recommendation
-3. NEVER show or mention items containing these allergens
+1. ONLY recommend items that are 100% free from ALL restricted ingredients
+2. ALWAYS use filter_by_dietary([{restrictions_list}]) before ANY recommendation
+3. NEVER show or mention items containing restricted ingredients
 4. If customer asks about specific dish, use get_dish_details() to verify safety
-5. Start responses with reassurance: "I'll make sure to only show you safe options..."
+5. Treat ALL restrictions (allergies, intolerances, preferences) with EQUAL importance
+6. Start responses with reassurance: "I'll make sure to only show you safe options..."
+
+IMPORTANT: This safety mode applies to:
+- Allergies: {', '.join(allergens) if allergens else 'None'}
+- Intolerances/Dietary needs: {', '.join(dietary_prefs) if dietary_prefs else 'None'}
 
 DEFAULT FILTERING:
-- Your recommendations are PRE-FILTERED to exclude {allergen_list}
-- Do not show unsafe items unless customer explicitly says "show me everything" or "asking for someone else"
+- Your recommendations are PRE-FILTERED to exclude ALL restrictions
+- This safety context persists for the ENTIRE conversation
+- Do not downgrade to preference mode unless explicitly told to
 
-If customer wants to see restricted items, ask: "I want to keep you safe. Are you sure you want to see items with {allergen_list}?"
+If customer wants to see restricted items, ask: "I want to keep you safe. Are you sure you want to see items with {restrictions_list}?"
 """
     
     @staticmethod
