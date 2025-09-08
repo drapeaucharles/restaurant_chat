@@ -548,6 +548,8 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict) -> Tup
             # Otherwise, check for job-based response (queue fallback)
             job_id = result.get("job_id")
             if job_id:
+                logger.warning(f"INTEGRATION DEBUG - Fell back to queue! Status={result.get('status')}, job_id={job_id}")
+                logger.warning(f"INTEGRATION DEBUG - This means push failed. Full result: {json.dumps(result, indent=2)}")
                 logger.info(f"Job queued: {job_id}, polling for result...")
                 
                 # Poll for result
