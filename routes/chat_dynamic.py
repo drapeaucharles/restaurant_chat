@@ -244,6 +244,16 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"OpenAI tools service error: {type(e).__name__}: {str(e)}")
 
+# Load internal tools service (new single-response flow)
+try:
+    from services.mia_chat_service_internal_tools import mia_chat_service_internal_tools
+    chat_services['internal_tools'] = mia_chat_service_internal_tools
+    logger.info("Loaded internal tools service")
+except ImportError as e:
+    logger.warning(f"Internal tools service not available: {str(e)}")
+except Exception as e:
+    logger.error(f"Internal tools service error: {type(e).__name__}: {str(e)}")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
