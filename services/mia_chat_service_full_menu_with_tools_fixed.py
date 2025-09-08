@@ -183,6 +183,9 @@ def execute_tool(tool_name: str, parameters: Dict, menu_items: List[Dict]) -> Di
             search_term = parameters.get("search_term", "").lower()
             search_type = parameters.get("search_type", "ingredient")
             
+            logger.info(f"TOOL DEBUG - search_menu_items: term='{search_term}', type='{search_type}'")
+            logger.info(f"TOOL DEBUG - Total menu items to search: {len(menu_items)}")
+            
             results = []
             for item in menu_items:
                 match = False
@@ -207,6 +210,10 @@ def execute_tool(tool_name: str, parameters: Dict, menu_items: List[Dict]) -> Di
                         "price": item.get('price', ''),
                         "brief": f"{item.get('dish', '')} - {item.get('price', '')}"
                     })
+            
+            logger.info(f"TOOL DEBUG - search_menu_items found {len(results)} matches")
+            if len(results) == 0:
+                logger.warning(f"TOOL DEBUG - No matches for '{search_term}' as '{search_type}'")
             
             return {
                 "success": True,
@@ -848,6 +855,8 @@ RESPONSE STYLE:
             follow_up_prompt = f"""Tool result: {formatted_result}
 
 Customer's original question: {req.message}
+
+IMPORTANT: Base your response ONLY on the tool result above. If the tool found no items, you must tell the customer we don't have those items. Do NOT make up or suggest items that were not found by the tool.
 
 Please provide a natural, friendly response based on this information."""
             
