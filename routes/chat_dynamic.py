@@ -274,6 +274,16 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"Internal tools V2 service error: {type(e).__name__}: {str(e)}")
 
+# Load internal tools service V3 (constrained tool selection)
+try:
+    from services.mia_chat_service_internal_tools_v3 import mia_chat_service_internal_tools_v3
+    chat_services['internal_tools_v3'] = mia_chat_service_internal_tools_v3
+    logger.info("Loaded internal tools service V3 (constrained tool selection)")
+except ImportError as e:
+    logger.warning(f"Internal tools V3 service not available: {str(e)}")
+except Exception as e:
+    logger.error(f"Internal tools V3 service error: {type(e).__name__}: {str(e)}")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
