@@ -505,6 +505,12 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict) -> Tup
         
         logger.info(f"Sending to MIA with {len(tools)} tools")
         
+        # Log the full request
+        logger.info(f"INTEGRATION DEBUG - Sending to MIA backend: {MIA_BACKEND_URL}/chat")
+        logger.info(f"INTEGRATION DEBUG - Message length: {len(full_message)}")
+        logger.info(f"INTEGRATION DEBUG - Tools count: {len(tools)}")
+        logger.info(f"INTEGRATION DEBUG - First 200 chars of message: {full_message[:200]}")
+        
         # Send to MIA backend
         response = requests.post(
             f"{MIA_BACKEND_URL}/chat",
@@ -519,14 +525,24 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict) -> Tup
         if response.status_code == 200:
             result = response.json()
             
+            logger.info(f"INTEGRATION DEBUG - MIA response keys: {list(result.keys())}")
+            logger.info(f"INTEGRATION DEBUG - Status: {result.get('status')}")
+            logger.info(f"INTEGRATION DEBUG - Has response: {result.get('response') is not None}")
+            logger.info(f"INTEGRATION DEBUG - Has job_id: {'job_id' in result}")
+            
             # Check if it's a direct response (push architecture)
             if result.get("status") == "completed" and result.get("response") is not None:
-                logger.info("Direct response from push architecture")
+                logger.info("INTEGRATION DEBUG - Using push architecture path")
+                logger.info(f"INTEGRATION DEBUG - Response text: {result['response'][:100]}...")
+                
                 # Extract tool calls if present
                 tool_calls = result.get("tool_calls", [])
                 if tool_calls:
-                    logger.info(f"Tool calls detected: {tool_calls}")
+                    logger.info(f"INTEGRATION DEBUG - Tool calls detected: {len(tool_calls)} tools")
+                    logger.info(f"INTEGRATION DEBUG - First tool call: {tool_calls[0]}")
                     return result["response"], True, tool_calls[0] if tool_calls else None
+                    
+                logger.info("INTEGRATION DEBUG - No tool calls in response")
                 return result["response"], False, None
             
             # Otherwise, check for job-based response (queue fallback)
