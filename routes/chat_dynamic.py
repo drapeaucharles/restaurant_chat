@@ -264,6 +264,16 @@ except ImportError as e:
 except Exception as e:
     logger.error(f"Internal tools fixed service error: {type(e).__name__}: {str(e)}")
 
+# Load internal tools service V2 (proper two-phase flow)
+try:
+    from services.mia_chat_service_internal_tools_v2 import mia_chat_service_internal_tools_v2
+    chat_services['internal_tools_v2'] = mia_chat_service_internal_tools_v2
+    logger.info("Loaded internal tools service V2")
+except ImportError as e:
+    logger.warning(f"Internal tools V2 service not available: {str(e)}")
+except Exception as e:
+    logger.error(f"Internal tools V2 service error: {type(e).__name__}: {str(e)}")
+
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
