@@ -172,7 +172,7 @@ TOOL_REGISTRY = {
 def get_customer_profile(db: Session, client_id: str, restaurant_id: str) -> Optional[Any]:
     """Get or create customer profile with allergies and preferences"""
     try:
-        from services.customer_memory import CustomerMemoryService
+        from services.customer_memory_service import CustomerMemoryService
         profile = CustomerMemoryService.get_or_create_profile(db, client_id, restaurant_id)
         return profile
     except Exception as e:
@@ -186,7 +186,7 @@ def get_chat_history(db: Session, client_id: str, restaurant_id: str, limit: int
         messages = db.query(models.ChatMessage).filter(
             models.ChatMessage.client_id == client_id,
             models.ChatMessage.restaurant_id == restaurant_id
-        ).order_by(models.ChatMessage.created_at.desc()).limit(limit * 2).all()  # Get double to include AI responses
+        ).order_by(models.ChatMessage.timestamp.desc()).limit(limit * 2).all()  # Get double to include AI responses
         
         # Format for context (newest first, then reverse for chronological order)
         history = []
@@ -640,7 +640,7 @@ You have these tools available. Call the appropriate ones with correct parameter
             # Update customer profile if new info detected
             if customer_profile:
                 try:
-                    from services.customer_memory import CustomerMemoryService
+                    from services.customer_memory_service import CustomerMemoryService
                     extracted = CustomerMemoryService.extract_customer_info(req.message, customer_profile)
                     if extracted:
                         CustomerMemoryService.update_customer_profile(db, req.client_id, req.restaurant_id, extracted)
