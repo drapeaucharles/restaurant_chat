@@ -510,7 +510,7 @@ def generate_response_internal_tools_v4(req: Any, db: Session) -> Any:
                 "max_tokens": 100,
                 "temperature": 0.1
             },
-            timeout=10
+            timeout=30
         )
         
         if response.status_code != 200:
@@ -557,7 +557,7 @@ Respond warmly and professionally, continuing the conversation naturally."""
             response = requests.post(
                 f"{MIA_BACKEND_URL}/chat",
                 json={"message": simple_prompt, "max_tokens": 200},
-                timeout=10
+                timeout=30
             )
             
             if response.status_code == 200:
@@ -592,7 +592,7 @@ You have these tools available. Call the appropriate ones with correct parameter
                 "tool_choice": "auto",
                 "max_tokens": 200
             },
-            timeout=10
+            timeout=30
         )
         
         if param_response.status_code != 200:
@@ -631,7 +631,7 @@ You have these tools available. Call the appropriate ones with correct parameter
         final_response = requests.post(
             f"{MIA_BACKEND_URL}/chat",
             json={"message": final_prompt, "max_tokens": 400},
-            timeout=10
+            timeout=30
         )
         
         if final_response.status_code == 200:
@@ -659,6 +659,13 @@ You have these tools available. Call the appropriate ones with correct parameter
             confidence_score=0.0
         )
         
+    except requests.exceptions.Timeout:
+        logger.error("MIA backend timeout - falling back to simple response")
+        return ChatResponse(
+            answer="I'm here to help! Our system is a bit busy right now, but I can still assist you. What would you like to know about our menu?",
+            response_id=None,
+            confidence_score=0.7
+        )
     except Exception as e:
         logger.error(f"Error in V4: {e}", exc_info=True)
         return ChatResponse(
