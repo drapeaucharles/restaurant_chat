@@ -478,10 +478,18 @@ def send_to_mia_with_tools(prompt: str, tools: List[Dict], context: Dict) -> Tup
     Returns: (response_text, used_tools, tool_call_info)
     """
     try:
+        # Embed system context directly in the prompt
+        system_prompt = context.get("system_prompt", "")
+        if system_prompt:
+            # Combine system prompt with user prompt
+            full_message = f"{system_prompt}\n\n{prompt}"
+        else:
+            full_message = prompt
+            
         # Prepare the chat request with tools
         request_data = {
-            "message": prompt,
-            "context": context,
+            "message": full_message,
+            "context": {},  # Empty context since we embedded it in the message
             "tools": tools,
             "tool_choice": "auto",
             "max_tokens": 300,
