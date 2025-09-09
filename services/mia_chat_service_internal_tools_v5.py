@@ -250,13 +250,41 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict]) -> Dict:
         results = []
         
         for item in menu_items:
-            if category in item.get('category', '').lower() or category in item.get('subcategory', '').lower():
-                results.append({
-                    "name": item.get('dish') or item.get('name'),
-                    "price": item.get('price'),
-                    "description": item.get('description', '')[:100],
-                    "allergens": item.get('allergens', [])
-                })
+            # Check main category
+            item_category = item.get('category', '').lower()
+            item_subcategory = item.get('subcategory', '').lower()
+            
+            # Check if it's a pasta/seafood/etc query and handle intelligently
+            if category == "pasta":
+                # Check dish name for pasta types
+                dish_name = (item.get('dish') or item.get('name', '')).lower()
+                if any(pasta_type in dish_name for pasta_type in ['spaghetti', 'penne', 'linguine', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine']):
+                    results.append({
+                        "name": item.get('dish') or item.get('name'),
+                        "price": item.get('price'),
+                        "description": item.get('description', '')[:100],
+                        "allergens": item.get('allergens', [])
+                    })
+            elif category == "seafood":
+                # Check for seafood items
+                dish_name = (item.get('dish') or item.get('name', '')).lower()
+                ingredients = ' '.join(item.get('ingredients', [])).lower()
+                if any(seafood in dish_name + ' ' + ingredients for seafood in ['salmon', 'shrimp', 'lobster', 'crab', 'fish', 'seafood', 'calamari', 'scallop', 'oyster']):
+                    results.append({
+                        "name": item.get('dish') or item.get('name'),
+                        "price": item.get('price'),
+                        "description": item.get('description', '')[:100],
+                        "allergens": item.get('allergens', [])
+                    })
+            else:
+                # Standard category matching
+                if category in item_category or category in item_subcategory:
+                    results.append({
+                        "name": item.get('dish') or item.get('name'),
+                        "price": item.get('price'),
+                        "description": item.get('description', '')[:100],
+                        "allergens": item.get('allergens', [])
+                    })
         
         return {
             "tool": tool_name,
@@ -324,6 +352,10 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict]) -> Dict:
             "found": len(results),
             "items": results[:15]
         }
+    
+    elif tool_name in ["update_allergy_add", "update_allergy_remove"]:
+        # These are handled separately in the main function
+        return {"tool": tool_name, "action": "pending", "allergies": params.get("allergies", [])}
     
     else:
         return {"error": f"Unknown tool: {tool_name}"}
