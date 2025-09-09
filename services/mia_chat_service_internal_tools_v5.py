@@ -670,46 +670,81 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
             # Create a menu summary to include in simple flow
             menu_summary = create_menu_summary(menu_items)
             
-            # Build prompt with history
-            if context_type == "allergen_safety":
-                simple_prompt = f"""You are Maria at {restaurant_name}.
-Customer with restrictions ({', '.join(context_data.get('all_restrictions', []))})
-
-"""
-            elif context_type == "allergy_correction":
-                simple_prompt = f"""You are Maria at {restaurant_name}.
-The customer is correcting or updating their allergy information.
-
-"""
-            else:
-                simple_prompt = f"""You are Maria at {restaurant_name}.
+            # Get restaurant context
+            restaurant_context = ""
+            if restaurant_data:
+                # Extract restaurant details
+                hours = restaurant_data.get('operating_hours', {})
+                address = restaurant_data.get('address', '')
+                phone = restaurant_data.get('phone', '')
+                description = restaurant_data.get('description', '')
+                
+                restaurant_context = f"""RESTAURANT INFO:
+- Name: {restaurant_name}
+- Description: {description[:100] + '...' if len(description) > 100 else description}
+- Address: {address}
+- Phone: {phone}
+- Hours: {', '.join([f"{day}: {time}" for day, time in hours.items()][:3]) if hours else "See website for hours"}
 
 """
             
+            # Build prompt with history
+            simple_prompt = f"""You are Maria at {restaurant_name}.
+
+{restaurant_context}"""
+            
+            # Add customer profile information
+            if customer_profile:
+                name = getattr(customer_profile, 'name', None)
+                allergies = getattr(customer_profile, 'allergies', []) or []
+                dietary = getattr(customer_profile, 'dietary_restrictions', []) or []
+                preferences = getattr(customer_profile, 'preferences', {}) or {}
+                
+                if name or allergies or dietary or preferences:
+                    simple_prompt += "CUSTOMER PROFILE:\n"
+                    if name:
+                        simple_prompt += f"- Name: {name}\n"
+                    if allergies:
+                        simple_prompt += f"- Allergies: {', '.join(allergies)}\n"
+                    if dietary:
+                        simple_prompt += f"- Dietary Restrictions: {', '.join(dietary)}\n"
+                    if preferences:
+                        simple_prompt += f"- Preferences: {', '.join([f'{k}: {v}' for k, v in preferences.items()])}\n"
+                    simple_prompt += "\n"
+            
+            # Add specific context based on type
+            if context_type == "allergen_safety":
+                simple_prompt += f"⚠️ CRITICAL: Customer has restrictions ({', '.join(context_data.get('all_restrictions', []))})\n\n"
+            elif context_type == "allergy_correction":
+                simple_prompt += "Note: Customer is correcting/updating their allergy information.\n\n"
+            
             # Add conversation history
             if chat_history and len(chat_history) > 1:
-                simple_prompt += "Conversation so far:\n"
+                simple_prompt += "CONVERSATION HISTORY:\n"
                 for msg in chat_history[:-1]:
                     role = "Customer" if msg["role"] == "user" else "You"
                     simple_prompt += f"{role}: {msg['message']}\n"
                 simple_prompt += "\n"
             
             # ADD MENU INFORMATION
-            simple_prompt += f"""\nMENU INFORMATION:
+            simple_prompt += f"""MENU INFORMATION:
 {menu_summary}
 """
             
             # Check if this is first message
             is_greeting = chat_history is None or len(chat_history) <= 1
             
-            simple_prompt += f"""\nCustomer: "{req.message}"
+            simple_prompt += f"""\nCurrent Message:
+Customer: "{req.message}"
 
-IMPORTANT: 
+RESPONSE GUIDELINES:
 - Be CONCISE - max 2-3 sentences
 - {"Greet warmly ONCE" if is_greeting else "NO greeting - continue conversation"}
 - Answer their specific question directly
 - USE ACTUAL MENU PRICES AND ITEMS from the menu information above
-- NEVER make up dishes or prices that aren't in the menu"""
+- NEVER make up dishes or prices that aren't in the menu
+- If customer has allergies, always keep them in mind
+- Be helpful and personalized based on customer profile"""
             
             response = requests.post(
                 f"{MIA_BACKEND_URL}/chat",
