@@ -611,10 +611,43 @@ Respond:"""
                     confidence_score=0.85
                 )
         
+        # === Process Allergy Updates FIRST ===
+        # This ensures the profile is updated before other tools use it
+        for tool_data in selected_tools:
+            if tool_data.get("tool") in ["update_allergy_add", "update_allergy_remove"]:
+                try:
+                    allergies = tool_data.get("parameters", {}).get("allergies", [])
+                    
+                    if tool_data["tool"] == "update_allergy_add":
+                        # Add allergies to profile
+                        if customer_profile:
+                            existing_allergies = set(customer_profile.allergies or [])
+                            existing_allergies.update(allergies)
+                            customer_profile.allergies = list(existing_allergies)
+                            db.commit()
+                            logger.info(f"Added allergies to profile: {allergies}. Profile now has: {customer_profile.allergies}")
+                    else:
+                        # Remove allergies from profile
+                        if customer_profile:
+                            existing_allergies = set(customer_profile.allergies or [])
+                            for allergy in allergies:
+                                existing_allergies.discard(allergy)
+                            customer_profile.allergies = list(existing_allergies)
+                            db.commit()
+                            logger.info(f"Removed allergies from profile: {allergies}. Profile now has: {customer_profile.allergies}")
+                except Exception as e:
+                    logger.error(f"Failed to process allergy update: {e}")
+        
         # === Execute Tools Locally ===
         tool_results = []
         for tool_data in selected_tools:
-            result = execute_tool(tool_data, menu_items, customer_profile)
+            if tool_data.get("tool") in ["update_allergy_add", "update_allergy_remove"]:
+                # Already processed above, just add result
+                action = "added" if tool_data["tool"] == "update_allergy_add" else "removed"
+                allergies = tool_data.get("parameters", {}).get("allergies", [])
+                result = {"success": True, "action": action, "allergies": allergies, "tool": tool_data["tool"]}
+            else:
+                result = execute_tool(tool_data, menu_items, customer_profile)
             tool_results.append(result)
         
         # Check if all searches returned no results (except allergen filters)
@@ -684,36 +717,7 @@ Respond:"""
                     confidence_score=0.8
                 )
         
-        # Process allergy updates if needed
-        for i, tool_data in enumerate(selected_tools):
-            if tool_data.get("tool") in ["update_allergy_add", "update_allergy_remove"]:
-                try:
-                    allergies = tool_data.get("parameters", {}).get("allergies", [])
-                    
-                    if tool_data["tool"] == "update_allergy_add":
-                        # Add allergies to profile
-                        if customer_profile:
-                            existing_allergies = set(customer_profile.allergies or [])
-                            existing_allergies.update(allergies)
-                            customer_profile.allergies = list(existing_allergies)
-                            db.commit()
-                            logger.info(f"Added allergies to profile: {allergies}")
-                        action = "added"
-                    else:
-                        # Remove allergies from profile
-                        if customer_profile:
-                            existing_allergies = set(customer_profile.allergies or [])
-                            for allergy in allergies:
-                                existing_allergies.discard(allergy)
-                            customer_profile.allergies = list(existing_allergies)
-                            db.commit()
-                            logger.info(f"Removed allergies from profile: {allergies}")
-                        action = "removed"
-                    
-                    tool_results[i] = {"success": True, "action": action, "allergies": allergies}
-                except Exception as e:
-                    logger.error(f"Failed to process allergy update: {e}")
-                    tool_results[i] = {"success": False, "error": str(e)}
+        # (Allergy updates already processed above, removed duplicate code)
         
         # === PHASE 2: Generate Response ===
         logger.info("PHASE 2: Generating response from tool results")
