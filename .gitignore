@@ -54,6 +54,16 @@ sandbox.*
 .DS_Store
 Thumbs.db
 
+# Sensitive data
+SERVER_INFO.md
+*_credentials.txt
+*_secrets.json
+
+# Test outputs
+*_conversation_log_*.json
+*_conversation_debug_*.txt
+realistic_conversation_log_*.json
+
 # Arduino files
 *.ino
 

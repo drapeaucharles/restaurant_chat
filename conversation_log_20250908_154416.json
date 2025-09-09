@@ -1,0 +1,126 @@
+{
+  "test_time": "2025-09-08T15:44:16.646361",
+  "session_id": "test-session-1757321056",
+  "backend_url": "https://mia-backend-production.up.railway.app",
+  "conversation": [
+    {
+      "turn": 1,
+      "message": "Hello! I'm looking for a nice Italian restaurant experience.",
+      "timestamp": "2025-09-08T15:44:16.646487",
+      "status": "success",
+      "response": "Hello! I'd be happy to help you find a great Italian restaurant. To give you the best recommendations, could you please provide some details such as your location, preferred price range, any dietary restrictions, and if there's a specific type of Italian cuisine you're in the mood for (e.g., pizza, pasta, seafood, etc.)? This information will help me narrow down my suggestions.",
+      "elapsed": 2.4364466667175293,
+      "tool_calls": [],
+      "job_id": "532e6ac6-27b1-4c68-9a10-550de6d5d9d6",
+      "processing_mode": "unknown"
+    },
+    {
+      "turn": 2,
+      "message": "What pasta dishes do you have on the menu?",
+      "timestamp": "2025-09-08T15:44:20.763327",
+      "status": "success",
+      "response": "I'm sorry for any confusion, but as an AI developed by Alibaba Cloud, I don't have a physical restaurant or menu. However, I can certainly help you brainstorm some popular pasta dishes that you might find on a menu! Here are a few classic options:\n\n1. **Spaghetti Carbonara** - A creamy pasta dish made with eggs, bacon, cheese, and black pepper.\n2. **Fettuccine Alfredo** - Made with butter and cream, this dish is simple yet delicious.\n3. **Penne Arrabbiata** - Spicy penne pasta tossed with tomatoes and garlic.\n4. **Lasagna** - Layers of pasta sheets, meat sauce, ricotta, and mozzarella cheese.\n5. **Caprese Pasta** - Fresh pasta tossed with cherry tomatoes, fresh mozzarella, basil, and olive oil.\n6. **Rigatoni alla Norma** - Rigatoni with a sweet and spicy tomato sauce, ricotta salata, and a fried egg.\n7. **Pasta Primavera** - A pasta dish featuring a mix of seasonal vegetables in a light sauce.\n\nIf you're looking to order from a real restaurant, you could ask them about their pasta specials or check their menu online!",
+      "elapsed": 3.154186487197876,
+      "tool_calls": [],
+      "job_id": "e15edb4e-e8dc-434d-88d3-20256f12a15f",
+      "processing_mode": "unknown"
+    },
+    {
+      "turn": 3,
+      "message": "I have a severe nut allergy. Which pasta dishes are safe for me?",
+      "timestamp": "2025-09-08T15:44:25.802111",
+      "status": "success",
+      "response": "When you have a severe nut allergy, it's important to ensure that your pasta dishes do not contain any nuts or nut-derived ingredients. Here are some safe options:\n\n1. **Pasta Shapes**: Any pasta shape that does not have a sauce with nut-based ingredients is safe. Common shapes like spaghetti, fettuccine, penne, rigatoni, fusilli, and linguine are generally safe.\n\n2. **Sauces**:\n   - **Tomato-Based Sauces**: Classic tomato sauces like marinara, arrabbiata, and pomodoro are safe.\n   - **Cream-Based Sauces**: Alfredo, carbonara (without nuts), and b\u00e9chamel are safe.\n   - **Meat-Based Sauces**: Bolognese, rag\u00f9, and meat sauces made with ground beef, pork, or chicken are safe.\n   - **Vegetable-Based Sauces**: Pesto made without pine nuts (or with alternative nuts) can be safe if you're cautious about other ingredients.\n   - **White Sauces**: Creamy white sauces are typically safe as long as they don't include nut-derived thickeners.\n\n3. **Ingredients to Avoid**: Make sure to avoid any pasta dishes that list nuts or nut extracts in the ingredients. This includes pesto with pine nuts, walnut pasta, or any sauces that might contain hazelnuts or almonds.\n\n4. **Cross-Contamination**: Be cautious of cross-contamination. Always check the labels of pre-made pasta dishes and sauces. If you're dining out, ask detailed questions about the preparation process and ingredients used.\n\n5. **Safe Add-Ins**: Safe add-ins include various vegetables, herbs, meats, and cheeses. For example, saut\u00e9ed spinach, mushrooms, onions, bell peppers, and grated cheese (check for nut-derived cheese alternatives).\n\n6. **Specialty Pasta**: Some companies offer gluten-free pasta or specialty pastas that are free from common allergens. Look for products labeled as nut-free.\n\nBy choosing simple, straightforward pasta dishes and being vigilant about ingredients, you can enjoy a wide variety of safe pasta options.",
+      "elapsed": 5.324705600738525,
+      "tool_calls": [],
+      "job_id": "41b92738-39d1-482c-8062-ec803c10dd35",
+      "processing_mode": "unknown"
+    },
+    {
+      "turn": 4,
+      "message": "Tell me more about the Spaghetti Carbonara - what ingredients does it have?",
+      "timestamp": "2025-09-08T15:44:32.911410",
+      "status": "success",
+      "response": "Spaghetti Carbonara is a classic Italian dish that is known for its rich and creamy sauce without the use of cream. Here are the main ingredients:\n\n1. **Spaghetti** - This is the pasta used in the dish. It's typically long and thin, which helps to hold the sauce.\n\n2. **Eggs** - Two eggs are commonly used to create the creamy sauce. The yolks are mixed with the cheese and then stirred into the hot pasta to emulsify the sauce.\n\n3. **Pancetta or Guanciale** - These are cured meats that add a salty, savory flavor to the dish. Pancetta is a type of Italian bacon, while guanciale is a cured pork cheek. Some recipes may use prosciutto or even omit the meat.\n\n4. **Parmigiano-Reggiano Cheese** - This is a hard, aged cheese that provides a rich, nutty flavor. Grated Pecorino Romano can be used as an alternative, but it has a slightly different flavor profile.\n\n5. **Black Pepper** - Freshly ground black pepper adds a pungent, aromatic note to the dish.\n\n6. **Salt** - To season the pasta water and, optionally, the sauce.\n\nThe preparation involves cooking the spaghetti al dente, then mixing in the egg yolk mixture (which includes the cheese and pancetta) and stirring vigorously to prevent the eggs from curdling. The cooked spaghetti is then combined with the egg mixture, ensuring that the heat from the pasta cooks the eggs properly before serving.\n\nIt's important to note that there are variations of this recipe, and some might include additional ingredients like garlic or white wine. However, the core ingredients remain consistent across most authentic recipes.",
+      "elapsed": 4.653357744216919,
+      "tool_calls": [],
+      "job_id": "ecf04244-8485-4fc9-b93e-cec73b8c27f2",
+      "processing_mode": "unknown"
+    },
+    {
+      "turn": 5,
+      "message": "That sounds good. What about gluten-free options?",
+      "timestamp": "2025-09-08T15:44:38.774551",
+      "status": "success",
+      "response": "Certainly! Gluten-free options are becoming increasingly popular and accessible. Here are some general guidelines for identifying and preparing gluten-free dishes:\n\n1. **Understand Gluten-Free Ingredients**: Common gluten-free grains include rice (white and brown), quinoa, corn (including masa and grits), sorghum, teff, and many types of beans. Always check the packaging for \"gluten-free\" labels.\n\n2. **Be Aware of Hidden Sources of Gluten**: Be cautious with ingredients like wheat starch, modified food starch, malt, and brewer\u2019s yeast, which can contain gluten. Also, cross-contamination can occur in shared processing facilities, so it's important to read labels carefully.\n\n3. **Dining Out**: When eating out, inform your server about your dietary restrictions. Many restaurants now offer gluten-free menus or can accommodate requests with modifications.\n\n4. **Cooking at Home**: When cooking at home, use gluten-free flours like almond flour, coconut flour, or rice flour in baking. For pasta, you can use gluten-free varieties made from rice, corn, or chickpeas.\n\n5. **Label Reading**: Always read food labels carefully, as products can change formulations. Look for products certified as gluten-free, which must meet strict standards set by organizations like the FDA.\n\n6. **Cross-Contamination**: Keep separate utensils, cutting boards, and preparation areas when cooking gluten-free meals to avoid contamination.\n\nIf you have specific dietary needs or preferences, feel free to provide more details, and I can offer more tailored advice!",
+      "elapsed": 3.8730075359344482,
+      "tool_calls": [],
+      "job_id": "0c62f7de-7684-4bb9-871d-2a0c0b816292",
+      "processing_mode": "unknown"
+    },
+    {
+      "turn": 6,
+      "message": "Do you have any vegetarian pasta dishes?",
+      "timestamp": "2025-09-08T15:44:44.603648",
+      "status": "success",
+      "response": "Certainly! Here's a simple and delicious vegetarian pasta dish recipe for you:\n\n### Mushroom and Spinach Pasta\n\n#### Ingredients:\n- 200g penne or your preferred pasta shape\n- 150g fresh spinach leaves, washed and roughly chopped\n- 300g mushrooms, sliced\n- 2 cloves garlic, minced\n- 1/4 cup olive oil\n- Salt and pepper to taste\n- 1/2 cup grated Parmesan cheese (optional)\n- Fresh parsley, chopped (for garnish)\n\n#### Instructions:\n1. **Cook the Pasta**: Bring a large pot of salted water to a boil. Add the pasta and cook according to package instructions until al dente. Drain and set aside.\n\n2. **Saut\u00e9 the Mushrooms**: In a large skillet, heat 2 tablespoons of olive oil over medium heat. Add the sliced mushrooms and saut\u00e9 until they are golden brown and tender. Season with salt and pepper.\n\n3. **Add Garlic and Spinach**: Increase the heat slightly and add the minced garlic. Saut\u00e9 for about 30 seconds until fragrant. Then, add the chopped spinach. Cook until the spinach is wilted and has released its moisture.\n\n4. **Combine Pasta and Vegetables**: Add the cooked pasta to the skillet with the mushrooms and spinach. Toss everything together to ensure the pasta is well coated with the vegetables. If using, sprinkle the Parmesan cheese over the top and toss again to distribute evenly.\n\n5. **Serve**: Serve hot, garnished with fresh parsley.\n\nThis dish is not only flavorful but also packed with nutrients. Enjoy your meal!",
+      "elapsed": 4.423194408416748,
+      "tool_calls": [],
+      "job_id": "cf1d28e8-70e7-455f-85fd-7530e24d6b94",
+      "processing_mode": "unknown"
+    },
+    {
+      "turn": 7,
+      "message": "What's the price range for your pasta dishes?",
+      "timestamp": "2025-09-08T15:44:50.858409",
+      "status": "success",
+      "response": "I'm Qwen, an AI assistant created by Alibaba Cloud, and I don't have specific information about restaurant prices or menu items like pasta dishes. However, typically, pasta dishes in restaurants can range from around $8 to $15 or more, depending on the type of pasta, the complexity of the sauce, and any additional ingredients or toppings. If you're looking for precise pricing, it would be best to check the menu of the specific restaurant you're interested in or ask their staff directly.",
+      "elapsed": 2.114131450653076,
+      "tool_calls": [],
+      "job_id": "b7c247a2-e261-4a9e-bd78-197e808ec0be",
+      "processing_mode": "unknown"
+    },
+    {
+      "turn": 8,
+      "message": "I'd also like to know about your wine selection.",
+      "timestamp": "2025-09-08T15:44:54.215430",
+      "status": "success",
+      "response": "Certainly! As an AI, I don't have a physical inventory or store to offer wine selections, but I can certainly provide you with information and recommendations based on popular choices, regions, and varieties. If you're looking for specific types of wines, such as reds, whites, sparkling, or fortified wines, or if you have a particular region in mind (e.g., Bordeaux, Burgundy, Napa Valley), I can help guide you through the options.\n\nFor example, if you're interested in red wines, we could explore Cabernet Sauvignon from Napa Valley, Pinot Noir from Burgundy, or Syrah from the Rh\u00f4ne Valley. If you prefer white wines, we could discuss Chardonnay from California, Riesling from Germany, or Sauvignon Blanc from New Zealand. And if you're into sparkling wines, we could look at Champagne from France or Sparkling wine from the United States.\n\nWould you like to narrow down your preferences or focus on a specific type of wine?",
+      "elapsed": 2.9359869956970215,
+      "tool_calls": [],
+      "job_id": "143ceef2-4433-4815-83c3-a038f84c3d85",
+      "processing_mode": "unknown"
+    },
+    {
+      "turn": 9,
+      "message": "What desserts do you offer?",
+      "timestamp": "2025-09-08T15:44:58.442508",
+      "status": "success",
+      "response": "As Qwen, I don't actually offer physical desserts since I'm a virtual assistant. However, I can certainly help you find information about various desserts or suggest recipes if that's what you're looking for! What kind of dessert are you interested in learning about or trying to make?",
+      "elapsed": 1.3784873485565186,
+      "tool_calls": [],
+      "job_id": "cc51a0bd-58a5-4eab-907f-3dfa4a3e692c",
+      "processing_mode": "unknown"
+    },
+    {
+      "turn": 10,
+      "message": "Thank you for all the information. This has been very helpful!",
+      "timestamp": "2025-09-08T15:45:01.100018",
+      "status": "success",
+      "response": "You're welcome! I'm glad to hear that the information was helpful. If you have any more questions or need further assistance, feel free to ask. Whether it's related to technology, general knowledge, current events, or anything else, I'm here to help!",
+      "elapsed": 1.6060924530029297,
+      "tool_calls": [],
+      "job_id": "4ed1d0e5-420a-413a-a9d6-dd7b9dbaa9da",
+      "processing_mode": "unknown"
+    }
+  ],
+  "summary": {
+    "total_turns": 10,
+    "successful_turns": 10,
+    "failed_turns": 0,
+    "total_time": 31.9,
+    "average_response_time": 3.19,
+    "success_rate": 100.0
+  },
+  "debug_info": []
+}
