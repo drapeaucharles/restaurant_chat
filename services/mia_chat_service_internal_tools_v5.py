@@ -202,19 +202,19 @@ RULES:
 
 EXAMPLES:
 - "What pasta dishes do you have?" → 
-  [{"tool": "search_menu_by_category", "parameters": {"category": "Pasta"}}]
+  [{{"tool": "search_menu_by_category", "parameters": {{"category": "Pasta"}}}}]
   
 - "Tell me about the Carbonara" → 
-  [{"tool": "get_dish_details", "parameters": {"dish_name": "Spaghetti Carbonara"}}]
+  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "Spaghetti Carbonara"}}}}]
   
 - "Show me gluten-free pasta" → 
-  [{"tool": "filter_gluten_free"}, {"tool": "search_menu_by_category", "parameters": {"category": "Pasta"}}]
+  [{{"tool": "filter_gluten_free"}}, {{"tool": "search_menu_by_category", "parameters": {{"category": "Pasta"}}}}]
   
 - "I'm allergic to nuts" → 
-  [{"tool": "update_allergy_add", "parameters": {"allergies": ["nuts"]}}]
+  [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
   
 - "Thanks" → 
-  [{"tool": "no_tool_needed"}]
+  [{{"tool": "no_tool_needed"}}]
 
 Respond with ONLY the JSON array."""
     
