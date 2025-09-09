@@ -658,6 +658,14 @@ class HeartbeatMiner:
         logger.warning("Bore output reader stopped - tunnel may be down")
         self.bore_failures += 1
     
+    def check_vllm_health(self):
+        """Check if vLLM is still running"""
+        try:
+            response = requests.get("http://localhost:8000/v1/models", timeout=2)
+            return response.status_code == 200
+        except:
+            return False
+    
     def check_bore_health(self):
         """Check if bore tunnel is healthy and restart if needed"""
         try:
@@ -782,6 +790,12 @@ class HeartbeatMiner:
         async with aiohttp.ClientSession() as session:
             while True:
                 try:
+                    # Check if vLLM is still running
+                    if not self.check_vllm_health():
+                        logger.error("❌ vLLM is not running! Exiting miner...")
+                        logger.error("   Restart with: ./vllm_manage.sh miner")
+                        sys.exit(1)
+                    
                     # Check if bore needs restart (non-blocking)
                     self.restart_bore_if_needed()
                     
@@ -968,19 +982,30 @@ class HeartbeatMiner:
                 self.bore_process.terminate()
 
 if __name__ == "__main__":
-    # Wait for vLLM to be ready
-    logger.info("⏳ Waiting for vLLM to start...")
-    for i in range(60):
+    # Wait for vLLM to be ready (up to 5 minutes)
+    logger.info("⏳ Waiting for vLLM to start (this can take 3-5 minutes on first load)...")
+    max_wait_time = 300  # 5 minutes
+    check_interval = 5   # Check every 5 seconds
+    elapsed = 0
+    
+    while elapsed < max_wait_time:
         try:
             r = requests.get("http://localhost:8000/v1/models", timeout=2)
             if r.status_code == 200:
-                logger.info("✅ vLLM is ready!")
+                logger.info(f"✅ vLLM is ready! (took {elapsed} seconds)")
                 break
         except:
             pass
-        time.sleep(2)
+        
+        # Show progress
+        if elapsed % 30 == 0 and elapsed > 0:
+            logger.info(f"   Still waiting... {elapsed}s elapsed")
+        
+        time.sleep(check_interval)
+        elapsed += check_interval
     else:
-        logger.error("❌ vLLM failed to start after 120 seconds")
+        logger.error(f"❌ vLLM failed to start after {max_wait_time} seconds")
+        logger.error("   Check vLLM logs: ./vllm_manage.sh logs")
         sys.exit(1)
     
     # Start miner
