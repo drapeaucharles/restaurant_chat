@@ -19,30 +19,41 @@ logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 
 def create_menu_summary(menu_items: List[Dict]) -> str:
-    """Create a concise summary of menu items for simple flow context"""
+    """Create a compressed menu summary for context"""
     if not menu_items:
         return "No menu items available."
     
-    # Group by category
-    categories = {}
-    for item in menu_items:
+    # Create compressed format similar to tool results
+    compressed = []
+    
+    # Sample popular items from different categories
+    categories_seen = set()
+    for item in menu_items[:20]:  # First 20 items as sample
         cat = item.get('category', 'Other')
-        if cat not in categories:
-            categories[cat] = []
-        categories[cat].append(item)
+        name = item.get('dish') or item.get('name', '')
+        price = item.get('price', '')
+        
+        # Skip if we already have 3 from this category
+        cat_count = sum(1 for c in compressed if c.startswith(f"{cat}:"))
+        if cat_count >= 3:
+            continue
+            
+        # Compressed format: "Category: DishName $XX"
+        allergens = item.get('allergens', [])
+        if allergens:
+            compressed.append(f"{cat}: {name} {price} (contains: {', '.join(allergens[:2])})")
+        else:
+            compressed.append(f"{cat}: {name} {price}")
+        
+        categories_seen.add(cat)
     
     # Build summary
-    summary = "Available dishes:\n"
-    for cat, items in categories.items():
-        summary += f"\n{cat}:\n"
-        for item in items[:10]:  # Limit to 10 per category to avoid token explosion
-            name = item.get('dish') or item.get('name', 'Unknown')
-            price = item.get('price', 'Price not set')
-            allergens = item.get('allergens', [])
-            allergen_str = f" (contains: {', '.join(allergens)})" if allergens else ""
-            summary += f"- {name}: {price}{allergen_str}\n"
-        if len(items) > 10:
-            summary += f"- ... and {len(items) - 10} more {cat} items\n"
+    summary = f"Menu Sample ({len(menu_items)} total items):\n"
+    summary += "\n".join(compressed)
+    
+    # Add note about categories
+    if len(categories_seen) > 1:
+        summary += f"\n\nCategories available: {', '.join(sorted(categories_seen))}"
     
     return summary
 
