@@ -18,6 +18,34 @@ logger = logging.getLogger(__name__)
 # MIA Backend URL
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 
+def create_menu_summary(menu_items: List[Dict]) -> str:
+    """Create a concise summary of menu items for simple flow context"""
+    if not menu_items:
+        return "No menu items available."
+    
+    # Group by category
+    categories = {}
+    for item in menu_items:
+        cat = item.get('category', 'Other')
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append(item)
+    
+    # Build summary
+    summary = "Available dishes:\n"
+    for cat, items in categories.items():
+        summary += f"\n{cat}:\n"
+        for item in items[:10]:  # Limit to 10 per category to avoid token explosion
+            name = item.get('dish') or item.get('name', 'Unknown')
+            price = item.get('price', 'Price not set')
+            allergens = item.get('allergens', [])
+            allergen_str = f" (contains: {', '.join(allergens)})" if allergens else ""
+            summary += f"- {name}: {price}{allergen_str}\n"
+        if len(items) > 10:
+            summary += f"- ... and {len(items) - 10} more {cat} items\n"
+    
+    return summary
+
 # Tool Registry - Maps tool names to their actual implementations
 TOOL_REGISTRY = {
     # Menu Tools
@@ -338,12 +366,17 @@ RULES:
 Examples:
 - "I'm vegan and want pasta" → ["filter_vegan", "search_menu_by_category"]
 - "Tell me about the carbonara" → ["get_dish_details"]
+- "What's the price of the carbonara?" → ["get_dish_details"]
+- "Is the carbonara gluten-free?" → ["get_dish_details"]
+- "What pasta dishes do you have?" → ["search_menu_by_category"]
 - "I have a nut allergy" → ["update_allergy_add", "filter_nut_free"]
 - "I'm not allergic to nuts, it was a joke" → ["update_allergy_remove"]
 - "Actually I can eat dairy now" → ["update_allergy_remove"]
 - "The nut allergy is for my friend, not me" → ["update_allergy_remove"]
 - "Show me dishes with nuts" → ["search_menu_by_category"] (implies no allergy)
+- "What do you recommend?" → ["search_menu_by_category"] (general menu browse)
 - "Hello there" → ["no_tool_needed"]
+- "Thank you" → ["no_tool_needed"]
 
 Respond with ONLY the JSON array of tool names."""
     
@@ -636,6 +669,9 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
         
         # If no tools needed, generate contextual response
         if selected_tools == ["no_tool_needed"]:
+            # Create a menu summary to include in simple flow
+            menu_summary = create_menu_summary(menu_items)
+            
             # Build prompt with history
             if context_type == "allergen_safety":
                 simple_prompt = f"""You are Maria at {restaurant_name}.
@@ -660,15 +696,22 @@ The customer is correcting or updating their allergy information.
                     simple_prompt += f"{role}: {msg['message']}\n"
                 simple_prompt += "\n"
             
+            # ADD MENU INFORMATION
+            simple_prompt += f"""\nMENU INFORMATION:
+{menu_summary}
+"""
+            
             # Check if this is first message
             is_greeting = chat_history is None or len(chat_history) <= 1
             
-            simple_prompt += f"""Customer: "{req.message}"
+            simple_prompt += f"""\nCustomer: "{req.message}"
 
 IMPORTANT: 
 - Be CONCISE - max 2-3 sentences
 - {"Greet warmly ONCE" if is_greeting else "NO greeting - continue conversation"}
-- Answer their specific question directly"""
+- Answer their specific question directly
+- USE ACTUAL MENU PRICES AND ITEMS from the menu information above
+- NEVER make up dishes or prices that aren't in the menu"""
             
             response = requests.post(
                 f"{MIA_BACKEND_URL}/chat",
