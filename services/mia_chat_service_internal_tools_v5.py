@@ -6,6 +6,7 @@ import os
 import requests
 import json
 import logging
+import time
 from typing import Dict, List, Tuple, Optional, Any
 from sqlalchemy.orm import Session
 import models
@@ -220,10 +221,36 @@ Respond with ONLY the JSON array."""
     
     return prompt
 
-def execute_tool(tool_data: Dict, menu_items: List[Dict]) -> Dict:
+def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Optional[Any] = None) -> Dict:
     """Execute a tool with given parameters"""
     tool_name = tool_data.get("tool")
     params = tool_data.get("parameters", {})
+    
+    # Get customer allergies if profile exists
+    customer_allergies = []
+    if customer_profile:
+        customer_allergies = getattr(customer_profile, 'allergies', []) or []
+        dietary_restrictions = getattr(customer_profile, 'dietary_restrictions', []) or []
+        customer_allergies.extend(dietary_restrictions)
+        customer_allergies = [a.lower() for a in customer_allergies]
+    
+    def is_safe_for_customer(item: Dict) -> bool:
+        """Check if item is safe based on customer allergies"""
+        if not customer_allergies:
+            return True
+        
+        item_allergens = [a.lower() for a in item.get('allergens', [])]
+        ingredients_text = ' '.join(item.get('ingredients', [])).lower()
+        
+        for allergy in customer_allergies:
+            # Check allergens list
+            if any(allergy in allergen for allergen in item_allergens):
+                return False
+            # Check ingredients
+            if allergy in ingredients_text:
+                return False
+        
+        return True
     
     if tool_name == "no_tool_needed":
         return {"info": "No execution needed"}
@@ -259,32 +286,38 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict]) -> Dict:
                 # Check dish name for pasta types
                 dish_name = (item.get('dish') or item.get('name', '')).lower()
                 if any(pasta_type in dish_name for pasta_type in ['spaghetti', 'penne', 'linguine', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine']):
-                    results.append({
-                        "name": item.get('dish') or item.get('name'),
-                        "price": item.get('price'),
-                        "description": item.get('description', '')[:100],
-                        "allergens": item.get('allergens', [])
-                    })
+                    # Check allergen safety
+                    if is_safe_for_customer(item):
+                        results.append({
+                            "name": item.get('dish') or item.get('name'),
+                            "price": item.get('price'),
+                            "description": item.get('description', '')[:100],
+                            "allergens": item.get('allergens', [])
+                        })
             elif category == "seafood":
                 # Check for seafood items
                 dish_name = (item.get('dish') or item.get('name', '')).lower()
                 ingredients = ' '.join(item.get('ingredients', [])).lower()
                 if any(seafood in dish_name + ' ' + ingredients for seafood in ['salmon', 'shrimp', 'lobster', 'crab', 'fish', 'seafood', 'calamari', 'scallop', 'oyster']):
-                    results.append({
-                        "name": item.get('dish') or item.get('name'),
-                        "price": item.get('price'),
-                        "description": item.get('description', '')[:100],
-                        "allergens": item.get('allergens', [])
-                    })
+                    # Check allergen safety
+                    if is_safe_for_customer(item):
+                        results.append({
+                            "name": item.get('dish') or item.get('name'),
+                            "price": item.get('price'),
+                            "description": item.get('description', '')[:100],
+                            "allergens": item.get('allergens', [])
+                        })
             else:
                 # Standard category matching
                 if category in item_category or category in item_subcategory:
-                    results.append({
-                        "name": item.get('dish') or item.get('name'),
-                        "price": item.get('price'),
-                        "description": item.get('description', '')[:100],
-                        "allergens": item.get('allergens', [])
-                    })
+                    # Check allergen safety
+                    if is_safe_for_customer(item):
+                        results.append({
+                            "name": item.get('dish') or item.get('name'),
+                            "price": item.get('price'),
+                            "description": item.get('description', '')[:100],
+                            "allergens": item.get('allergens', [])
+                        })
         
         return {
             "tool": tool_name,
@@ -299,12 +332,14 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict]) -> Dict:
         
         for item in menu_items:
             if any(ingredient in ing.lower() for ing in item.get('ingredients', [])):
-                results.append({
-                    "name": item.get('dish') or item.get('name'),
-                    "price": item.get('price'),
-                    "description": item.get('description', '')[:100],
-                    "allergens": item.get('allergens', [])
-                })
+                # Check allergen safety
+                if is_safe_for_customer(item):
+                    results.append({
+                        "name": item.get('dish') or item.get('name'),
+                        "price": item.get('price'),
+                        "description": item.get('description', '')[:100],
+                        "allergens": item.get('allergens', [])
+                    })
         
         return {
             "tool": tool_name,
@@ -338,7 +373,8 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict]) -> Dict:
                 if any(a in ingredients_text or a in allergens for a in animal_products):
                     suitable = False
             
-            if suitable:
+            # Also check customer allergies
+            if suitable and is_safe_for_customer(item):
                 results.append({
                     "name": item.get('dish') or item.get('name'),
                     "price": item.get('price'),
@@ -542,15 +578,15 @@ Respond:"""
             if response.status_code == 200:
                 answer = response.json().get("response", "")
                 
-                # Add debug info if requested
-                if "[DEBUG]" in req.message:
-                    debug_info = {
-                        "flow": "simple (no_tool_needed)",
-                        "menu_summary_length": len(menu_summary),
-                        "context_type": context_type,
-                        "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else []
-                    }
-                    answer = f"{answer}\n\n[DEBUG INFO]\n{json.dumps(debug_info, indent=2)}"
+                # Always add debug info
+                debug_info = {
+                    "flow": "simple (no_tool_needed)",
+                    "menu_summary_length": len(menu_summary),
+                    "context_type": context_type,
+                    "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else [],
+                    "response_time": f"{time.time() - start_time:.2f}s"
+                }
+                answer = f"{answer}\n\n[DEBUG INFO]\n{json.dumps(debug_info, indent=2)}"
                 
                 return ChatResponse(
                     answer=answer,
@@ -561,7 +597,7 @@ Respond:"""
         # === Execute Tools Locally ===
         tool_results = []
         for tool_data in selected_tools:
-            result = execute_tool(tool_data, menu_items)
+            result = execute_tool(tool_data, menu_items, customer_profile)
             tool_results.append(result)
         
         # Check if all searches returned no results (except allergen filters)
@@ -613,16 +649,17 @@ Respond:"""
             if response.status_code == 200:
                 answer = response.json().get("response", "")
                 
-                # Add debug info if requested
-                if "[DEBUG]" in req.message:
-                    debug_info = {
-                        "flow": "fallback (no results from tools)",
-                        "phase1_tools_selected": selected_tools,
-                        "tool_results": tool_results,
-                        "menu_summary_length": len(menu_summary),
-                        "context_type": context_type
-                    }
-                    answer = f"{answer}\n\n[DEBUG INFO]\n{json.dumps(debug_info, indent=2)}"
+                # Always add debug info
+                debug_info = {
+                    "flow": "fallback (no results from tools)",
+                    "phase1_tools_selected": selected_tools,
+                    "tool_results": tool_results,
+                    "menu_summary_length": len(menu_summary),
+                    "context_type": context_type,
+                    "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else [],
+                    "response_time": f"{time.time() - start_time:.2f}s"
+                }
+                answer = f"{answer}\n\n[DEBUG INFO]\n{json.dumps(debug_info, indent=2)}"
                 
                 return ChatResponse(
                     answer=answer,
@@ -683,19 +720,26 @@ Respond:"""
                             if len(potential_name) > 2 and potential_name.replace('-', '').isalpha():
                                 logger.info(f"Extracted customer info: name={potential_name}, has allergies")
             
-            # Add debug info if requested
-            if "[DEBUG]" in req.message:
-                debug_info = {
-                    "phase1_tools_selected": selected_tools,
-                    "tool_results": tool_results,
-                    "context_type": context_type,
-                    "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else [],
-                    "phase2_prompt_length": len(phase2_prompt)
-                }
-                answer = f"{answer}\n\n[DEBUG INFO]\n{json.dumps(debug_info, indent=2)}"
+            
+            # Always add debug info
+            debug_info = {
+                "flow": "tool_flow",
+                "phase1_tools_selected": [{"tool": t.get("tool"), "params": t.get("parameters", {})} for t in selected_tools],
+                "tool_results_summary": [
+                    {
+                        "tool": r.get("tool"),
+                        "items_found": len(r.get("results", [])) if "results" in r else "N/A",
+                        "found": r.get("found", None)
+                    } for r in tool_results
+                ],
+                "context_type": context_type,
+                "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else [],
+                "response_time": f"{time.time() - start_time:.2f}s"
+            }
+            answer_with_debug = f"{answer}\n\n[DEBUG INFO]\n{json.dumps(debug_info, indent=2)}"
             
             return ChatResponse(
-                answer=answer,
+                answer=answer_with_debug,
                 response_id=final_response.json().get("job_id"),
                 confidence_score=0.9
             )
