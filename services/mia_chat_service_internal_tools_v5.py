@@ -372,8 +372,8 @@ RULES:
 
 EXAMPLES:
 - "I'm vegan and want pasta" → ["filter_vegan", "search_menu_by_category"]
-- "Tell me about the carbonara" → ["get_dish_details"]
-- "What's the price of the carbonara?" → ["get_dish_details"]
+- "Tell me about the [specific dish name]" → ["get_dish_details"]
+- "What's the price of the [specific dish name]?" → ["get_dish_details"]
 - "Show me seafood dishes, I'm allergic to nuts" → ["filter_nut_free", "search_menu_by_category"]
 - "Actually I'm not allergic to dairy" → ["update_allergy_remove"]
 - "Add shellfish to my allergies" → ["update_allergy_add"]
