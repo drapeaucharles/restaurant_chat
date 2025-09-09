@@ -191,11 +191,11 @@ def build_phase1_prompt(message: str, customer_profile: Any, chat_history: List[
     # Add restaurant context
     prompt += f"""RESTAURANT CONTEXT:
 - Available categories: {', '.join(categories)}
-- Sample dishes: {', '.join(dish_names[:10])}... ({len(dish_names)} total dishes)
+- All dishes in menu: {', '.join(dish_names)}
 
 AVAILABLE TOOLS:
 1. get_dish_details - Get info about a SPECIFIC dish
-   Parameters: dish_name (must be exact name from menu)
+   Parameters: dish_name (can be partial like "carbonara" or have typos like "lasagni" - the tool will fuzzy match)
    
 2. search_menu_by_category - Search dishes by category
    Parameters: category (must be from available categories above)
@@ -214,15 +214,22 @@ AVAILABLE TOOLS:
 RULES:
 1. Select tools that best answer the customer's request
 2. Include all necessary tools (e.g., allergy filter + category search)
-3. Use EXACT dish names and categories from the context above
-4. Return JSON array with tool names and parameters
+3. For get_dish_details: use what the customer said (tool handles fuzzy matching)
+4. For categories: use exact category names from the list above
+5. Return JSON array with tool names and parameters
 
 EXAMPLES:
 - "What pasta dishes do you have?" → 
   [{{"tool": "search_menu_by_category", "parameters": {{"category": "Pasta"}}}}]
   
 - "Tell me about the Carbonara" → 
-  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "Spaghetti Carbonara"}}}}]
+  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "carbonara"}}}}]
+  
+- "Can I have the lasagni?" (typo) → 
+  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "lasagni"}}}}]
+  
+- "Do you have pesto pasta?" → 
+  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "pesto pasta"}}}}]
   
 - "Show me gluten-free pasta" → 
   [{{"tool": "filter_gluten_free"}}, {{"tool": "search_menu_by_category", "parameters": {{"category": "Pasta"}}}}]
@@ -272,9 +279,12 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         return {"info": "No execution needed"}
     
     elif tool_name == "get_dish_details":
-        dish_name = params.get("dish_name", "").lower()
+        dish_name = params.get("dish_name", "").lower().strip()
+        
+        # First try exact match
         for item in menu_items:
-            if dish_name in (item.get('dish', '') or item.get('name', '')).lower():
+            item_name = (item.get('dish', '') or item.get('name', '')).lower()
+            if dish_name == item_name:
                 return {
                     "tool": tool_name,
                     "found": True,
@@ -286,6 +296,67 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                         "allergens": item.get('allergens', [])
                     }
                 }
+        
+        # Try partial match (e.g., "carbonara" for "Spaghetti Carbonara")
+        matches = []
+        for item in menu_items:
+            item_name = (item.get('dish', '') or item.get('name', '')).lower()
+            
+            # Check if search term is contained in dish name
+            if dish_name in item_name:
+                matches.append(item)
+            # Check if all words in search are in dish name (handles reordering)
+            elif all(word in item_name for word in dish_name.split()):
+                matches.append(item)
+        
+        # If exactly one match, return it
+        if len(matches) == 1:
+            item = matches[0]
+            return {
+                "tool": tool_name,
+                "found": True,
+                "dish": {
+                    "name": item.get('dish') or item.get('name'),
+                    "price": item.get('price'),
+                    "description": item.get('description'),
+                    "ingredients": item.get('ingredients', []),
+                    "allergens": item.get('allergens', [])
+                }
+            }
+        
+        # If multiple matches, return not found (ambiguous)
+        elif len(matches) > 1:
+            return {
+                "tool": tool_name, 
+                "found": False, 
+                "error": f"Multiple dishes match '{params.get('dish_name')}'. Please be more specific.",
+                "suggestions": [m.get('dish') or m.get('name') for m in matches[:3]]
+            }
+        
+        # Try fuzzy matching for spelling mistakes
+        from difflib import get_close_matches
+        all_dish_names = [(item.get('dish') or item.get('name')) for item in menu_items]
+        close_matches = get_close_matches(params.get("dish_name"), all_dish_names, n=3, cutoff=0.7)
+        
+        if close_matches:
+            # Get the best match
+            best_match = close_matches[0]
+            for item in menu_items:
+                if (item.get('dish') or item.get('name')) == best_match:
+                    return {
+                        "tool": tool_name,
+                        "found": True,
+                        "corrected": True,
+                        "original_query": params.get("dish_name"),
+                        "dish": {
+                            "name": item.get('dish') or item.get('name'),
+                            "price": item.get('price'),
+                            "description": item.get('description'),
+                            "ingredients": item.get('ingredients', []),
+                            "allergens": item.get('allergens', [])
+                        }
+                    }
+        
         return {"tool": tool_name, "found": False, "error": "Dish not found"}
     
     elif tool_name == "search_menu_by_category":
@@ -451,13 +522,30 @@ MENU DATA FROM SEARCH:
     for result in tool_results:
         if result.get("tool") == "no_tool_needed":
             continue
-        elif result.get("tool") == "get_dish_details" and result.get("found"):
-            dish = result["dish"]
-            prompt += f"\nDISH DETAILS:\n"
-            prompt += f"- {dish['name']} - {dish['price']}\n"
-            prompt += f"  {dish['description']}\n"
-            if dish.get('allergens'):
-                prompt += f"  Allergens: {', '.join(dish['allergens'])}\n"
+        elif result.get("tool") == "get_dish_details":
+            if result.get("found"):
+                dish = result["dish"]
+                prompt += f"\nDISH DETAILS:\n"
+                
+                # If spelling was corrected, note it
+                if result.get("corrected"):
+                    prompt += f"(Found match for '{result.get('original_query')}')\n"
+                    
+                prompt += f"- {dish['name']} - {dish['price']}\n"
+                prompt += f"  {dish['description']}\n"
+                if dish.get('allergens'):
+                    prompt += f"  Allergens: {', '.join(dish['allergens'])}\n"
+            else:
+                # Handle dish not found
+                prompt += f"\nDISH SEARCH RESULT:\n"
+                
+                # Check if it's ambiguous (multiple matches)
+                if "Multiple dishes match" in result.get("error", ""):
+                    prompt += f"❌ {result['error']}\n"
+                    if result.get("suggestions"):
+                        prompt += f"Did you mean one of these: {', '.join(result['suggestions'])}?\n"
+                else:
+                    prompt += f"❌ The requested dish was not found in our menu.\n"
         elif "items" in result and result.get("found", 0) > 0:
             prompt += f"\n{result.get('category', result.get('filter', 'SEARCH'))} RESULTS:\n"
             for item in result["items"]:
@@ -478,6 +566,8 @@ SAFETY GUIDELINES:
 - Always explain WHY items are safe/unsafe based on customer's specific allergies
 - Use exact prices from menu data
 - Keep response to 2-3 sentences
+- IMPORTANT: If a dish was not found, politely inform the customer we don't have that item
+- NEVER invent or suggest dishes that aren't in the search results above
 """
     else:
         prompt += """
@@ -487,6 +577,8 @@ RESPONSE GUIDELINES:
 - NEVER say "Hello" if already greeted
 - If listing multiple items, include prices for each
 - Be natural and helpful
+- IMPORTANT: If a dish was not found, politely inform the customer we don't have that item
+- NEVER invent or suggest dishes that aren't in the search results above
 """
     
     prompt += "\nRespond naturally:"
@@ -686,7 +778,9 @@ No specific matches were found, but here's our full menu to help you answer:
 
 INSTRUCTIONS:
 - The search tools found no exact matches, but check the full menu above
+- If they asked for a specific dish (like pesto, pizza, etc) that's not in our menu, politely say we don't have it
 - Suggest similar items or alternatives based on what they asked for
+- DO NOT pretend we have dishes that aren't listed above
 - Use exact prices from the menu
 - Be helpful and explain what options are available
 - Keep response concise (2-3 sentences)
