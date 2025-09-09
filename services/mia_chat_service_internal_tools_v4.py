@@ -162,6 +162,46 @@ TOOL_REGISTRY = {
             }
         }
     },
+    "update_allergy_add": {
+        "description": "Add a new allergy to customer profile",
+        "when_to_use": "Customer mentions a new allergy or dietary restriction",
+        "schema": {
+            "type": "function",
+            "function": {
+                "name": "update_customer_allergies",
+                "description": "Add allergies to customer profile",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "enum": ["add"], "default": "add"},
+                        "allergies": {"type": "array", "items": {"type": "string"}},
+                        "reason": {"type": "string", "description": "Why adding (e.g., 'customer mentioned allergy')"}
+                    },
+                    "required": ["allergies"]
+                }
+            }
+        }
+    },
+    "update_allergy_remove": {
+        "description": "Remove an allergy from customer profile",
+        "when_to_use": "Customer says they're NOT allergic, it was a mistake, or for someone else",
+        "schema": {
+            "type": "function",
+            "function": {
+                "name": "update_customer_allergies",
+                "description": "Remove allergies from customer profile",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "enum": ["remove"], "default": "remove"},
+                        "allergies": {"type": "array", "items": {"type": "string"}},
+                        "reason": {"type": "string", "description": "Why removing (e.g., 'not allergic', 'was a joke', 'for someone else')"}
+                    },
+                    "required": ["allergies", "reason"]
+                }
+            }
+        }
+    },
     "no_tool_needed": {
         "description": "No tool needed - simple greeting or general question",
         "when_to_use": "Customer says hello, goodbye, or asks non-menu questions",
@@ -204,6 +244,19 @@ def get_chat_history(db: Session, client_id: str, restaurant_id: str, limit: int
 def get_context_type(customer_profile: Any, message: str) -> Tuple[str, Dict]:
     """Determine context type based on customer profile and message"""
     context_data = {}
+    message_lower = message.lower()
+    
+    # Check for allergy correction/removal patterns
+    removal_patterns = [
+        'not allergic', 'no allergy', "don't have allergy", 
+        'can eat', 'was a joke', 'made a mistake',
+        'for my friend', 'for someone else', "isn't for me",
+        'actually i can', 'show me with'
+    ]
+    
+    if any(pattern in message_lower for pattern in removal_patterns):
+        # This is likely an allergy correction
+        return "allergy_correction", context_data
     
     # Check if customer has allergies or dietary restrictions
     if customer_profile:
@@ -218,10 +271,12 @@ def get_context_type(customer_profile: Any, message: str) -> Tuple[str, Dict]:
                 'all_restrictions': all_restrictions,
                 'strict_mode': True
             }
+            # If asking for items WITH their allergen, it might be a correction
+            if any(allergen.lower() in message_lower and 'with' in message_lower for allergen in allergies):
+                return "allergy_correction", context_data
             return "allergen_safety", context_data
     
     # Check message for allergy/dietary mentions
-    message_lower = message.lower()
     allergen_keywords = ['allerg', 'intolerant', 'can\'t eat', 'avoid', 'free from']
     dietary_keywords = ['vegan', 'vegetarian', 'gluten', 'dairy', 'nut']
     
@@ -260,7 +315,13 @@ def build_phase1_prompt(message: str, customer_profile: Any = None, chat_history
 - Allergies: {', '.join(allergies) if allergies else 'None'}
 - Dietary Restrictions: {', '.join(dietary) if dietary else 'None'}
 
-Always consider these restrictions when selecting tools!
+⚠️ CRITICAL: This customer has allergies/restrictions!
+You MUST include the appropriate filter tools for their safety:
+{' + filter_nut_free if nuts allergy' if 'nuts' in allergies else ''}
+{' + filter_dairy_free if dairy allergy' if 'dairy' in allergies else ''}
+{' + filter_gluten_free if gluten allergy' if 'gluten' in allergies else ''}
+
+Always include allergy filters PLUS any other relevant tools!
 
 """
     
@@ -277,7 +338,11 @@ RULES:
 Examples:
 - "I'm vegan and want pasta" → ["filter_vegan", "search_menu_by_category"]
 - "Tell me about the carbonara" → ["get_dish_details"]
-- "I have a nut allergy" → ["filter_nut_free"]
+- "I have a nut allergy" → ["update_allergy_add", "filter_nut_free"]
+- "I'm not allergic to nuts, it was a joke" → ["update_allergy_remove"]
+- "Actually I can eat dairy now" → ["update_allergy_remove"]
+- "The nut allergy is for my friend, not me" → ["update_allergy_remove"]
+- "Show me dishes with nuts" → ["search_menu_by_category"] (implies no allergy)
 - "Hello there" → ["no_tool_needed"]
 
 Respond with ONLY the JSON array of tool names."""
@@ -383,6 +448,19 @@ def execute_tool_from_registry(tool_name: str, parameters: Dict, menu_items: Lis
             "items": results
         }
     
+    elif actual_function == "update_customer_allergies":
+        action = parameters.get("action", "add")
+        allergies = parameters.get("allergies", [])
+        reason = parameters.get("reason", "")
+        
+        return {
+            "tool": tool_name,
+            "action": action,
+            "allergies": allergies,
+            "reason": reason,
+            "message": f"Will {action} allergies: {', '.join(allergies)}"
+        }
+    
     return {"error": "Tool execution not implemented"}
 
 def build_final_prompt(message: str, tool_results: List[Dict], restaurant_name: str, 
@@ -441,6 +519,14 @@ RESPONSE GUIDELINES:
 3. Be warm but cautious - their health is paramount
 4. Include specific dish names and prices
 5. If no safe options exist, apologize and explain"""
+    elif context_type == "allergy_correction":
+        prompt += """
+RESPONSE GUIDELINES:
+1. Acknowledge the allergy update/correction
+2. Confirm what you understand about their dietary needs
+3. If they removed an allergy, offer relevant dishes they can now enjoy
+4. Be helpful and understanding about the change
+5. Make appropriate recommendations based on their updated profile"""
     else:
         prompt += """
 RESPONSE GUIDELINES:
@@ -530,12 +616,32 @@ def generate_response_internal_tools_v4(req: Any, db: Session) -> Any:
         
         logger.info(f"Selected tools: {selected_tools}")
         
+        # IMPORTANT: If customer has allergies, ensure appropriate allergy tools are included
+        # BUT not if they're correcting/removing allergies
+        if context_type == "allergen_safety" and context_data.get('allergens'):
+            allergen_tools_map = {
+                'nuts': 'filter_nut_free',
+                'dairy': 'filter_dairy_free',
+                'gluten': 'filter_gluten_free'
+            }
+            
+            for allergen in context_data['allergens']:
+                tool_name = allergen_tools_map.get(allergen.lower())
+                if tool_name and tool_name not in selected_tools:
+                    selected_tools.append(tool_name)
+                    logger.info(f"Auto-added {tool_name} due to {allergen} allergy")
+        
         # If no tools needed, generate contextual response
         if selected_tools == ["no_tool_needed"]:
             # Build prompt with history
             if context_type == "allergen_safety":
                 simple_prompt = f"""You are Maria at {restaurant_name}.
 Customer with restrictions ({', '.join(context_data.get('all_restrictions', []))})
+
+"""
+            elif context_type == "allergy_correction":
+                simple_prompt = f"""You are Maria at {restaurant_name}.
+The customer is correcting or updating their allergy information.
 
 """
             else:
@@ -615,6 +721,44 @@ You have these tools available. Call the appropriate ones with correct parameter
                             tool_results.append(result)
                             break
         
+        # Process allergy updates if any
+        for result in tool_results:
+            if result.get("tool") in ["update_allergy_add", "update_allergy_remove"]:
+                try:
+                    from services.customer_memory_service import CustomerMemoryService
+                    
+                    # Get or create profile
+                    if not customer_profile:
+                        customer_profile = CustomerMemoryService.get_or_create_profile(db, req.client_id, req.restaurant_id)
+                    
+                    action = result.get("action")
+                    allergies_to_update = result.get("allergies", [])
+                    
+                    if action == "add":
+                        # Add new allergies
+                        current_allergies = list(getattr(customer_profile, 'allergies', []) or [])
+                        for allergy in allergies_to_update:
+                            if allergy not in current_allergies:
+                                current_allergies.append(allergy)
+                        customer_profile.allergies = current_allergies
+                        logger.info(f"Added allergies: {allergies_to_update}")
+                    
+                    elif action == "remove":
+                        # Remove allergies
+                        current_allergies = list(getattr(customer_profile, 'allergies', []) or [])
+                        for allergy in allergies_to_update:
+                            if allergy in current_allergies:
+                                current_allergies.remove(allergy)
+                        customer_profile.allergies = current_allergies
+                        logger.info(f"Removed allergies: {allergies_to_update}")
+                    
+                    db.add(customer_profile)
+                    db.commit()
+                    logger.info(f"Updated customer allergies - current: {customer_profile.allergies}")
+                    
+                except Exception as e:
+                    logger.error(f"Error updating allergies via tool: {e}")
+        
         # === PHASE 3: Generate Contextual Response ===
         logger.info("PHASE 3: Generating contextual response")
         
@@ -637,15 +781,16 @@ You have these tools available. Call the appropriate ones with correct parameter
         if final_response.status_code == 200:
             answer = final_response.json().get("response", "")
             
-            # Update customer profile if new info detected
-            if customer_profile:
-                try:
-                    from services.customer_memory_service import CustomerMemoryService
-                    extracted = CustomerMemoryService.extract_customer_info(req.message, customer_profile)
-                    if extracted:
-                        CustomerMemoryService.update_customer_profile(db, req.client_id, req.restaurant_id, extracted)
-                except:
-                    pass
+            # Always try to update customer profile with new info
+            try:
+                from services.customer_memory_service import CustomerMemoryService
+                extracted = CustomerMemoryService.extract_customer_info(req.message, customer_profile)
+                if extracted:
+                    logger.info(f"Extracted customer info: {extracted}")
+                    CustomerMemoryService.update_customer_profile(db, req.client_id, req.restaurant_id, extracted)
+                    db.commit()  # Ensure changes are saved
+            except Exception as e:
+                logger.error(f"Error updating customer profile: {e}")
             
             return ChatResponse(
                 answer=answer,
