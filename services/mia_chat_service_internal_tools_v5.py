@@ -67,8 +67,24 @@ def get_available_dish_names(menu_items: List[Dict]) -> List[str]:
 def get_customer_profile(db: Session, client_id: str, restaurant_id: str) -> Optional[Any]:
     """Get or create customer profile with allergies and preferences"""
     try:
-        from services.customer_memory_service import CustomerMemoryService
-        profile = CustomerMemoryService.get_or_create_profile(db, client_id, restaurant_id)
+        # Get existing profile
+        client_id_str = str(client_id)
+        profile = db.query(models.CustomerProfile).filter(
+            models.CustomerProfile.client_id == client_id_str,
+            models.CustomerProfile.restaurant_id == restaurant_id
+        ).first()
+        
+        if not profile:
+            # Create new profile
+            profile = models.CustomerProfile(
+                client_id=client_id_str,
+                restaurant_id=restaurant_id,
+                allergies=[],
+                dietary_restrictions=[]
+            )
+            db.add(profile)
+            db.commit()
+            
         return profile
     except Exception as e:
         logger.warning(f"Could not load customer profile: {e}")
@@ -671,14 +687,33 @@ Respond:"""
         # Process allergy updates if needed
         for i, tool_data in enumerate(selected_tools):
             if tool_data.get("tool") in ["update_allergy_add", "update_allergy_remove"]:
-                # TODO: Implement allergy updates when CustomerMemoryService methods are available
                 try:
                     allergies = tool_data.get("parameters", {}).get("allergies", [])
-                    action = "added" if tool_data["tool"] == "update_allergy_add" else "removed"
+                    
+                    if tool_data["tool"] == "update_allergy_add":
+                        # Add allergies to profile
+                        if customer_profile:
+                            existing_allergies = set(customer_profile.allergies or [])
+                            existing_allergies.update(allergies)
+                            customer_profile.allergies = list(existing_allergies)
+                            db.commit()
+                            logger.info(f"Added allergies to profile: {allergies}")
+                        action = "added"
+                    else:
+                        # Remove allergies from profile
+                        if customer_profile:
+                            existing_allergies = set(customer_profile.allergies or [])
+                            for allergy in allergies:
+                                existing_allergies.discard(allergy)
+                            customer_profile.allergies = list(existing_allergies)
+                            db.commit()
+                            logger.info(f"Removed allergies from profile: {allergies}")
+                        action = "removed"
+                    
                     tool_results[i] = {"success": True, "action": action, "allergies": allergies}
-                    logger.info(f"Allergy update requested: {action} {allergies}")
                 except Exception as e:
                     logger.error(f"Failed to process allergy update: {e}")
+                    tool_results[i] = {"success": False, "error": str(e)}
         
         # === PHASE 2: Generate Response ===
         logger.info("PHASE 2: Generating response from tool results")
@@ -722,7 +757,7 @@ Respond:"""
                 "tool_results_summary": [
                     {
                         "tool": r.get("tool"),
-                        "items_found": len(r.get("results", [])) if "results" in r else "N/A",
+                        "items_found": len(r.get("results", r.get("items", []))) if ("results" in r or "items" in r) else r.get("found", "N/A"),
                         "found": r.get("found", None)
                     } for r in tool_results
                 ],
