@@ -31,6 +31,14 @@ def generate_response_internal_tools_v5_debug(req: Any, db: Session) -> Any:
     """V5 with comprehensive debug logging"""
     from schemas.chat import ChatResponse
     
+    # Check if debug mode is requested
+    # Check both req.debug attribute and if message ends with [DEBUG]
+    is_debug = getattr(req, 'debug', False) or req.message.endswith('[DEBUG]')
+    
+    # Remove [DEBUG] suffix if present
+    if req.message.endswith('[DEBUG]'):
+        req.message = req.message.replace('[DEBUG]', '').strip()
+    
     # Initialize debug collector
     debug_info = {
         "request": {
@@ -215,7 +223,7 @@ RESPONSE GUIDELINES:
             if response.status_code == 200:
                 answer = response.json().get("response", "Hello! How can I help you today?")
                 
-                if getattr(req, 'debug', False):
+                if is_debug:
                     return {
                         "answer": answer,
                         "debug": debug_info
