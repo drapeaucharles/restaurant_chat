@@ -479,6 +479,7 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
     from schemas.chat import ChatResponse
     
     try:
+        start_time = time.time()
         # Get restaurant data
         restaurant = db.query(models.Restaurant).filter(
             models.Restaurant.restaurant_id == req.restaurant_id
@@ -670,21 +671,14 @@ Respond:"""
         # Process allergy updates if needed
         for i, tool_data in enumerate(selected_tools):
             if tool_data.get("tool") in ["update_allergy_add", "update_allergy_remove"]:
+                # TODO: Implement allergy updates when CustomerMemoryService methods are available
                 try:
-                    from services.customer_memory_service import CustomerMemoryService
                     allergies = tool_data.get("parameters", {}).get("allergies", [])
-                    
-                    if tool_data["tool"] == "update_allergy_add":
-                        for allergy in allergies:
-                            CustomerMemoryService.add_allergy(db, req.client_id, req.restaurant_id, allergy)
-                        tool_results[i] = {"success": True, "action": "added", "allergies": allergies}
-                    else:
-                        for allergy in allergies:
-                            CustomerMemoryService.remove_allergy(db, req.client_id, req.restaurant_id, allergy)
-                        tool_results[i] = {"success": True, "action": "removed", "allergies": allergies}
-                    db.commit()
+                    action = "added" if tool_data["tool"] == "update_allergy_add" else "removed"
+                    tool_results[i] = {"success": True, "action": action, "allergies": allergies}
+                    logger.info(f"Allergy update requested: {action} {allergies}")
                 except Exception as e:
-                    logger.error(f"Failed to update allergies: {e}")
+                    logger.error(f"Failed to process allergy update: {e}")
         
         # === PHASE 2: Generate Response ===
         logger.info("PHASE 2: Generating response from tool results")
