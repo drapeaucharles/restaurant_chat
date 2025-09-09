@@ -564,6 +564,72 @@ Respond:"""
             result = execute_tool(tool_data, menu_items)
             tool_results.append(result)
         
+        # Check if all searches returned no results (except allergen filters)
+        all_empty = True
+        has_allergen_filter = False
+        
+        for i, tool_data in enumerate(selected_tools):
+            tool_name = tool_data.get("tool")
+            result = tool_results[i]
+            
+            # Check if this is an allergen filter
+            if tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free"]:
+                has_allergen_filter = True
+            
+            # Check if this search returned results
+            if result.get("found", 0) > 0 or result.get("info") == "No execution needed":
+                all_empty = False
+                break
+        
+        # FALLBACK: If no results and NOT allergen-related, use simple flow with full menu
+        if all_empty and not has_allergen_filter and context_type != "allergen_safety":
+            logger.info("No results from tools, falling back to simple flow with full menu")
+            
+            menu_summary = create_menu_summary(menu_items)
+            
+            fallback_prompt = f"""You are Maria at {restaurant_name}.
+
+The customer asked: "{req.message}"
+
+No specific matches were found, but here's our full menu to help you answer:
+
+{menu_summary}
+
+INSTRUCTIONS:
+- The search tools found no exact matches, but check the full menu above
+- Suggest similar items or alternatives based on what they asked for
+- Use exact prices from the menu
+- Be helpful and explain what options are available
+- Keep response concise (2-3 sentences)
+
+Respond:"""
+            
+            response = requests.post(
+                f"{MIA_BACKEND_URL}/chat",
+                json={"message": fallback_prompt, "max_tokens": 200},
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                answer = response.json().get("response", "")
+                
+                # Add debug info if requested
+                if "[DEBUG]" in req.message:
+                    debug_info = {
+                        "flow": "fallback (no results from tools)",
+                        "phase1_tools_selected": selected_tools,
+                        "tool_results": tool_results,
+                        "menu_summary_length": len(menu_summary),
+                        "context_type": context_type
+                    }
+                    answer = f"{answer}\n\n[DEBUG INFO]\n{json.dumps(debug_info, indent=2)}"
+                
+                return ChatResponse(
+                    answer=answer,
+                    response_id=response.json().get("job_id"),
+                    confidence_score=0.8
+                )
+        
         # Process allergy updates if needed
         for i, tool_data in enumerate(selected_tools):
             if tool_data.get("tool") in ["update_allergy_add", "update_allergy_remove"]:
