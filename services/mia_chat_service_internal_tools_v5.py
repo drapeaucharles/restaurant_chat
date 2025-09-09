@@ -508,8 +508,20 @@ Respond:"""
             )
             
             if response.status_code == 200:
+                answer = response.json().get("response", "")
+                
+                # Add debug info if requested
+                if "[DEBUG]" in req.message:
+                    debug_info = {
+                        "flow": "simple (no_tool_needed)",
+                        "menu_summary_length": len(menu_summary),
+                        "context_type": context_type,
+                        "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else []
+                    }
+                    answer = f"{answer}\n\n[DEBUG INFO]\n{json.dumps(debug_info, indent=2)}"
+                
                 return ChatResponse(
-                    answer=response.json().get("response", ""),
+                    answer=answer,
                     response_id=response.json().get("job_id"),
                     confidence_score=0.85
                 )
@@ -572,6 +584,17 @@ Respond:"""
                             potential_name = parts[1].strip().split()[0]
                             if len(potential_name) > 2 and potential_name.replace('-', '').isalpha():
                                 logger.info(f"Extracted customer info: name={potential_name}, has allergies")
+            
+            # Add debug info if requested
+            if "[DEBUG]" in req.message:
+                debug_info = {
+                    "phase1_tools_selected": selected_tools,
+                    "tool_results": tool_results,
+                    "context_type": context_type,
+                    "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else [],
+                    "phase2_prompt_length": len(phase2_prompt)
+                }
+                answer = f"{answer}\n\n[DEBUG INFO]\n{json.dumps(debug_info, indent=2)}"
             
             return ChatResponse(
                 answer=answer,
