@@ -315,10 +315,6 @@ def get_context_type(customer_profile: Any, message: str) -> Tuple[str, Dict]:
 
 def build_phase1_prompt(message: str, customer_profile: Any = None, chat_history: List[Dict] = None) -> str:
     """Build Phase 1 prompt with customer context and history"""
-    tool_list = []
-    for tool_name, tool_info in TOOL_REGISTRY.items():
-        tool_list.append(f"- {tool_name}: {tool_info['description']} (Use when: {tool_info['when_to_use']})")
-    
     prompt = "Analyze this conversation and select tools for the latest message.\n\n"
     
     # Add chat history if available
@@ -342,41 +338,43 @@ def build_phase1_prompt(message: str, customer_profile: Any = None, chat_history
             prompt += f"""IMPORTANT CUSTOMER INFO:
 - Allergies: {', '.join(allergies) if allergies else 'None'}
 - Dietary Restrictions: {', '.join(dietary) if dietary else 'None'}
-
 ⚠️ CRITICAL: This customer has allergies/restrictions!
 You MUST include the appropriate filter tools for their safety:
 {' + filter_nut_free if nuts allergy' if 'nuts' in allergies else ''}
 {' + filter_dairy_free if dairy allergy' if 'dairy' in allergies else ''}
 {' + filter_gluten_free if gluten allergy' if 'gluten' in allergies else ''}
-
 Always include allergy filters PLUS any other relevant tools!
 
 """
     
-    prompt += f"""AVAILABLE TOOLS:
-{chr(10).join(tool_list)}
+    prompt += """AVAILABLE TOOLS:
+- get_dish_details: Get complete information about a specific dish (ingredients, allergens, price)
+- search_menu_by_category: Search menu items by category (pasta, seafood, appetizers, etc.)
+- search_menu_by_ingredient: Search menu items containing specific ingredients
+- filter_vegetarian: Show only vegetarian dishes
+- filter_vegan: Show only vegan dishes
+- filter_gluten_free: Show only gluten-free dishes
+- filter_nut_free: Show only nut-free dishes
+- filter_dairy_free: Show only dairy-free dishes
+- update_allergy_add: Add a new allergy to customer profile
+- update_allergy_remove: Remove an allergy from customer profile
 
 RULES:
-1. You MUST respond with ONLY tool names from the list above
-2. If multiple tools apply, list all of them
-3. Return as JSON array: ["tool_name1", "tool_name2"]
-4. For allergies AND menu search, use both relevant tools
-5. If no tools needed, return: ["no_tool_needed"]
+0. Always check allergies first → apply all relevant filter tools.
+1. Respond with ONLY tool names from the list above.
+2. If multiple tools apply, include all of them.
+3. Return as JSON array: ["tool_name1", "tool_name2"].
+4. For allergies AND menu search, include both.
+5. If no tools are needed (e.g. "thanks", "ok"), return: ["no_tool_needed"].
 
-Examples:
+EXAMPLES:
 - "I'm vegan and want pasta" → ["filter_vegan", "search_menu_by_category"]
 - "Tell me about the carbonara" → ["get_dish_details"]
 - "What's the price of the carbonara?" → ["get_dish_details"]
-- "Is the carbonara gluten-free?" → ["get_dish_details"]
-- "What pasta dishes do you have?" → ["search_menu_by_category"]
-- "I have a nut allergy" → ["update_allergy_add", "filter_nut_free"]
-- "I'm not allergic to nuts, it was a joke" → ["update_allergy_remove"]
-- "Actually I can eat dairy now" → ["update_allergy_remove"]
-- "The nut allergy is for my friend, not me" → ["update_allergy_remove"]
-- "Show me dishes with nuts" → ["search_menu_by_category"] (implies no allergy)
-- "What do you recommend?" → ["search_menu_by_category"] (general menu browse)
-- "Hello there" → ["no_tool_needed"]
-- "Thank you" → ["no_tool_needed"]
+- "Show me seafood dishes, I'm allergic to nuts" → ["filter_nut_free", "search_menu_by_category"]
+- "Actually I'm not allergic to dairy" → ["update_allergy_remove"]
+- "Add shellfish to my allergies" → ["update_allergy_add"]
+- "Thanks" → ["no_tool_needed"]
 
 Respond with ONLY the JSON array of tool names."""
     
