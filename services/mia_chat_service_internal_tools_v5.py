@@ -468,13 +468,16 @@ MENU DATA FROM SEARCH:
     
     # Response guidelines
     if context_type == "allergen_safety":
-        prompt += """
+        customer_allergies = getattr(customer_profile, 'allergies', []) if customer_profile else []
+        prompt += f"""
 SAFETY GUIDELINES:
-- List ONLY 100% safe items (no allergens)
-- Always mention WHY items are safe
+- Customer is allergic to: {', '.join(customer_allergies) if customer_allergies else 'nothing specified'}
+- A dish is SAFE if it does NOT contain the customer's specific allergens
+- A dish is UNSAFE only if it contains one of the customer's allergens
+- Example: If customer is allergic to nuts, a dish with dairy/gluten is STILL SAFE
+- Always explain WHY items are safe/unsafe based on customer's specific allergies
 - Use exact prices from menu data
 - Keep response to 2-3 sentences
-- NEVER say "Hello" if already greeted
 """
     else:
         prompt += """
