@@ -203,7 +203,7 @@ AVAILABLE TOOLS:
 3. search_menu_by_ingredient - Search dishes containing ingredient
    Parameters: ingredient (any ingredient name)
    
-4. filter_vegetarian/vegan/gluten_free/nut_free/dairy_free - Filter safe dishes
+4. filter_vegetarian/vegan/gluten_free/nut_free/dairy_free/shellfish_free - Filter safe dishes
    Parameters: none needed
    
 5. update_allergy_add/remove - Update customer allergies
@@ -435,30 +435,29 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             "items": results[:10]
         }
     
-    elif tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free"]:
+    elif tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free"]:
         filter_type = tool_name.replace("filter_", "").replace("_", "-")
         results = []
         
         for item in menu_items:
-            suitable = True
-            allergens = [a.lower() for a in item.get('allergens', [])]
-            ingredients_text = ' '.join(item.get('ingredients', [])).lower()
+            suitable = False
             
-            if filter_type == "nut-free" and any("nut" in a for a in allergens):
-                suitable = False
-            elif filter_type == "dairy-free" and "dairy" in allergens:
-                suitable = False
-            elif filter_type == "gluten-free" and "gluten" in allergens:
-                suitable = False
-            elif filter_type == "vegetarian":
-                meats = ['meat', 'chicken', 'beef', 'pork', 'lamb', 'fish', 'seafood']
-                if any(m in ingredients_text for m in meats):
-                    suitable = False
-            elif filter_type == "vegan":
-                animal_products = ['meat', 'chicken', 'beef', 'pork', 'lamb', 'fish', 'seafood', 
-                                 'dairy', 'milk', 'cheese', 'egg', 'honey']
-                if any(a in ingredients_text or a in allergens for a in animal_products):
-                    suitable = False
+            # Use the boolean fields when available
+            if filter_type == "nut-free" and item.get('is_nut_free', True):
+                suitable = True
+            elif filter_type == "dairy-free" and item.get('is_dairy_free', False):
+                suitable = True
+            elif filter_type == "gluten-free" and item.get('is_gluten_free', False):
+                suitable = True
+            elif filter_type == "vegetarian" and item.get('is_vegetarian', False):
+                suitable = True
+            elif filter_type == "vegan" and item.get('is_vegan', False):
+                suitable = True
+            elif filter_type == "shellfish-free":
+                # No boolean field for shellfish, check allergens
+                allergens = [a.lower() for a in item.get('allergens', [])]
+                if "shellfish" not in allergens:
+                    suitable = True
             
             # Also check customer allergies
             if suitable and is_safe_for_customer(item):
@@ -546,13 +545,23 @@ MENU DATA FROM SEARCH:
                         prompt += f"Did you mean one of these: {', '.join(result['suggestions'])}?\n"
                 else:
                     prompt += f"❌ The requested dish was not found in our menu.\n"
-        elif "items" in result and result.get("found", 0) > 0:
-            prompt += f"\n{result.get('category', result.get('filter', 'SEARCH'))} RESULTS:\n"
-            for item in result["items"]:
-                prompt += f"- {item['name']} {item['price']}"
-                if context_type == "allergen_safety" and item.get('allergens'):
-                    prompt += f" [Contains: {', '.join(item['allergens'])}]"
-                prompt += "\n"
+        elif "items" in result:
+            if result.get("found", 0) > 0:
+                prompt += f"\n{result.get('category', result.get('filter', 'SEARCH'))} RESULTS:\n"
+                for item in result["items"]:
+                    prompt += f"- {item['name']} {item['price']}"
+                    if context_type == "allergen_safety" and item.get('allergens'):
+                        prompt += f" [Contains: {', '.join(item['allergens'])}]"
+                    prompt += "\n"
+            else:
+                # Handle empty filter results
+                filter_type = result.get('filter', '')
+                if filter_type:
+                    prompt += f"\n{filter_type.upper()} SEARCH RESULTS:\n"
+                    prompt += f"❌ No {filter_type} options found that meet all criteria.\n"
+                else:
+                    prompt += f"\n{result.get('category', 'SEARCH')} RESULTS:\n"
+                    prompt += f"❌ No items found in this category.\n"
     
     # Response guidelines
     if context_type == "allergen_safety":
@@ -579,6 +588,8 @@ RESPONSE GUIDELINES:
 - Be natural and helpful
 - IMPORTANT: If a dish was not found, politely inform the customer we don't have that item
 - NEVER invent or suggest dishes that aren't in the search results above
+- If NO items were found for a dietary filter, explain that we don't have options that meet ALL their restrictions
+- When filters return empty, suggest checking individual restrictions or offer alternatives
 """
     
     prompt += "\nRespond naturally:"
@@ -754,7 +765,7 @@ Respond:"""
             result = tool_results[i]
             
             # Check if this is an allergen filter
-            if tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free"]:
+            if tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free"]:
                 has_allergen_filter = True
             
             # Check if this search returned results
