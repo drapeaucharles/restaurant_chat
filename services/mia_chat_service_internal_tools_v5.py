@@ -484,8 +484,13 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                 # Debug logging for seafood + shellfish allergy case
                 if food_type == "seafood" and customer_allergies and "shellfish" in customer_allergies:
                     dish_name = item.get('dish', 'Unknown')
+                    item_allergens = item.get('allergens', [])
                     is_safe = is_safe_for_customer(item)
-                    logger.info(f"Seafood item '{dish_name}': categories={categories_lower}, safe={is_safe}")
+                    logger.info(f"Seafood item '{dish_name}': categories={categories_lower}, allergens={item_allergens}, safe={is_safe}")
+                    
+                    # Extra debug for fish items
+                    if 'fish' in categories_lower:
+                        logger.info(f"  -> This is a FISH item, should be safe for shellfish allergy")
                 
                 # Check allergen safety
                 if is_safe_for_customer(item):
@@ -841,7 +846,10 @@ Respond:"""
                 allergies = tool_data.get("parameters", {}).get("allergies", [])
                 result = {"success": True, "action": action, "allergies": allergies, "tool": tool_data["tool"]}
             else:
-                result = execute_tool(tool_data, menu_items, customer_profile)
+                # Make a deep copy of menu_items to ensure tools don't affect each other
+                import copy
+                menu_items_copy = copy.deepcopy(menu_items)
+                result = execute_tool(tool_data, menu_items_copy, customer_profile)
                 logger.info(f"Tool {tool_name} returned: found={result.get('found', 'N/A')}")
             tool_results.append(result)
         
