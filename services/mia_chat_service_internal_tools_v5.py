@@ -560,7 +560,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             "tool": tool_name,
             "filter": filter_type,
             "found": len(results),
-            "items": results[:15]
+            "items": results  # Remove limit - let intersection logic handle it
         }
     
     elif tool_name in ["update_allergy_add", "update_allergy_remove"]:
