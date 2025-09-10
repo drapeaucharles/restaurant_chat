@@ -912,6 +912,14 @@ Respond:"""
                 tool_idx = search_filter_tools[i]
                 tool_name = tool_results[tool_idx].get("tool", "unknown")
                 logger.info(f"Tool {tool_name} found {len(names)} items: {list(names)[:5]}...")
+                
+            # Special case: if one of the tools is shellfish-free filter and customer has shellfish allergy
+            # This is redundant and might cause issues
+            has_shellfish_allergy = customer_allergies and 'shellfish' in customer_allergies  # already lowercase
+            has_shellfish_filter = any(tool_results[idx].get("tool") == "filter_shellfish_free" for idx in search_filter_tools)
+            
+            if has_shellfish_allergy and has_shellfish_filter:
+                logger.warning("Customer already has shellfish allergy, shellfish-free filter is redundant")
             
             # Find items that appear in ALL result sets
             intersected_names = all_item_names[0]
