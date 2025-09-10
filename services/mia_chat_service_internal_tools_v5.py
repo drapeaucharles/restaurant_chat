@@ -288,11 +288,12 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         ingredients_text = ' '.join(item.get('ingredients', [])).lower()
         
         for allergy in customer_allergies:
+            allergy_lower = allergy.lower()
             # Check allergens list
-            if any(allergy in allergen for allergen in item_allergens):
+            if any(allergy_lower in allergen for allergen in item_allergens):
                 return False
             # Check ingredients
-            if allergy in ingredients_text:
+            if allergy_lower in ingredients_text:
                 return False
         
         return True
