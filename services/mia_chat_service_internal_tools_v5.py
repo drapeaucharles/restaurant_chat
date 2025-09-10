@@ -399,20 +399,26 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         
         for item in menu_items:
             if any(ingredient in ing.lower() for ing in item.get('ingredients', [])):
-                # Check allergen safety
+                # Check allergen safety - BACKEND PRE-FILTERING
                 if is_safe_for_customer(item):
                     results.append({
                         "name": item.get('dish') or item.get('name'),
                         "price": item.get('price'),
-                        "description": item.get('description', '')[:100],
-                        "allergens": item.get('allergens', [])
+                        "allergens": item.get('allergens', []),
+                        "ingredients": item.get('ingredients', []),
+                        "is_nut_free": item.get('is_nut_free', True),
+                        "is_dairy_free": item.get('is_dairy_free', False),
+                        "is_gluten_free": item.get('is_gluten_free', False),
+                        "is_vegan": item.get('is_vegan', False),
+                        "is_vegetarian": item.get('is_vegetarian', False)
                     })
         
         return {
             "tool": tool_name,
             "ingredient": params.get("ingredient"),
             "found": len(results),
-            "items": results[:10]
+            "items": results,
+            "pre_filtered": customer_allergies is not None and len(customer_allergies) > 0
         }
     
     elif tool_name == "search_by_meal_time":
@@ -423,20 +429,26 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             item_category = item.get('category', '').lower()
             
             if meal_time in item_category:
-                # Check allergen safety
+                # Check allergen safety - BACKEND PRE-FILTERING
                 if is_safe_for_customer(item):
                     results.append({
                         "name": item.get('dish') or item.get('name'),
                         "price": item.get('price'),
-                        "description": item.get('description', '')[:100],
-                        "allergens": item.get('allergens', [])
+                        "allergens": item.get('allergens', []),
+                        "ingredients": item.get('ingredients', []),
+                        "is_nut_free": item.get('is_nut_free', True),
+                        "is_dairy_free": item.get('is_dairy_free', False),
+                        "is_gluten_free": item.get('is_gluten_free', False),
+                        "is_vegan": item.get('is_vegan', False),
+                        "is_vegetarian": item.get('is_vegetarian', False)
                     })
         
         return {
             "tool": tool_name,
             "meal_time": params.get("meal_time"),
             "found": len(results),
-            "items": results[:10]
+            "items": results,
+            "pre_filtered": customer_allergies is not None and len(customer_allergies) > 0
         }
     
     elif tool_name == "search_by_course_type":
@@ -447,20 +459,26 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             item_subcategory = item.get('subcategory', '').lower()
             
             if course_type in item_subcategory:
-                # Check allergen safety
+                # Check allergen safety - BACKEND PRE-FILTERING
                 if is_safe_for_customer(item):
                     results.append({
                         "name": item.get('dish') or item.get('name'),
                         "price": item.get('price'),
-                        "description": item.get('description', '')[:100],
-                        "allergens": item.get('allergens', [])
+                        "allergens": item.get('allergens', []),
+                        "ingredients": item.get('ingredients', []),
+                        "is_nut_free": item.get('is_nut_free', True),
+                        "is_dairy_free": item.get('is_dairy_free', False),
+                        "is_gluten_free": item.get('is_gluten_free', False),
+                        "is_vegan": item.get('is_vegan', False),
+                        "is_vegetarian": item.get('is_vegetarian', False)
                     })
         
         return {
             "tool": tool_name,
             "course_type": params.get("course_type"),
             "found": len(results),
-            "items": results[:10]
+            "items": results,
+            "pre_filtered": customer_allergies is not None and len(customer_allergies) > 0
         }
     
     elif tool_name == "search_by_food_type":
@@ -492,13 +510,18 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                     if 'fish' in categories_lower:
                         logger.info(f"  -> This is a FISH item, should be safe for shellfish allergy")
                 
-                # Check allergen safety
+                # Check allergen safety - BACKEND PRE-FILTERING
                 if is_safe_for_customer(item):
                     results.append({
                         "name": item.get('dish') or item.get('name'),
                         "price": item.get('price'),
-                        "description": item.get('description', '')[:100],
-                        "allergens": item.get('allergens', [])
+                        "allergens": item.get('allergens', []),
+                        "ingredients": item.get('ingredients', []),
+                        "is_nut_free": item.get('is_nut_free', True),
+                        "is_dairy_free": item.get('is_dairy_free', False),
+                        "is_gluten_free": item.get('is_gluten_free', False),
+                        "is_vegan": item.get('is_vegan', False),
+                        "is_vegetarian": item.get('is_vegetarian', False)
                     })
         
         # More debug logging
@@ -511,7 +534,8 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             "tool": tool_name,
             "food_type": params.get("food_type"),
             "found": len(results),
-            "items": results[:10]
+            "items": results,
+            "pre_filtered": customer_allergies is not None and len(customer_allergies) > 0
         }
     
     elif tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free"]:
@@ -543,13 +567,18 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                 if "shellfish" not in allergens:
                     suitable = True
             
-            # Also check customer allergies
+            # Also check customer allergies - BACKEND PRE-FILTERING
             if suitable and is_safe_for_customer(item):
                 results.append({
                     "name": item.get('dish') or item.get('name'),
                     "price": item.get('price'),
-                    "description": item.get('description', '')[:100],
-                    "allergens": item.get('allergens', [])
+                    "allergens": item.get('allergens', []),
+                    "ingredients": item.get('ingredients', []),
+                    "is_nut_free": item.get('is_nut_free', True),
+                    "is_dairy_free": item.get('is_dairy_free', False),
+                    "is_gluten_free": item.get('is_gluten_free', False),
+                    "is_vegan": item.get('is_vegan', False),
+                    "is_vegetarian": item.get('is_vegetarian', False)
                 })
         
         # Debug logging
@@ -635,12 +664,29 @@ MENU DATA FROM SEARCH:
                     prompt += f"❌ The requested dish was not found in our menu.\n"
         elif "items" in result:
             if result.get("found", 0) > 0:
-                prompt += f"\n{result.get('category', result.get('filter', 'SEARCH'))} RESULTS:\n"
+                # Check if pre-filtered
+                if result.get("pre_filtered"):
+                    prompt += f"\n{result.get('category', result.get('filter', result.get('food_type', 'SEARCH'))).upper()} RESULTS (pre-filtered for safety):\n"
+                else:
+                    prompt += f"\n{result.get('category', result.get('filter', result.get('food_type', 'SEARCH'))).upper()} RESULTS:\n"
+                    
                 for item in result["items"]:
-                    prompt += f"- {item['name']} {item['price']}"
-                    if context_type == "allergen_safety" and item.get('allergens'):
-                        prompt += f" [Contains: {', '.join(item['allergens'])}]"
-                    prompt += "\n"
+                    prompt += f"- {item['name']} {item['price']}\n"
+                    # Always include ingredient and allergen info for safety
+                    if item.get('ingredients'):
+                        prompt += f"  Ingredients: {', '.join(item['ingredients'])}\n"
+                    if item.get('allergens'):
+                        prompt += f"  Contains: {', '.join(item['allergens'])}\n"
+                    # Include dietary flags
+                    dietary_info = []
+                    if item.get('is_vegan'):
+                        dietary_info.append("Vegan")
+                    if item.get('is_vegetarian') and not item.get('is_vegan'):
+                        dietary_info.append("Vegetarian")
+                    if item.get('is_gluten_free'):
+                        dietary_info.append("Gluten-Free")
+                    if dietary_info:
+                        prompt += f"  Dietary: {', '.join(dietary_info)}\n"
             else:
                 # Handle empty filter results
                 filter_type = result.get('filter', '')
@@ -657,14 +703,16 @@ MENU DATA FROM SEARCH:
         prompt += f"""
 SAFETY GUIDELINES:
 - Customer is allergic to: {', '.join(customer_allergies) if customer_allergies else 'nothing specified'}
+- Results above are PRE-FILTERED for safety based on known allergens
+- DOUBLE-CHECK ingredients lists for any items that might contain customer's allergens
 - A dish is SAFE if it does NOT contain the customer's specific allergens
 - A dish is UNSAFE only if it contains one of the customer's allergens
 - Example: If customer is allergic to nuts, a dish with dairy/gluten is STILL SAFE
-- Always explain WHY items are safe/unsafe based on customer's specific allergies
-- Use exact prices from menu data
+- Example: If customer is allergic to tomatoes, check the ingredients list even if not in allergens
+- Use exact prices and names from menu data
 - Keep response to 2-3 sentences
 - IMPORTANT: If a dish was not found, politely inform the customer we don't have that item
-- NEVER invent or suggest dishes that aren't in the search results above
+- NEVER invent allergen information - only use what's provided above
 """
     else:
         prompt += """
