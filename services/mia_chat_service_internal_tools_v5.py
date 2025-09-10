@@ -490,6 +490,12 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                         "allergens": item.get('allergens', [])
                     })
         
+        # More debug logging
+        if food_type == "seafood" and customer_allergies and "shellfish" in customer_allergies:
+            logger.info(f"Seafood search with shellfish allergy: found {len(results)} safe items")
+            if len(results) == 0:
+                logger.warning("No seafood items passed safety check! This is likely a bug.")
+        
         return {
             "tool": tool_name,
             "food_type": params.get("food_type"),
