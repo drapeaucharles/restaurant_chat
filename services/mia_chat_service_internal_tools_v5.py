@@ -209,19 +209,25 @@ AVAILABLE TOOLS:
 1. get_dish_details - Get info about a SPECIFIC dish
    Parameters: dish_name (can be partial like "carbonara" or have typos like "lasagni" - the tool will fuzzy match)
    
-2. search_menu_by_category - Search dishes by category
-   Parameters: category (can be meal time, course type, or food category - e.g., "Dinner", "main", "Seafood", "Pasta")
+2. search_by_meal_time - Search dishes by when they're served
+   Parameters: meal_time (from available: {', '.join(categories['meal_times'])})
    
-3. search_menu_by_ingredient - Search dishes containing ingredient
+3. search_by_course_type - Search dishes by course
+   Parameters: course_type (from available: {', '.join(categories['course_types'])})
+   
+4. search_by_food_type - Search dishes by food category
+   Parameters: food_type (from available: {', '.join(categories['food_categories'])})
+   
+5. search_menu_by_ingredient - Search dishes containing ingredient
    Parameters: ingredient (any ingredient name)
    
-4. filter_vegetarian/vegan/gluten_free/nut_free/dairy_free/shellfish_free - Filter safe dishes
+6. filter_vegetarian/vegan/gluten_free/nut_free/dairy_free/shellfish_free - Filter safe dishes
    Parameters: none needed
    
-5. update_allergy_add/remove - Update customer allergies
+7. update_allergy_add/remove - Update customer allergies
    Parameters: allergies (list), reason (for remove)
    
-6. no_tool_needed - For greetings, thanks, general chat
+8. no_tool_needed - For greetings, thanks, general chat
 
 RULES:
 1. Select tools that best answer the customer's request
@@ -232,19 +238,22 @@ RULES:
 
 EXAMPLES:
 - "What pasta dishes do you have?" → 
-  [{{"tool": "search_menu_by_category", "parameters": {{"category": "Pasta"}}}}]
+  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
+  
+- "What's for dinner?" → 
+  [{{"tool": "search_by_meal_time", "parameters": {{"meal_time": "Dinner"}}}}]
+  
+- "Show me your starters" → 
+  [{{"tool": "search_by_course_type", "parameters": {{"course_type": "starter"}}}}]
+  
+- "What seafood do you have?" → 
+  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Seafood"}}}}]
   
 - "Tell me about the Carbonara" → 
   [{{"tool": "get_dish_details", "parameters": {{"dish_name": "carbonara"}}}}]
   
-- "Can I have the lasagni?" (typo) → 
-  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "lasagni"}}}}]
-  
-- "Do you have pesto pasta?" → 
-  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "pesto pasta"}}}}]
-  
 - "Show me gluten-free pasta" → 
-  [{{"tool": "filter_gluten_free"}}, {{"tool": "search_menu_by_category", "parameters": {{"category": "Pasta"}}}}]
+  [{{"tool": "filter_gluten_free"}}, {{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
   
 - "I'm allergic to nuts" → 
   [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
@@ -447,6 +456,78 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         return {
             "tool": tool_name,
             "ingredient": params.get("ingredient"),
+            "found": len(results),
+            "items": results[:10]
+        }
+    
+    elif tool_name == "search_by_meal_time":
+        meal_time = params.get("meal_time", "").lower()
+        results = []
+        
+        for item in menu_items:
+            item_category = item.get('category', '').lower()
+            
+            if meal_time in item_category:
+                # Check allergen safety
+                if is_safe_for_customer(item):
+                    results.append({
+                        "name": item.get('dish') or item.get('name'),
+                        "price": item.get('price'),
+                        "description": item.get('description', '')[:100],
+                        "allergens": item.get('allergens', [])
+                    })
+        
+        return {
+            "tool": tool_name,
+            "meal_time": params.get("meal_time"),
+            "found": len(results),
+            "items": results[:10]
+        }
+    
+    elif tool_name == "search_by_course_type":
+        course_type = params.get("course_type", "").lower()
+        results = []
+        
+        for item in menu_items:
+            item_subcategory = item.get('subcategory', '').lower()
+            
+            if course_type in item_subcategory:
+                # Check allergen safety
+                if is_safe_for_customer(item):
+                    results.append({
+                        "name": item.get('dish') or item.get('name'),
+                        "price": item.get('price'),
+                        "description": item.get('description', '')[:100],
+                        "allergens": item.get('allergens', [])
+                    })
+        
+        return {
+            "tool": tool_name,
+            "course_type": params.get("course_type"),
+            "found": len(results),
+            "items": results[:10]
+        }
+    
+    elif tool_name == "search_by_food_type":
+        food_type = params.get("food_type", "").lower()
+        results = []
+        
+        for item in menu_items:
+            item_restaurant_category = item.get('restaurant_category', '').lower()
+            
+            if food_type in item_restaurant_category:
+                # Check allergen safety
+                if is_safe_for_customer(item):
+                    results.append({
+                        "name": item.get('dish') or item.get('name'),
+                        "price": item.get('price'),
+                        "description": item.get('description', '')[:100],
+                        "allergens": item.get('allergens', [])
+                    })
+        
+        return {
+            "tool": tool_name,
+            "food_type": params.get("food_type"),
             "found": len(results),
             "items": results[:10]
         }
