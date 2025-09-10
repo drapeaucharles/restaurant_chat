@@ -475,6 +475,12 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             
             # Check if food_type matches any category
             if food_type in categories_lower or food_type == single_category_lower:
+                # Debug logging for seafood + shellfish allergy case
+                if food_type == "seafood" and customer_allergies and "shellfish" in customer_allergies:
+                    dish_name = item.get('dish', 'Unknown')
+                    is_safe = is_safe_for_customer(item)
+                    logger.info(f"Seafood item '{dish_name}': categories={categories_lower}, safe={is_safe}")
+                
                 # Check allergen safety
                 if is_safe_for_customer(item):
                     results.append({
