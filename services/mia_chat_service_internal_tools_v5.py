@@ -279,13 +279,16 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
     tool_name = tool_data.get("tool")
     params = tool_data.get("parameters", {})
     
+    logger.info(f"execute_tool called: tool={tool_name}, menu_items count={len(menu_items)}")
+    
     # Get customer allergies if profile exists
     customer_allergies = []
     if customer_profile:
         customer_allergies = getattr(customer_profile, 'allergies', []) or []
         dietary_restrictions = getattr(customer_profile, 'dietary_restrictions', []) or []
         customer_allergies.extend(dietary_restrictions)
-        customer_allergies = [a.lower() for a in customer_allergies]
+        customer_allergies = [str(a).lower() for a in customer_allergies if a]
+        logger.info(f"Customer allergies in execute_tool: {customer_allergies}")
     
     def is_safe_for_customer(item: Dict) -> bool:
         """Check if item is safe based on customer allergies"""
@@ -463,6 +466,9 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
     elif tool_name == "search_by_food_type":
         food_type = params.get("food_type", "").lower()
         results = []
+        
+        # Debug total items being searched
+        logger.info(f"search_by_food_type: Searching for '{food_type}' in {len(menu_items)} items")
         
         for item in menu_items:
             # Check both single category and array of categories
@@ -823,7 +829,12 @@ Respond:"""
         
         # === Execute Tools Locally ===
         tool_results = []
-        for tool_data in selected_tools:
+        logger.info(f"Executing {len(selected_tools)} tools. Menu has {len(menu_items)} items")
+        
+        for i, tool_data in enumerate(selected_tools):
+            tool_name = tool_data.get("tool")
+            logger.info(f"Executing tool {i+1}/{len(selected_tools)}: {tool_name}")
+            
             if tool_data.get("tool") in ["update_allergy_add", "update_allergy_remove"]:
                 # Already processed above, just add result
                 action = "added" if tool_data["tool"] == "update_allergy_add" else "removed"
@@ -831,6 +842,7 @@ Respond:"""
                 result = {"success": True, "action": action, "allergies": allergies, "tool": tool_data["tool"]}
             else:
                 result = execute_tool(tool_data, menu_items, customer_profile)
+                logger.info(f"Tool {tool_name} returned: found={result.get('found', 'N/A')}")
             tool_results.append(result)
         
         # Check if all searches returned no results (except allergen filters)
