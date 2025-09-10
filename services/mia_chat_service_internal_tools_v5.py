@@ -892,12 +892,20 @@ Respond:"""
         if len(search_filter_tools) > 1:
             logger.info(f"Applying intersection logic for {len(search_filter_tools)} search/filter tools")
             
+            # Debug: log what each tool found
+            for i, names in enumerate(all_item_names):
+                tool_idx = search_filter_tools[i]
+                tool_name = tool_results[tool_idx].get("tool", "unknown")
+                logger.info(f"Tool {tool_name} found {len(names)} items: {list(names)[:5]}...")
+            
             # Find items that appear in ALL result sets
             intersected_names = all_item_names[0]
             for names in all_item_names[1:]:
                 intersected_names = intersected_names.intersection(names)
             
             logger.info(f"Intersection result: {len(intersected_names)} items found in all result sets")
+            if intersected_names:
+                logger.info(f"Intersected items: {list(intersected_names)[:10]}")
             
             # Update each tool's results to only include intersected items
             for idx in search_filter_tools:
