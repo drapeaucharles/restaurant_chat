@@ -234,7 +234,8 @@ RULES:
 2. Include all necessary tools (e.g., allergy filter + category search)
 3. For get_dish_details: use what the customer said (tool handles fuzzy matching)
 4. For categories: use exact category names from the list above
-5. Return JSON array with tool names and parameters
+5. For "seafood" requests: use "Fish" category (safe for shellfish allergies) or combine with shellfish filter
+6. Return JSON array with tool names and parameters
 
 EXAMPLES:
 - "What pasta dishes do you have?" → 
@@ -247,7 +248,7 @@ EXAMPLES:
   [{{"tool": "search_by_course_type", "parameters": {{"course_type": "starter"}}}}]
   
 - "What seafood do you have?" → 
-  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Seafood"}}}}]
+  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Fish"}}}}]
   
 - "Tell me about the Carbonara" → 
   [{{"tool": "get_dish_details", "parameters": {{"dish_name": "carbonara"}}}}]
