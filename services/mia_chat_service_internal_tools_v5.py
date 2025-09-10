@@ -867,6 +867,55 @@ Respond:"""
         
         # (Allergy updates already processed above, removed duplicate code)
         
+        # === Apply Intersection Logic for Multiple Search/Filter Tools ===
+        # If multiple search/filter tools are used, only keep items that appear in ALL results
+        search_filter_tools = []
+        all_item_names = []
+        
+        for i, result in enumerate(tool_results):
+            tool_name = result.get("tool", "")
+            # Check if it's a search/filter tool with items
+            if ("items" in result or "results" in result) and tool_name not in ["update_allergy_add", "update_allergy_remove"]:
+                items = result.get("items", result.get("results", []))
+                if items:
+                    search_filter_tools.append(i)
+                    # Extract item names from this tool's results
+                    item_names = set()
+                    for item in items:
+                        name = item.get("name", item.get("dish", ""))
+                        if name:
+                            item_names.add(name)
+                    all_item_names.append(item_names)
+        
+        # If we have multiple search/filter tools, apply intersection
+        if len(search_filter_tools) > 1:
+            logger.info(f"Applying intersection logic for {len(search_filter_tools)} search/filter tools")
+            
+            # Find items that appear in ALL result sets
+            intersected_names = all_item_names[0]
+            for names in all_item_names[1:]:
+                intersected_names = intersected_names.intersection(names)
+            
+            logger.info(f"Intersection result: {len(intersected_names)} items found in all result sets")
+            
+            # Update each tool's results to only include intersected items
+            for idx in search_filter_tools:
+                result = tool_results[idx]
+                items_key = "items" if "items" in result else "results"
+                original_items = result[items_key]
+                
+                # Filter to only intersected items
+                filtered_items = []
+                for item in original_items:
+                    name = item.get("name", item.get("dish", ""))
+                    if name in intersected_names:
+                        filtered_items.append(item)
+                
+                result[items_key] = filtered_items
+                result["found"] = len(filtered_items)
+                
+                logger.info(f"Tool {result.get('tool')}: filtered from {len(original_items)} to {len(filtered_items)} items")
+        
         # === PHASE 2: Generate Response ===
         logger.info("PHASE 2: Generating response from tool results")
         
