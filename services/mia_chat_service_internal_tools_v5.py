@@ -45,15 +45,25 @@ def create_menu_summary(menu_items: List[Dict]) -> str:
     
     return summary
 
-def get_available_categories(menu_items: List[Dict]) -> List[str]:
-    """Extract unique categories from menu"""
-    categories = set()
+def get_available_categories(menu_items: List[Dict]) -> Dict[str, List[str]]:
+    """Extract unique categories from menu organized by type"""
+    meal_times = set()
+    course_types = set()
+    food_categories = set()
+    
     for item in menu_items:
         if item.get('category'):
-            categories.add(item.get('category'))
+            meal_times.add(item.get('category'))
         if item.get('subcategory'):
-            categories.add(item.get('subcategory'))
-    return sorted(list(categories))
+            course_types.add(item.get('subcategory'))
+        if item.get('restaurant_category'):
+            food_categories.add(item.get('restaurant_category'))
+    
+    return {
+        'meal_times': sorted(list(meal_times)),
+        'course_types': sorted(list(course_types)),
+        'food_categories': sorted(list(food_categories))
+    }
 
 def get_available_dish_names(menu_items: List[Dict]) -> List[str]:
     """Extract all dish names from menu"""
@@ -190,7 +200,9 @@ def build_phase1_prompt(message: str, customer_profile: Any, chat_history: List[
     
     # Add restaurant context
     prompt += f"""RESTAURANT CONTEXT:
-- Available categories: {', '.join(categories)}
+- Meal times: {', '.join(categories['meal_times'])} (when dishes are served)
+- Course types: {', '.join(categories['course_types'])} (starter, main, dessert)
+- Food categories: {', '.join(categories['food_categories'])} (type of food)
 - All dishes in menu: {', '.join(dish_names)}
 
 AVAILABLE TOOLS:
@@ -198,7 +210,7 @@ AVAILABLE TOOLS:
    Parameters: dish_name (can be partial like "carbonara" or have typos like "lasagni" - the tool will fuzzy match)
    
 2. search_menu_by_category - Search dishes by category
-   Parameters: category (must be from available categories above)
+   Parameters: category (can be meal time, course type, or food category - e.g., "Dinner", "main", "Seafood", "Pasta")
    
 3. search_menu_by_ingredient - Search dishes containing ingredient
    Parameters: ingredient (any ingredient name)
@@ -395,8 +407,12 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                             "allergens": item.get('allergens', [])
                         })
             else:
-                # Standard category matching
-                if category in item_category or category in item_subcategory:
+                # Standard category matching - check all three category types
+                item_restaurant_category = item.get('restaurant_category', '').lower()
+                
+                if (category in item_category or 
+                    category in item_subcategory or 
+                    category in item_restaurant_category):
                     # Check allergen safety
                     if is_safe_for_customer(item):
                         results.append({
