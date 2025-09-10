@@ -56,7 +56,14 @@ def get_available_categories(menu_items: List[Dict]) -> Dict[str, List[str]]:
             meal_times.add(item.get('category'))
         if item.get('subcategory'):
             course_types.add(item.get('subcategory'))
-        if item.get('restaurant_category'):
+        
+        # Handle both single category and array of categories
+        if item.get('restaurant_categories'):
+            # New array format
+            for cat in item.get('restaurant_categories', []):
+                food_categories.add(cat)
+        elif item.get('restaurant_category'):
+            # Old single category format
             food_categories.add(item.get('restaurant_category'))
     
     return {
@@ -217,6 +224,7 @@ AVAILABLE TOOLS:
    
 4. search_by_food_type - Search dishes by food category
    Parameters: food_type (from available: {', '.join(categories['food_categories'])})
+   Note: Items can belong to multiple categories (e.g., Salmon is both "Fish" and "Seafood")
    
 5. search_menu_by_ingredient - Search dishes containing ingredient
    Parameters: ingredient (any ingredient name)
@@ -234,7 +242,7 @@ RULES:
 2. Include all necessary tools (e.g., allergy filter + category search)
 3. For get_dish_details: use what the customer said (tool handles fuzzy matching)
 4. For categories: use exact category names from the list above
-5. For "seafood" requests: use "Fish" category (safe for shellfish allergies) or combine with shellfish filter
+5. For "seafood" requests: use "Seafood" category (includes both fish and shellfish)
 6. Return JSON array with tool names and parameters
 
 EXAMPLES:
@@ -248,7 +256,7 @@ EXAMPLES:
   [{{"tool": "search_by_course_type", "parameters": {{"course_type": "starter"}}}}]
   
 - "What seafood do you have?" → 
-  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Fish"}}}}]
+  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Seafood"}}}}]
   
 - "Tell me about the Carbonara" → 
   [{{"tool": "get_dish_details", "parameters": {{"dish_name": "carbonara"}}}}]
@@ -457,9 +465,16 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         results = []
         
         for item in menu_items:
-            item_restaurant_category = item.get('restaurant_category', '').lower()
+            # Check both single category and array of categories
+            item_categories = item.get('restaurant_categories', [])
+            single_category = item.get('restaurant_category', '')
             
-            if food_type in item_restaurant_category:
+            # Convert to lowercase for comparison
+            categories_lower = [cat.lower() for cat in item_categories]
+            single_category_lower = single_category.lower()
+            
+            # Check if food_type matches any category
+            if food_type in categories_lower or food_type == single_category_lower:
                 # Check allergen safety
                 if is_safe_for_customer(item):
                     results.append({
