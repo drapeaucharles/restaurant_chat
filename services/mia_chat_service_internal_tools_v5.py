@@ -701,18 +701,23 @@ MENU DATA FROM SEARCH:
     if context_type == "allergen_safety":
         customer_allergies = getattr(customer_profile, 'allergies', []) if customer_profile else []
         prompt += f"""
-SAFETY GUIDELINES:
-- Customer is allergic to: {', '.join(customer_allergies) if customer_allergies else 'nothing specified'}
-- Results above are PRE-FILTERED for safety based on known allergens
-- DOUBLE-CHECK ingredients lists for any items that might contain customer's allergens
-- A dish is SAFE if it does NOT contain the customer's specific allergens
-- A dish is UNSAFE only if it contains one of the customer's allergens
-- Example: If customer is allergic to nuts, a dish with dairy/gluten is STILL SAFE
-- Example: If customer is allergic to tomatoes, check the ingredients list even if not in allergens
-- Use exact prices and names from menu data
-- Keep response to 2-3 sentences
-- IMPORTANT: If a dish was not found, politely inform the customer we don't have that item
-- NEVER invent allergen information - only use what's provided above
+SAFETY RULES:
+1. Results shown are pre-filtered for customer safety. 
+   - Trust the data provided, but always check the "Contains" and "Ingredients" fields before confirming.
+2. Never invent or modify information.
+   - No new dishes, no fake prices, no new allergens, no new dietary labels.
+3. A dish is SAFE if it does not contain the customer's allergens.
+   A dish is UNSAFE if the allergen is explicitly listed.
+   A dish is UNKNOWN if not listed in menu results — politely say it's not available.
+4. If allergen might reasonably appear in an ingredient but isn't listed, say:
+   "Based on the provided menu data, this dish does not list [allergen], but I recommend double-checking with staff for your safety."
+5. Responses must be concise (2–3 sentences max).
+   - Use exact dish names and prices.
+   - Use short lists for multiple dishes.
+6. Always continue applying allergy/dietary filters from Phase 1.
+7. Stay natural, warm, and professional — but never compromise on menu accuracy or safety.
+
+Customer is allergic to: {', '.join(customer_allergies) if customer_allergies else 'nothing specified'}
 """
     else:
         prompt += """
