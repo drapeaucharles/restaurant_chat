@@ -495,6 +495,11 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         filter_type = tool_name.replace("filter_", "").replace("_", "-")
         results = []
         
+        # Debug logging
+        if filter_type == "shellfish-free":
+            logger.info(f"Executing shellfish-free filter. Total menu items: {len(menu_items)}")
+            logger.info(f"Customer allergies: {customer_allergies}")
+        
         for item in menu_items:
             suitable = False
             
@@ -523,6 +528,10 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                     "description": item.get('description', '')[:100],
                     "allergens": item.get('allergens', [])
                 })
+        
+        # Debug logging
+        if filter_type == "shellfish-free":
+            logger.info(f"Shellfish-free filter found {len(results)} items before limiting to 15")
         
         return {
             "tool": tool_name,
