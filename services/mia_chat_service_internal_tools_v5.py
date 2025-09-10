@@ -956,7 +956,11 @@ Respond:"""
                 
             # Special case: if one of the tools is shellfish-free filter and customer has shellfish allergy
             # This is redundant and might cause issues
-            has_shellfish_allergy = customer_allergies and 'shellfish' in customer_allergies  # already lowercase
+            customer_allergies = []
+            if customer_profile:
+                customer_allergies = [str(a).lower() for a in getattr(customer_profile, 'allergies', []) if a]
+            
+            has_shellfish_allergy = customer_allergies and 'shellfish' in customer_allergies
             has_shellfish_filter = any(tool_results[idx].get("tool") == "filter_shellfish_free" for idx in search_filter_tools)
             
             if has_shellfish_allergy and has_shellfish_filter:
