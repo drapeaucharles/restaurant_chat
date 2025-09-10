@@ -380,64 +380,6 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         
         return {"tool": tool_name, "found": False, "error": "Dish not found"}
     
-    elif tool_name == "search_menu_by_category":
-        category = params.get("category", "").lower()
-        results = []
-        
-        for item in menu_items:
-            # Check main category
-            item_category = item.get('category', '').lower()
-            item_subcategory = item.get('subcategory', '').lower()
-            
-            # Check if it's a pasta/seafood/etc query and handle intelligently
-            if category == "pasta":
-                # Check dish name for pasta types
-                dish_name = (item.get('dish') or item.get('name', '')).lower()
-                if any(pasta_type in dish_name for pasta_type in ['spaghetti', 'penne', 'linguine', 'ravioli', 'lasagna', 'gnocchi', 'fettuccine']):
-                    # Check allergen safety
-                    if is_safe_for_customer(item):
-                        results.append({
-                            "name": item.get('dish') or item.get('name'),
-                            "price": item.get('price'),
-                            "description": item.get('description', '')[:100],
-                            "allergens": item.get('allergens', [])
-                        })
-            elif category == "seafood":
-                # Check for seafood items
-                dish_name = (item.get('dish') or item.get('name', '')).lower()
-                ingredients = ' '.join(item.get('ingredients', [])).lower()
-                if any(seafood in dish_name + ' ' + ingredients for seafood in ['salmon', 'shrimp', 'lobster', 'crab', 'fish', 'seafood', 'calamari', 'scallop', 'oyster']):
-                    # Check allergen safety
-                    if is_safe_for_customer(item):
-                        results.append({
-                            "name": item.get('dish') or item.get('name'),
-                            "price": item.get('price'),
-                            "description": item.get('description', '')[:100],
-                            "allergens": item.get('allergens', [])
-                        })
-            else:
-                # Standard category matching - check all three category types
-                item_restaurant_category = item.get('restaurant_category', '').lower()
-                
-                if (category in item_category or 
-                    category in item_subcategory or 
-                    category in item_restaurant_category):
-                    # Check allergen safety
-                    if is_safe_for_customer(item):
-                        results.append({
-                            "name": item.get('dish') or item.get('name'),
-                            "price": item.get('price'),
-                            "description": item.get('description', '')[:100],
-                            "allergens": item.get('allergens', [])
-                        })
-        
-        return {
-            "tool": tool_name,
-            "category": params.get("category"),
-            "found": len(results),
-            "items": results[:10]
-        }
-    
     elif tool_name == "search_menu_by_ingredient":
         ingredient = params.get("ingredient", "").lower()
         results = []
