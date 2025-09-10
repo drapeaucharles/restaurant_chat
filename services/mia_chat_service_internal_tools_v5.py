@@ -599,6 +599,163 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 
+def execute_tools_single_pass(tools: List[Dict], menu_items: List[Dict], customer_profile: Optional[Any]) -> List[Dict]:
+    """Execute multiple search/filter tools in a single pass for performance"""
+    logger.info(f"Executing {len(tools)} tools in single pass over {len(menu_items)} items")
+    
+    # Get customer allergies once
+    customer_allergies = []
+    if customer_profile:
+        customer_allergies = getattr(customer_profile, 'allergies', []) or []
+        dietary_restrictions = getattr(customer_profile, 'dietary_restrictions', []) or []
+        customer_allergies.extend(dietary_restrictions)
+        customer_allergies = [str(a).lower() for a in customer_allergies if a]
+    
+    # Initialize results for each tool
+    tool_results = []
+    for tool_data in tools:
+        tool_results.append({
+            "tool": tool_data.get("tool"),
+            "parameters": tool_data.get("parameters", {}),
+            "items": [],
+            "pre_filtered": len(customer_allergies) > 0
+        })
+    
+    # Single pass through all menu items
+    for item in menu_items:
+        # Check safety ONCE per item
+        if customer_allergies:
+            item_allergens = [a.lower() for a in item.get('allergens', [])]
+            ingredients_text = ' '.join(item.get('ingredients', [])).lower()
+            
+            is_safe = True
+            for allergy in customer_allergies:
+                if any(allergy in allergen for allergen in item_allergens) or allergy in ingredients_text:
+                    is_safe = False
+                    break
+            
+            if not is_safe:
+                continue  # Skip unsafe items
+        
+        # Now check this safe item against each tool's criteria
+        for i, tool_data in enumerate(tools):
+            tool_name = tool_data.get("tool")
+            params = tool_data.get("parameters", {})
+            
+            # Format item result once (will be reused if item matches multiple tools)
+            item_result = {
+                "name": item.get('dish') or item.get('name'),
+                "price": item.get('price'),
+                "allergens": item.get('allergens', []),
+                "ingredients": item.get('ingredients', []),
+                "is_nut_free": item.get('is_nut_free', True),
+                "is_dairy_free": item.get('is_dairy_free', False),
+                "is_gluten_free": item.get('is_gluten_free', False),
+                "is_vegan": item.get('is_vegan', False),
+                "is_vegetarian": item.get('is_vegetarian', False)
+            }
+            
+            # Check tool-specific criteria
+            if tool_name == "search_by_food_type":
+                food_type = params.get("food_type", "").lower()
+                item_categories = item.get('restaurant_categories', [])
+                single_category = item.get('restaurant_category', '')
+                categories_lower = [cat.lower() for cat in item_categories]
+                single_category_lower = single_category.lower()
+                
+                if food_type in categories_lower or food_type == single_category_lower:
+                    tool_results[i]["items"].append(item_result)
+                    
+            elif tool_name == "search_by_meal_time":
+                meal_time = params.get("meal_time", "").lower()
+                item_category = item.get('category', '').lower()
+                if meal_time in item_category:
+                    tool_results[i]["items"].append(item_result)
+                    
+            elif tool_name == "search_by_course_type":
+                course_type = params.get("course_type", "").lower()
+                item_subcategory = item.get('subcategory', '').lower()
+                if course_type in item_subcategory:
+                    tool_results[i]["items"].append(item_result)
+                    
+            elif tool_name == "search_menu_by_ingredient":
+                ingredient = params.get("ingredient", "").lower()
+                if any(ingredient in ing.lower() for ing in item.get('ingredients', [])):
+                    tool_results[i]["items"].append(item_result)
+                    
+            elif tool_name.startswith("filter_"):
+                filter_type = tool_name.replace("filter_", "").replace("_", "-")
+                suitable = False
+                
+                if filter_type == "nut-free" and item.get('is_nut_free', True):
+                    suitable = True
+                elif filter_type == "dairy-free" and item.get('is_dairy_free', False):
+                    suitable = True
+                elif filter_type == "gluten-free" and item.get('is_gluten_free', False):
+                    suitable = True
+                elif filter_type == "vegetarian" and item.get('is_vegetarian', False):
+                    suitable = True
+                elif filter_type == "vegan" and item.get('is_vegan', False):
+                    suitable = True
+                elif filter_type == "shellfish-free":
+                    allergens = [a.lower() for a in item.get('allergens', [])]
+                    if "shellfish" not in allergens:
+                        suitable = True
+                
+                if suitable:
+                    tool_results[i]["items"].append(item_result)
+    
+    # Format final results
+    final_results = []
+    for i, result in enumerate(tool_results):
+        tool_name = result["tool"]
+        params = result["parameters"]
+        
+        if tool_name == "search_by_food_type":
+            final_results.append({
+                "tool": tool_name,
+                "food_type": params.get("food_type"),
+                "found": len(result["items"]),
+                "items": result["items"],
+                "pre_filtered": result["pre_filtered"]
+            })
+        elif tool_name == "search_by_meal_time":
+            final_results.append({
+                "tool": tool_name,
+                "meal_time": params.get("meal_time"),
+                "found": len(result["items"]),
+                "items": result["items"],
+                "pre_filtered": result["pre_filtered"]
+            })
+        elif tool_name == "search_by_course_type":
+            final_results.append({
+                "tool": tool_name,
+                "course_type": params.get("course_type"),
+                "found": len(result["items"]),
+                "items": result["items"],
+                "pre_filtered": result["pre_filtered"]
+            })
+        elif tool_name == "search_menu_by_ingredient":
+            final_results.append({
+                "tool": tool_name,
+                "ingredient": params.get("ingredient"),
+                "found": len(result["items"]),
+                "items": result["items"],
+                "pre_filtered": result["pre_filtered"]
+            })
+        elif tool_name.startswith("filter_"):
+            filter_type = tool_name.replace("filter_", "").replace("_", "-")
+            final_results.append({
+                "tool": tool_name,
+                "filter": filter_type,
+                "found": len(result["items"]),
+                "items": result["items"],
+                "pre_filtered": result["pre_filtered"]
+            })
+    
+    logger.info(f"Single pass execution complete. Found items: {[r['found'] for r in final_results]}")
+    return final_results
+
 def build_phase2_prompt(message: str, tool_results: List[Dict], restaurant_name: str, 
                        customer_profile: Any, context_type: str, context_data: Dict,
                        chat_history: List[Dict] = None) -> str:
@@ -889,22 +1046,35 @@ Respond:"""
         tool_results = []
         logger.info(f"Executing {len(selected_tools)} tools. Menu has {len(menu_items)} items")
         
-        for i, tool_data in enumerate(selected_tools):
+        # Separate tools by type for efficient execution
+        search_filter_tools = []
+        other_tools = []
+        
+        for tool_data in selected_tools:
             tool_name = tool_data.get("tool")
-            logger.info(f"Executing tool {i+1}/{len(selected_tools)}: {tool_name}")
-            
-            if tool_data.get("tool") in ["update_allergy_add", "update_allergy_remove"]:
+            if tool_name in ["update_allergy_add", "update_allergy_remove"]:
                 # Already processed above, just add result
-                action = "added" if tool_data["tool"] == "update_allergy_add" else "removed"
+                action = "added" if tool_name == "update_allergy_add" else "removed"
                 allergies = tool_data.get("parameters", {}).get("allergies", [])
-                result = {"success": True, "action": action, "allergies": allergies, "tool": tool_data["tool"]}
+                result = {"success": True, "action": action, "allergies": allergies, "tool": tool_name}
+                tool_results.append(result)
+            elif tool_name in ["search_by_food_type", "search_by_meal_time", "search_by_course_type", 
+                             "search_menu_by_ingredient", "filter_vegetarian", "filter_vegan", 
+                             "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free"]:
+                search_filter_tools.append(tool_data)
             else:
-                # Make a deep copy of menu_items to ensure tools don't affect each other
-                import copy
-                menu_items_copy = copy.deepcopy(menu_items)
-                result = execute_tool(tool_data, menu_items_copy, customer_profile)
-                logger.info(f"Tool {tool_name} returned: found={result.get('found', 'N/A')}")
+                other_tools.append(tool_data)
+        
+        # Execute search/filter tools in single pass for performance
+        if search_filter_tools:
+            search_results = execute_tools_single_pass(search_filter_tools, menu_items, customer_profile)
+            tool_results.extend(search_results)
+        
+        # Execute other tools individually (get_dish_details, no_tool_needed, etc)
+        for tool_data in other_tools:
+            result = execute_tool(tool_data, menu_items, customer_profile)
             tool_results.append(result)
+            logger.info(f"Tool {tool_data.get('tool')} returned: found={result.get('found', 'N/A')}")
         
         # Check if all searches returned no results (except allergen filters)
         all_empty = True
@@ -978,17 +1148,25 @@ Respond:"""
         # (Allergy updates already processed above, removed duplicate code)
         
         # === Apply Intersection Logic for Multiple Search/Filter Tools ===
-        # If multiple search/filter tools are used, only keep items that appear in ALL results
-        search_filter_tools = []
-        all_item_names = []
+        # Count search/filter tools first
+        search_filter_indices = []
         
         for i, result in enumerate(tool_results):
             tool_name = result.get("tool", "")
-            # Check if it's a search/filter tool with items
-            if ("items" in result or "results" in result) and tool_name not in ["update_allergy_add", "update_allergy_remove"]:
+            if ("items" in result or "results" in result) and tool_name not in ["update_allergy_add", "update_allergy_remove", "get_dish_details", "no_tool_needed"]:
+                search_filter_indices.append(i)
+        
+        # Only apply intersection if multiple search/filter tools were used
+        if len(search_filter_indices) <= 1:
+            logger.info("Skipping intersection logic - only one or no search/filter tool used")
+        else:
+            # If multiple search/filter tools are used, only keep items that appear in ALL results
+            all_item_names = []
+            
+            for idx in search_filter_indices:
+                result = tool_results[idx]
                 items = result.get("items", result.get("results", []))
                 if items:
-                    search_filter_tools.append(i)
                     # Extract item names from this tool's results
                     item_names = set()
                     for item in items:
@@ -997,54 +1175,54 @@ Respond:"""
                             item_names.add(name)
                     all_item_names.append(item_names)
         
-        # If we have multiple search/filter tools, apply intersection
-        if len(search_filter_tools) > 1:
-            logger.info(f"Applying intersection logic for {len(search_filter_tools)} search/filter tools")
+            # If we have multiple search/filter tools, apply intersection
+            if len(all_item_names) > 1:
+                logger.info(f"Applying intersection logic for {len(all_item_names)} search/filter tools")
             
-            # Debug: log what each tool found
-            for i, names in enumerate(all_item_names):
-                tool_idx = search_filter_tools[i]
-                tool_name = tool_results[tool_idx].get("tool", "unknown")
-                logger.info(f"Tool {tool_name} found {len(names)} items: {list(names)[:5]}...")
+                # Debug: log what each tool found
+                for i, names in enumerate(all_item_names):
+                    tool_idx = search_filter_indices[i]
+                    tool_name = tool_results[tool_idx].get("tool", "unknown")
+                    logger.info(f"Tool {tool_name} found {len(names)} items: {list(names)[:5]}...")
                 
-            # Special case: if one of the tools is shellfish-free filter and customer has shellfish allergy
-            # This is redundant and might cause issues
-            customer_allergies = []
-            if customer_profile:
-                customer_allergies = [str(a).lower() for a in getattr(customer_profile, 'allergies', []) if a]
-            
-            has_shellfish_allergy = customer_allergies and 'shellfish' in customer_allergies
-            has_shellfish_filter = any(tool_results[idx].get("tool") == "filter_shellfish_free" for idx in search_filter_tools)
-            
-            if has_shellfish_allergy and has_shellfish_filter:
-                logger.warning("Customer already has shellfish allergy, shellfish-free filter is redundant")
-            
-            # Find items that appear in ALL result sets
-            intersected_names = all_item_names[0]
-            for names in all_item_names[1:]:
-                intersected_names = intersected_names.intersection(names)
-            
-            logger.info(f"Intersection result: {len(intersected_names)} items found in all result sets")
-            if intersected_names:
-                logger.info(f"Intersected items: {list(intersected_names)[:10]}")
-            
-            # Update each tool's results to only include intersected items
-            for idx in search_filter_tools:
-                result = tool_results[idx]
-                items_key = "items" if "items" in result else "results"
-                original_items = result[items_key]
+                # Special case: if one of the tools is shellfish-free filter and customer has shellfish allergy
+                # This is redundant and might cause issues
+                customer_allergies = []
+                if customer_profile:
+                    customer_allergies = [str(a).lower() for a in getattr(customer_profile, 'allergies', []) if a]
                 
-                # Filter to only intersected items
-                filtered_items = []
-                for item in original_items:
-                    name = item.get("name", item.get("dish", ""))
-                    if name in intersected_names:
-                        filtered_items.append(item)
+                has_shellfish_allergy = customer_allergies and 'shellfish' in customer_allergies
+                has_shellfish_filter = any(tool_results[idx].get("tool") == "filter_shellfish_free" for idx in search_filter_indices)
                 
-                result[items_key] = filtered_items
-                result["found"] = len(filtered_items)
+                if has_shellfish_allergy and has_shellfish_filter:
+                    logger.warning("Customer already has shellfish allergy, shellfish-free filter is redundant")
                 
-                logger.info(f"Tool {result.get('tool')}: filtered from {len(original_items)} to {len(filtered_items)} items")
+                # Find items that appear in ALL result sets
+                intersected_names = all_item_names[0]
+                for names in all_item_names[1:]:
+                    intersected_names = intersected_names.intersection(names)
+                
+                logger.info(f"Intersection result: {len(intersected_names)} items found in all result sets")
+                if intersected_names:
+                    logger.info(f"Intersected items: {list(intersected_names)[:10]}")
+                
+                # Update each tool's results to only include intersected items
+                for idx in search_filter_indices:
+                    result = tool_results[idx]
+                    items_key = "items" if "items" in result else "results"
+                    original_items = result[items_key]
+                
+                    # Filter to only intersected items
+                    filtered_items = []
+                    for item in original_items:
+                        name = item.get("name", item.get("dish", ""))
+                        if name in intersected_names:
+                            filtered_items.append(item)
+                    
+                    result[items_key] = filtered_items
+                    result["found"] = len(filtered_items)
+                    
+                    logger.info(f"Tool {result.get('tool')}: filtered from {len(original_items)} to {len(filtered_items)} items")
         
         # === PHASE 2: Generate Response ===
         logger.info("PHASE 2: Generating response from tool results")
