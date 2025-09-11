@@ -26,7 +26,7 @@ import os
 if os.getenv("USE_RAG", "true").lower() == "true" and os.getenv("RAG_MODE", "optimized") == "optimized":
     from services.rag_chat_optimized import optimized_rag_service as chat_service
 else:
-    from services.mia_chat_service_hybrid import mia_chat_service_hybrid as chat_service
+    from services.chat_service import chat_service as chat_service
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 
@@ -66,7 +66,7 @@ async def receive_whatsapp_message(
         print(f"💾 Saving customer WhatsApp message to database...")
         
         # Ensure client exists with phone number
-        from services.mia_chat_service_hybrid import get_or_create_client
+        from services.chat_service import get_or_create_client
         business_id = business.get('business_id')
         client = get_or_create_client(db, client_id, business_id, message.from_number)
         print(f"✅ Client ensured with phone number: {client.id}")

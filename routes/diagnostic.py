@@ -9,7 +9,7 @@ import logging
 import traceback
 import json
 from services.redis_helper import redis_client
-from services.mia_chat_service_hybrid import HybridQueryClassifier
+from services.chat_service import HybridQueryClassifier
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

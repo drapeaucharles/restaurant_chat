@@ -7,7 +7,7 @@ from database import get_db
 import models
 from schemas.chat import ChatRequest, ChatResponse
 from datetime import datetime
-from services.mia_chat_service_hybrid import mia_chat_service_hybrid, get_or_create_client
+from services.chat_service import chat_service, get_or_create_client
 from services.rag_chat_service import rag_enhanced_chat_service
 import logging
 import os
@@ -27,7 +27,7 @@ if USE_RAG and RAG_MODE == "optimized":
         chat_service = optimized_rag_service
         logger.info("Using OPTIMIZED RAG (low token usage)")
     except ImportError:
-        chat_service = mia_chat_service_hybrid
+        chat_service = chat_service
 elif USE_RAG and RAG_MODE == "enhanced":
     try:
         from services.rag_chat_enhanced import enhanced_rag_service
@@ -51,7 +51,7 @@ elif USE_RAG and RAG_MODE == "hybrid_smart":
         logger.info("Using HYBRID SMART RAG (automatic complexity detection)")
     except ImportError:
         logger.warning("Hybrid Smart RAG not available, falling back to optimized")
-        chat_service = optimized_rag_service if 'optimized_rag_service' in locals() else mia_chat_service_hybrid
+        chat_service = optimized_rag_service if 'optimized_rag_service' in locals() else chat_service
 elif USE_RAG and RAG_MODE == "enhanced_v3":
     try:
         from services.rag_chat_enhanced_v3 import enhanced_rag_chat_v3
@@ -64,7 +64,7 @@ elif USE_RAG and RAG_MODE == "enhanced_v3":
 elif USE_RAG:
     chat_service = rag_enhanced_chat_service
 else:
-    chat_service = mia_chat_service_hybrid
+    chat_service = chat_service
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, db: Session = Depends(get_db)):
@@ -138,7 +138,7 @@ async def get_provider_info():
 async def get_cache_stats():
     """Get cache statistics for hybrid cache"""
     try:
-        from services.mia_chat_service_hybrid import cache
+        from services.chat_service import cache
         
         stats = cache.get_stats()
         return {
@@ -156,7 +156,7 @@ async def get_cache_stats():
 async def clear_cache(restaurant_id: str = None):
     """Clear cache for a specific restaurant or all"""
     try:
-        from services.mia_chat_service_hybrid import cache
+        from services.chat_service import cache
         
         if restaurant_id:
             # Clear specific restaurant cache
@@ -189,7 +189,7 @@ async def health_check():
 @router.post("/debug")
 async def debug_chat(req: ChatRequest, db: Session = Depends(get_db)):
     """Debug endpoint to see what's being sent to MIA"""
-    from services.mia_chat_service_hybrid import (
+    from services.chat_service import (
         HybridQueryClassifier, 
         get_maria_system_prompt,
         get_hybrid_parameters,
@@ -275,7 +275,7 @@ async def test_mia_direct():
 @router.post("/test-service")
 async def test_service_flow(req: ChatRequest, db: Session = Depends(get_db)):
     """Test the entire service flow with detailed output"""
-    from services.mia_chat_service_hybrid import (
+    from services.chat_service import (
         HybridQueryClassifier,
         get_maria_system_prompt,
         get_hybrid_parameters,

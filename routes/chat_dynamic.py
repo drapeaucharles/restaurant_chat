@@ -7,7 +7,7 @@ from database import get_db
 import models
 from schemas.chat import ChatRequest, ChatResponse
 from datetime import datetime
-from services.mia_chat_service_hybrid import mia_chat_service_hybrid, get_or_create_client
+from services.chat_service import chat_service, get_or_create_client
 import logging
 import os
 
@@ -317,7 +317,7 @@ except Exception as e:
 # Fallback service
 if not chat_services:
     logger.error("No RAG services available, using MIA hybrid as fallback")
-    chat_services['fallback'] = mia_chat_service_hybrid
+    chat_services['fallback'] = chat_service
 
 @router.post("/chat", response_model=ChatResponse)
 async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
@@ -403,7 +403,7 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             
             # Fallback to MIA hybrid service
             try:
-                fallback_response = mia_chat_service_hybrid(req, db)
+                fallback_response = chat_service(req, db)
                 logger.info("Fallback service succeeded")
                 return fallback_response
             except Exception as fallback_error:
