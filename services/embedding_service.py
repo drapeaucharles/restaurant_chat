@@ -268,14 +268,13 @@ class EmbeddingService:
         return tags
 
 # Choose embedding service based on environment
-USE_LIGHTWEIGHT = os.getenv("USE_LIGHTWEIGHT_EMBEDDINGS", "true").lower() == "true"
+USE_DUMMY = os.getenv("USE_DUMMY_EMBEDDINGS", "true").lower() == "true"
 
-if USE_LIGHTWEIGHT:
-    # Use lightweight service for Railway
-    from .embedding_service_lite import lightweight_embedding_service
-    embedding_service = lightweight_embedding_service
-    logger.info("Using lightweight embedding service")
+if USE_DUMMY or not ML_AVAILABLE:
+    # Use dummy service when ML is not needed (e.g., v5 internal tools)
+    from .embedding_service_dummy import dummy_embedding_service
+    embedding_service = dummy_embedding_service
 else:
-    # Use full ML service if available
+    # Use full ML service if available and needed
     embedding_service = EmbeddingService()
     logger.info("Using full ML embedding service")

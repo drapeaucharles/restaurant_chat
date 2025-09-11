@@ -9,16 +9,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 import json
 
-# Try to import ML libraries, but don't fail if they're not available
-try:
-    from sentence_transformers import SentenceTransformer
-    import numpy as np
-    ML_AVAILABLE = True
-except ImportError:
-    ML_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning("ML libraries not available. RAG features will be disabled.")
-
+# ML libraries removed - not needed for v5
+ML_AVAILABLE = False
 logger = logging.getLogger(__name__)
 
 class UniversalEmbeddingService:
@@ -301,8 +293,11 @@ class UniversalEmbeddingService:
         """Backward compatibility for restaurant systems"""
         return self.create_product_text(item, "restaurant")
 
+# Use dummy service when ML is not needed
+from .embedding_service_dummy import dummy_embedding_service
+
 # Create singleton instance
-universal_embedding_service = UniversalEmbeddingService()
+universal_embedding_service = dummy_embedding_service
 
 # Backward compatibility
 embedding_service = universal_embedding_service  # Alias for existing code
