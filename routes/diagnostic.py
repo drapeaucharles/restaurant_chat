@@ -9,7 +9,7 @@ import logging
 import traceback
 import json
 from services.redis_helper import redis_client
-from services.chat_service import HybridQueryClassifier
+# from services.chat_service import HybridQueryClassifier  # Removed - not in v5
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -76,11 +76,11 @@ async def diagnose_memory_service(req: ChatRequest, db: Session = Depends(get_db
     
     # Test 3: Component testing
     try:
-        # Test query classifier
-        query_type = HybridQueryClassifier.classify(req.message)
+        # Test query classifier - REMOVED (HybridQueryClassifier not in v5)
+        # query_type = HybridQueryClassifier.classify(req.message)
         results["components"]["query_classifier"] = {
-            "success": True,
-            "query_type": query_type.value
+            "success": False,
+            "error": "HybridQueryClassifier not available in v5 - using internal tools instead"
         }
     except Exception as e:
         results["components"]["query_classifier"] = {
