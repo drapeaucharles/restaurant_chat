@@ -23,7 +23,7 @@ def prewarm_mia_backend():
             "temperature": 0.1
         }
         
-        # Send warm-up request
+        # Send warm-up request with longer timeout for cold starts
         response = requests.post(
             f"{MIA_BACKEND_URL}/chat",
             json=warmup_data,
@@ -31,7 +31,7 @@ def prewarm_mia_backend():
                 "Content-Type": "application/json",
                 "X-Source": "restaurant-backend-warmup"
             },
-            timeout=5
+            timeout=30  # Increased from 5s to 30s for cold starts
         )
         
         if response.status_code == 200:
@@ -46,7 +46,7 @@ def prewarm_mia_backend():
                 try:
                     poll_response = requests.get(
                         f"{MIA_BACKEND_URL}/job/{job_id}/result",
-                        timeout=3
+                        timeout=10  # Increased from 3s to 10s
                     )
                     if poll_response.status_code == 200:
                         logger.info("✅ MIA backend is warmed up and ready!")
