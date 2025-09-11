@@ -165,5 +165,6 @@ def improved_rag_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         logger.error(f"Error in improved RAG: {e}", exc_info=True)
         return mia_chat_service_hybrid(req, db)
 
-# Export the service
+# Export the service with expected names
 rag_improved_service = improved_rag_chat_service
+rag_enhanced_chat_service_improved = improved_rag_chat_service  # Alias for chat_dynamic.py

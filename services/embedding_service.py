@@ -9,16 +9,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 import json
 
-# Try to import ML libraries, but don't fail if they're not available
-try:
-    from sentence_transformers import SentenceTransformer
-    import numpy as np
-    ML_AVAILABLE = True
-except ImportError:
-    ML_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning("ML libraries not available. RAG features will be disabled.")
-
+# ML libraries not used with v5 - using dummy service
+ML_AVAILABLE = False
 logger = logging.getLogger(__name__)
 
 class EmbeddingService:
