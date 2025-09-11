@@ -403,7 +403,7 @@ def root():
 @app.get("/healthcheck")
 def healthcheck():
     """Health check endpoint."""
-    return {"status": "ok"}
+    return {"status": "ok", "cors": "enabled", "backend": "restaurant-chat-v3"}
     
 @app.get("/health")
 def health_check():

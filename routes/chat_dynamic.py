@@ -58,7 +58,7 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
     Dynamic chat endpoint that uses restaurant-specific RAG mode
     """
     try:
-        logger.info(f"Dynamic chat request from client {req.client_id} to restaurant {req.restaurant_id}")
+        logger.info(f"🔵 CHAT REQUEST RECEIVED: client={req.client_id}, restaurant={req.restaurant_id}, message='{req.message[:50]}...'")
         
         # Get restaurant/business to check its RAG mode
         # First try businesses table (new universal model)
