@@ -213,8 +213,9 @@ async def lifespan(app: FastAPI):
     
     # Migrations already applied - removed for clean startup
     
-    # Start WhatsApp service
-    start_whatsapp_service()
+    # WhatsApp service disabled for now - needs npm install in deployment
+    # start_whatsapp_service()
+    print("ℹ️ WhatsApp service disabled - to enable, uncomment start_whatsapp_service() in main.py")
     
     # Start monitoring thread
     if whatsapp_process:
