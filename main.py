@@ -213,9 +213,13 @@ async def lifespan(app: FastAPI):
     
     # Migrations already applied - removed for clean startup
     
-    # WhatsApp service disabled for now - needs npm install in deployment
-    # start_whatsapp_service()
-    print("ℹ️ WhatsApp service disabled - to enable, uncomment start_whatsapp_service() in main.py")
+    # WhatsApp service - only start if dependencies are installed
+    whatsapp_service_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "whatsapp-service"))
+    whatsapp_deps_path = os.path.join(whatsapp_service_path, "node_modules")
+    if os.path.exists(whatsapp_deps_path):
+        start_whatsapp_service()
+    else:
+        print("ℹ️ WhatsApp service dependencies not installed. Run 'cd whatsapp-service && npm install' to enable WhatsApp.")
     
     # Start monitoring thread
     if whatsapp_process:

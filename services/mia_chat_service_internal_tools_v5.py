@@ -1085,7 +1085,18 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
             return ChatResponse(answer="I'm having trouble understanding. Please try again.", response_id=None, confidence_score=0.0)
         
         # Parse tool selection with parameters
-        selection_text = response.json().get("response", "").strip()
+        response_data = response.json()
+        logger.info(f"Phase 1 MIA response: {response_data}")
+        
+        selection_text = response_data.get("response") or response_data.get("answer") or ""
+        
+        # Handle None case
+        if selection_text is None:
+            selection_text = ""
+            logger.warning("MIA returned None for tool selection, defaulting to no_tool_needed")
+        
+        selection_text = selection_text.strip()
+        
         try:
             selected_tools = json.loads(selection_text)
             if not isinstance(selected_tools, list):
