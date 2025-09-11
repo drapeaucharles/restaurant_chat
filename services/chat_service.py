@@ -21,7 +21,8 @@ def get_or_create_client(db: Session, client_id: uuid.UUID, restaurant_id: str):
     if not client:
         client = models.Client(
             id=client_id,
-            restaurant_id=restaurant_id
+            restaurant_id=restaurant_id,
+            device_info={}
         )
         db.add(client)
         db.commit()
