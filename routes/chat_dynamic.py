@@ -99,7 +99,7 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             selected_service = chat_services.get('default', chat_services.get('fallback'))
         
         # Get or create client FIRST (before creating message)
-        get_or_create_client(db, str(req.client_id), req.restaurant_id)
+        get_or_create_client(db, req.client_id, req.restaurant_id)
         
         # Now create client message
         new_message = models.ChatMessage(

@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 import models
 import uuid
 
-def get_or_create_client(db: Session, client_id: str, restaurant_id: str):
+def get_or_create_client(db: Session, client_id: uuid.UUID, restaurant_id: str):
     """Get or create a client"""
     client = db.query(models.Client).filter_by(
         id=client_id,
