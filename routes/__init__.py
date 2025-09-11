@@ -18,7 +18,7 @@ USE_ENHANCED_CHAT = os.getenv("USE_ENHANCED_CHAT", "false").lower() == "true"
 from . import auth, restaurant, clients, chats
 
 # Always use chat_dynamic for the dynamic RAG system
-from . import chat_dynamic as chat
+from . import chat_dynamic
 print("🤖 Restaurant using DYNAMIC RAG system with restaurant-specific modes")
 
-__all__ = ["auth", "restaurant", "chat", "clients", "chats"]
+__all__ = ["auth", "restaurant", "chat_dynamic", "clients", "chats"]
