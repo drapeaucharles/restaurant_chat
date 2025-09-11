@@ -15,309 +15,42 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Import all available services
+# Import only available services
 chat_services = {}
 
-# Load optimized service
-try:
-    from services.rag_chat_optimized import optimized_rag_service
-    chat_services['optimized'] = optimized_rag_service
-    logger.info("Loaded optimized RAG service")
-except ImportError:
-    logger.warning("Optimized RAG service not available")
-
-# Load enhanced v2 service
-try:
-    from services.rag_chat_enhanced_v2 import enhanced_rag_service_v2
-    chat_services['enhanced_v2'] = enhanced_rag_service_v2
-    logger.info("Loaded enhanced v2 RAG service")
-except ImportError:
-    logger.warning("Enhanced v2 RAG service not available")
-
-# Load enhanced v3 service
-try:
-    from services.rag_chat_enhanced_v3 import enhanced_rag_chat_v3
-    chat_services['enhanced_v3'] = enhanced_rag_chat_v3
-    logger.info("Loaded enhanced v3 RAG service")
-except ImportError:
-    logger.warning("Enhanced v3 RAG service not available")
-
-# Load hybrid smart service
-try:
-    from services.rag_chat_hybrid_smart import smart_hybrid_rag
-    chat_services['hybrid_smart'] = smart_hybrid_rag
-    logger.info("Loaded hybrid smart RAG service")
-except ImportError:
-    logger.warning("Hybrid smart RAG service not available")
-
-# Load hybrid smart with memory service
-try:
-    from services.rag_chat_hybrid_smart_memory import smart_hybrid_memory_rag
-    chat_services['hybrid_smart_memory'] = smart_hybrid_memory_rag
-    logger.info("Loaded hybrid smart with memory RAG service")
-except ImportError:
-    logger.warning("Hybrid smart with memory RAG service not available")
-
-# Load hybrid smart with memory V2 service (improved personal handling)
-try:
-    from services.rag_chat_hybrid_smart_memory_v2 import smart_hybrid_memory_rag_v2
-    chat_services['hybrid_smart_memory_v2'] = smart_hybrid_memory_rag_v2
-    logger.info("Loaded hybrid smart with memory V2 RAG service")
-except ImportError:
-    logger.warning("Hybrid smart with memory V2 RAG service not available")
-
-# Load simple memory service (minimal dependencies)
-try:
-    from services.rag_chat_simple_memory import simple_memory_rag
-    chat_services['simple_memory'] = simple_memory_rag
-    logger.info("Loaded simple memory RAG service")
-except ImportError:
-    logger.warning("Simple memory RAG service not available")
-
-# Load ultra simple service (absolutely minimal)
-try:
-    from services.rag_chat_ultra_simple import ultra_simple_rag
-    chat_services['ultra_simple'] = ultra_simple_rag
-    logger.info("Loaded ultra simple RAG service")
-except ImportError:
-    logger.warning("Ultra simple RAG service not available")
-
-# Load optimized with memory service
-try:
-    from services.rag_chat_optimized_with_memory import optimized_rag_with_memory
-    chat_services['optimized_with_memory'] = optimized_rag_with_memory
-    logger.info("Loaded optimized with memory RAG service")
-except ImportError:
-    logger.warning("Optimized with memory RAG service not available")
-
-# Load enhanced v3 with lazy Redis service
-try:
-    from services.rag_chat_enhanced_v3_lazy import enhanced_rag_chat_v3 as enhanced_v3_lazy
-    chat_services['enhanced_v3_lazy'] = enhanced_v3_lazy
-    logger.info("Loaded enhanced v3 lazy RAG service")
-except ImportError:
-    logger.warning("Enhanced v3 lazy RAG service not available")
-
-# Load debug version
-try:
-    from services.rag_chat_enhanced_v3_debug import enhanced_rag_chat_v3_debug
-    chat_services['enhanced_v3_debug'] = enhanced_rag_chat_v3_debug
-    logger.info("Loaded enhanced v3 debug RAG service")
-except ImportError:
-    logger.warning("Enhanced v3 debug RAG service not available")
-
-# Load working memory version
-try:
-    from services.rag_chat_memory_working import working_memory_rag
-    chat_services['memory_working'] = working_memory_rag
-    logger.info("Loaded working memory RAG service")
-except ImportError:
-    logger.warning("Working memory RAG service not available")
-
-# Load best memory version (working + all features)
-try:
-    from services.rag_chat_memory_best import best_memory_rag
-    chat_services['memory_best'] = best_memory_rag
-    logger.info("Loaded best memory RAG service")
-except ImportError:
-    logger.warning("Best memory RAG service not available")
-
-# Load fixed memory version
-try:
-    from services.rag_chat_memory_fixed import fixed_memory_rag
-    chat_services['memory_fixed'] = fixed_memory_rag
-    logger.info("Loaded fixed memory RAG service")
-except ImportError:
-    logger.warning("Fixed memory RAG service not available")
-
-# Load diagnostic memory version
-try:
-    from services.rag_chat_memory_diagnostic import diagnostic_memory_rag
-    chat_services['memory_diagnostic'] = diagnostic_memory_rag
-    logger.info("Loaded diagnostic memory RAG service")
-except ImportError:
-    logger.warning("Diagnostic memory RAG service not available")
-
-# Load memory v2 (working + query classification)
-try:
-    from services.rag_chat_memory_v2 import working_memory_rag_v2
-    chat_services['memory_v2'] = working_memory_rag_v2
-    logger.info("Loaded memory v2 RAG service")
-except ImportError:
-    logger.warning("Memory v2 RAG service not available")
-
-# Load memory v3 (v2 + response validation)
-try:
-    from services.rag_chat_memory_v3 import working_memory_rag_v3
-    chat_services['memory_v3'] = working_memory_rag_v3
-    logger.info("Loaded memory v3 RAG service")
-except ImportError:
-    logger.warning("Memory v3 RAG service not available")
-
-# Load memory v4 (v3 + allergen service)
-try:
-    from services.rag_chat_memory_v4 import working_memory_rag_v4
-    chat_services['memory_v4'] = working_memory_rag_v4
-    logger.info("Loaded memory v4 RAG service")
-except ImportError:
-    logger.warning("Memory v4 RAG service not available")
-
-# Load memory v5 (v4 + context formatter)
-try:
-    from services.rag_chat_memory_v5 import working_memory_rag_v5
-    chat_services['memory_v5'] = working_memory_rag_v5
-    logger.info("Loaded memory v5 RAG service")
-except ImportError:
-    logger.warning("Memory v5 RAG service not available")
-
-# Load memory v6 (v5 + extract_and_update_memory)
-try:
-    from services.rag_chat_memory_v6 import working_memory_rag_v6
-    chat_services['memory_v6'] = working_memory_rag_v6
-    logger.info("Loaded memory v6 RAG service")
-except ImportError:
-    logger.warning("Memory v6 RAG service not available")
-
-# Load universal memory service (works for any business type)
-try:
-    from services.rag_chat_memory_universal import universal_memory_rag
-    chat_services['memory_universal'] = universal_memory_rag
-    logger.info("Loaded universal memory RAG service")
-except ImportError:
-    logger.warning("Universal memory RAG service not available")
-
-# Load enhanced memory service with preferences and summaries
-try:
-    from services.rag_chat_memory_enhanced import enhanced_memory_rag
-    chat_services['memory_enhanced'] = enhanced_memory_rag
-    logger.info("Loaded enhanced memory RAG service")
-except ImportError:
-    logger.warning("Enhanced memory RAG service not available")
-
-# Load full menu service (sends complete menu, no search needed)
-try:
-    from services.mia_chat_service_full_menu import mia_chat_service_full_menu
-    chat_services['full_menu'] = mia_chat_service_full_menu
-    logger.info("Loaded full menu service")
-except ImportError as e:
-    logger.warning(f"Full menu service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"Full menu service error: {type(e).__name__}: {str(e)}")
-
-# Load full menu with tools service (experimental - extends full_menu with tool calling)
-try:
-    from services.mia_chat_service_full_menu_with_tools_fixed import mia_chat_service_full_menu_with_tools_fixed as generate_response_full_menu_with_tools
-    chat_services['full_menu_with_tools'] = generate_response_full_menu_with_tools
-    logger.info("Loaded full menu with tools service (fixed)")
-except ImportError as e:
-    logger.warning(f"Full menu with tools service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"Full menu with tools service error: {type(e).__name__}: {str(e)}")
-
-# Load smart menu service (fetches details on demand)
-try:
-    from services.mia_chat_service_smart_menu import mia_chat_service_smart_menu
-    chat_services['smart_menu'] = mia_chat_service_smart_menu
-    logger.info("Loaded smart menu service")
-except ImportError as e:
-    logger.warning(f"Smart menu service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"Smart menu service error: {type(e).__name__}: {str(e)}")
-
-# Load DB query service (AI queries database as needed)
-try:
-    from services.mia_chat_service_db_query import mia_chat_service_db_query
-    chat_services['db_query'] = mia_chat_service_db_query
-    logger.info("Loaded DB query service")
-except ImportError as e:
-    logger.warning(f"DB query service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"DB query service error: {type(e).__name__}: {str(e)}")
-
-# Load OpenAI tools service (uses proper OpenAI Tools API with vLLM)
-try:
-    from services.mia_chat_service_openai_tools import generate_response_openai_tools
-    chat_services['openai_tools'] = generate_response_openai_tools
-    logger.info("Loaded OpenAI tools service")
-except ImportError as e:
-    logger.warning(f"OpenAI tools service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"OpenAI tools service error: {type(e).__name__}: {str(e)}")
-
-# Load internal tools service (new single-response flow)
-try:
-    from services.mia_chat_service_internal_tools import mia_chat_service_internal_tools
-    chat_services['internal_tools'] = mia_chat_service_internal_tools
-    logger.info("Loaded internal tools service")
-except ImportError as e:
-    logger.warning(f"Internal tools service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"Internal tools service error: {type(e).__name__}: {str(e)}")
-
-# Load internal tools service FIXED version
-try:
-    from services.mia_chat_service_internal_tools_fixed import mia_chat_service_internal_tools_fixed
-    chat_services['internal_tools_fixed'] = mia_chat_service_internal_tools_fixed
-    logger.info("Loaded internal tools service (fixed)")
-except ImportError as e:
-    logger.warning(f"Internal tools fixed service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"Internal tools fixed service error: {type(e).__name__}: {str(e)}")
-
-# Load internal tools service V2 (proper two-phase flow)
-try:
-    from services.mia_chat_service_internal_tools_v2 import mia_chat_service_internal_tools_v2
-    chat_services['internal_tools_v2'] = mia_chat_service_internal_tools_v2
-    logger.info("Loaded internal tools service V2")
-except ImportError as e:
-    logger.warning(f"Internal tools V2 service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"Internal tools V2 service error: {type(e).__name__}: {str(e)}")
-
-# Load internal tools service V3 (constrained tool selection)
-try:
-    from services.mia_chat_service_internal_tools_v3 import mia_chat_service_internal_tools_v3
-    chat_services['internal_tools_v3'] = mia_chat_service_internal_tools_v3
-    logger.info("Loaded internal tools service V3 (constrained tool selection)")
-except ImportError as e:
-    logger.warning(f"Internal tools V3 service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"Internal tools V3 service error: {type(e).__name__}: {str(e)}")
-
-# Load internal tools service V4 (V3 + context/history)
-try:
-    from services.mia_chat_service_internal_tools_v4 import mia_chat_service_internal_tools_v4
-    chat_services['internal_tools_v4'] = mia_chat_service_internal_tools_v4
-    logger.info("Loaded internal tools service V4 (constrained selection + context)")
-except ImportError as e:
-    logger.warning(f"Internal tools V4 service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"Internal tools V4 service error: {type(e).__name__}: {str(e)}")
-
-# Load internal tools service V5 (V4 + concise responses)
+# Default service (mia_chat_service_internal_tools_v5)
 try:
     from services.mia_chat_service_internal_tools_v5 import mia_chat_service_internal_tools_v5
     chat_services['internal_tools_v5'] = mia_chat_service_internal_tools_v5
-    logger.info("Loaded internal tools service V5 (concise natural responses)")
+    chat_services['default'] = mia_chat_service_internal_tools_v5
+    logger.info("Loaded internal tools service V5 (default)")
 except ImportError as e:
     logger.warning(f"Internal tools V5 service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"Internal tools V5 service error: {type(e).__name__}: {str(e)}")
 
-# Load internal tools service V5 DEBUG VERSION
+# RAG services that exist
 try:
-    from services.mia_chat_service_internal_tools_v5_debug import mia_chat_service_internal_tools_v5_debug
-    chat_services['internal_tools_v5_debug'] = mia_chat_service_internal_tools_v5_debug
-    logger.info("Loaded internal tools service V5 DEBUG (with full flow logging)")
+    from services.rag_chat_service import rag_enhanced_chat_service
+    chat_services['rag'] = rag_enhanced_chat_service
+    logger.info("Loaded RAG service")
 except ImportError as e:
-    logger.warning(f"Internal tools V5 DEBUG service not available: {str(e)}")
-except Exception as e:
-    logger.error(f"Internal tools V5 DEBUG service error: {type(e).__name__}: {str(e)}")
+    logger.warning(f"RAG service not available: {str(e)}")
+
+try:
+    from services.rag_chat_service_improved import rag_enhanced_chat_service_improved
+    chat_services['rag_improved'] = rag_enhanced_chat_service_improved
+    logger.info("Loaded improved RAG service")
+except ImportError as e:
+    logger.warning(f"Improved RAG service not available: {str(e)}")
 
 # Fallback service
 if not chat_services:
-    logger.error("No RAG services available, using MIA hybrid as fallback")
+    logger.error("No chat services available, using base chat_service as fallback")
     chat_services['fallback'] = chat_service
+else:
+    # Always have fallback available
+    chat_services['fallback'] = chat_service
+
+logger.info(f"Available chat services: {list(chat_services.keys())}")
 
 @router.post("/chat", response_model=ChatResponse)
 async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
@@ -339,10 +72,7 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         
         if business_result:
             business_type, rag_mode = business_result
-            # For non-restaurant businesses, use universal memory service
-            if business_type != 'restaurant' and 'memory_universal' in chat_services:
-                rag_mode = 'memory_universal'
-                logger.info(f"Business {req.restaurant_id} is type '{business_type}', using universal memory service")
+            logger.info(f"Business {req.restaurant_id} is type '{business_type}' with rag_mode '{rag_mode}'")
         else:
             # Fallback to restaurant model for backward compatibility
             restaurant = db.query(models.Restaurant).filter(
@@ -352,30 +82,24 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             if not restaurant:
                 raise HTTPException(status_code=404, detail="Restaurant/Business not found")
             
-            rag_mode = getattr(restaurant, 'rag_mode', 'hybrid_smart')
+            rag_mode = getattr(restaurant, 'rag_mode', 'internal_tools_v5')
         
-        # If restaurant doesn't have rag_mode set, use default from env or hybrid_smart
+        # If restaurant doesn't have rag_mode set, use default
         if not rag_mode:
-            rag_mode = os.getenv("DEFAULT_RAG_MODE", "hybrid_smart")
+            rag_mode = os.getenv("DEFAULT_RAG_MODE", "internal_tools_v5")
         
         logger.info(f"Restaurant {req.restaurant_id} using RAG mode: {rag_mode}")
         
-        # Check if we should use tool-enabled version of full_menu
-        if rag_mode == 'full_menu' and os.getenv("ENABLE_FULL_MENU_TOOLS", "false").lower() == "true":
-            if 'full_menu_with_tools' in chat_services:
-                rag_mode = 'full_menu_with_tools'
-                logger.info(f"Using {rag_mode} - AI will decide when to use tools")
-        
         # Select appropriate service
         if rag_mode in chat_services:
-            chat_service = chat_services[rag_mode]
+            selected_service = chat_services[rag_mode]
             logger.info(f"Selected service: {rag_mode}")
         else:
-            logger.warning(f"RAG mode '{rag_mode}' not available, falling back to hybrid_smart")
-            chat_service = chat_services.get('hybrid_smart', chat_services.get('optimized', chat_services.get('fallback')))
+            logger.warning(f"RAG mode '{rag_mode}' not available, falling back to default")
+            selected_service = chat_services.get('default', chat_services.get('fallback'))
         
         # Get or create client FIRST (before creating message)
-        get_or_create_client(db, req.client_id, req.restaurant_id)
+        get_or_create_client(db, str(req.client_id), req.restaurant_id)
         
         # Now create client message
         new_message = models.ChatMessage(
@@ -389,47 +113,38 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         
         # Get AI response using selected service with fallback
         try:
-            response = chat_service(req, db)
+            response = selected_service(req, db)
             
             # Log which service was used
-            response_dict = response.dict() if hasattr(response, 'dict') else response
-            if isinstance(response_dict, dict) and 'answer' in response_dict:
-                logger.info(f"Response generated using {rag_mode} mode")
+            logger.info(f"Response generated using {rag_mode} mode")
             
             return response
         except Exception as service_error:
             logger.error(f"Service {rag_mode} failed: {service_error}")
-            logger.info("Falling back to MIA hybrid service")
+            logger.info("Falling back to default service")
             
-            # Fallback to MIA hybrid service
+            # Fallback to default service
             try:
-                fallback_response = chat_service(req, db)
+                fallback_response = chat_services['fallback'](req, db)
                 logger.info("Fallback service succeeded")
                 return fallback_response
             except Exception as fallback_error:
                 logger.error(f"Fallback service also failed: {fallback_error}")
-                # Return a basic error response
-                from schemas.chat import ChatResponse
-                return ChatResponse(answer="I apologize, but I'm experiencing technical difficulties. Please try again later.")
-        
+                raise HTTPException(
+                    status_code=500,
+                    detail="Chat service temporarily unavailable"
+                )
+            
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in dynamic chat endpoint: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error in dynamic chat: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/provider")
-async def get_provider_info():
-    """Get information about available chat providers"""
+@router.get("/chat/available-modes")
+async def get_available_modes():
+    """Get list of available chat modes"""
     return {
-        "provider": "dynamic_rag",
         "available_modes": list(chat_services.keys()),
-        "default_mode": os.getenv("DEFAULT_RAG_MODE", "hybrid_smart"),
-        "features": [
-            "Restaurant-specific AI mode selection",
-            "Dynamic service routing",
-            "Fallback support",
-            "All RAG modes available"
-        ]
+        "default_mode": "internal_tools_v5"
     }
