@@ -108,21 +108,39 @@ def get_customer_profile(db: Session, client_id: str, restaurant_id: str) -> Opt
         return None
 
 def get_chat_history(db: Session, client_id: str, restaurant_id: str, limit: int = 5) -> List[Dict]:
-    """Get recent chat history for context"""
+    """Get recent chat history for context - resets after 30 minutes of inactivity"""
+    from datetime import datetime, timedelta
+    
     try:
-        messages = db.query(models.ChatMessage).filter(
+        # First check the most recent message timestamp
+        latest_message = db.query(models.ChatMessage).filter(
             models.ChatMessage.client_id == client_id,
             models.ChatMessage.restaurant_id == restaurant_id
+        ).order_by(models.ChatMessage.timestamp.desc()).first()
+        
+        # If no messages or last message is older than 30 minutes, return empty history
+        if latest_message:
+            time_since_last = datetime.utcnow() - latest_message.timestamp
+            if time_since_last > timedelta(minutes=30):
+                logger.info(f"Conversation timeout - last message was {time_since_last.seconds // 60} minutes ago. Starting fresh.")
+                return []
+        
+        # Get messages from the last 30 minutes only
+        cutoff_time = datetime.utcnow() - timedelta(minutes=30)
+        messages = db.query(models.ChatMessage).filter(
+            models.ChatMessage.client_id == client_id,
+            models.ChatMessage.restaurant_id == restaurant_id,
+            models.ChatMessage.timestamp >= cutoff_time
         ).order_by(models.ChatMessage.timestamp.desc()).limit(limit * 2).all()
         
         history = []
         for msg in reversed(messages):
             history.append({
-                "role": "user" if msg.sender_type == "customer" else "assistant",
+                "role": "user" if msg.sender_type in ["customer", "client"] else "assistant",
                 "message": msg.message
             })
         
-        return history[-limit:]
+        return history[-limit * 2:]  # Return only the requested number of messages
     except Exception as e:
         logger.warning(f"Could not load chat history: {e}")
         return []
