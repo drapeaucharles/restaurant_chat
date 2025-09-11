@@ -13,21 +13,61 @@ FastAPI-based backend for AI-powered restaurant chat system with multi-model sup
 - **Embeddings**: PGVector for semantic search through menus
 - **Multi-language**: Automatic language detection and response
 
-## Architecture
+## Complete System Architecture
 
 ```
 ┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Frontend      │────▶│  FastAPI     │────▶│ PostgreSQL  │
-│  (React/Next)   │     │   Backend    │     │  + PGVector │
-└─────────────────┘     └──────────────┘     └─────────────┘
+│   React Frontend│────▶│  Restaurant  │────▶│ PostgreSQL  │
+│   (TypeScript)  │     │  Backend     │     │ + PGVector  │
+│   Tailwind CSS  │     │  (FastAPI)   │     │ Embeddings  │
+└─────────────────┘     └──────┬───────┘     └─────────────┘
                                │
-                    ┌──────────┴──────────┐
-                    │                     │
-              ┌─────▼─────┐        ┌─────▼─────┐
-              │    MIA     │        │ WhatsApp  │
-              │  Backend   │        │  Service  │
-              └───────────┘        └───────────┘
+                    ┌──────────┼──────────┐
+                    │          │          │
+            ┌───────▼──┐   ┌───▼────┐  ┌──▼────────┐
+            │   MIA    │   │WhatsApp│  │  Redis    │
+            │ Backend  │   │Service │  │  Cache    │
+            │(Job Queue│   │(Node.js│  │           │
+            │& GPU     │   │  + QR  │  │           │
+            │ Miners)  │   │Codes)  │  │           │
+            └──────────┘   └────────┘  └───────────┘
+                 │
+        ┌────────┴─────────┐
+        │                  │
+    ┌───▼─────┐    ┌──────▼──────┐
+    │GPU      │    │  GPU Miner  │
+    │Miner 1  │... │     N       │
+    │(vLLM)   │    │  (vLLM)     │
+    │bore.pub │    │ bore.pub    │
+    └─────────┘    └─────────────┘
 ```
+
+### Technology Stack
+
+#### Frontend (React/TypeScript)
+- **Framework**: React 18 with TypeScript
+- **Styling**: Tailwind CSS with dark theme
+- **Animations**: Framer Motion
+- **Build Tool**: Vite for fast development
+- **State Management**: Context API + Zustand
+
+#### Backend (FastAPI/Python)
+- **Framework**: FastAPI with async support
+- **Database**: PostgreSQL with PGVector for embeddings
+- **Caching**: Redis for response caching
+- **AI Integration**: MIA Backend for GPU mining
+- **Authentication**: JWT-based auth system
+
+#### AI Infrastructure
+- **MIA Backend**: Centralized job orchestration
+- **GPU Miners**: Distributed vLLM workers
+- **Models**: Qwen2.5-7B-Instruct-AWQ (4-bit)
+- **Tool Calling**: OpenAI-compatible function calling
+
+#### External Services
+- **WhatsApp**: Business API integration
+- **Deployment**: Railway for both frontend and backend
+- **Tunneling**: bore.pub for GPU miner access
 
 ## Quick Start
 
@@ -237,35 +277,103 @@ Each restaurant can configure their preferred AI service in the database:
 ## Project Structure
 
 ```
-Restaurant/BackEnd/
-├── main.py                 # FastAPI application
-├── models.py              # SQLAlchemy models
-├── database.py            # Database connection
-├── config.py              # Configuration
-├── requirements.txt       # Python dependencies
-├── Dockerfile            # Docker configuration
+Restaurant/                        # Main restaurant AI system
+├── README.md                      # This file - system overview
+├── CLAUDE_CONTEXT.md             # Technical context for AI assistants
 │
-├── routes/               # API endpoints
-│   ├── auth.py          # Authentication
-│   ├── chat_dynamic.py  # Dynamic chat routing
-│   ├── restaurant.py    # Restaurant management
-│   └── whatsapp.py      # WhatsApp integration
+├── BackEnd/                      # Python FastAPI backend
+│   ├── main.py                   # FastAPI application entry point
+│   ├── models.py                 # SQLAlchemy database models
+│   ├── database.py               # Database connection setup
+│   ├── config.py                 # Configuration management
+│   ├── requirements.txt          # Python dependencies
+│   ├── Dockerfile               # Backend container config
+│   │
+│   ├── routes/                  # API endpoint definitions
+│   │   ├── auth.py             # Authentication endpoints
+│   │   ├── chat_dynamic.py     # Dynamic chat routing
+│   │   ├── restaurant.py       # Restaurant CRUD operations
+│   │   ├── whatsapp.py         # WhatsApp integration
+│   │   └── businesses.py       # Multi-business support
+│   │
+│   ├── services/               # Core business logic
+│   │   ├── mia_chat_service_internal_tools_v5.py  # Main AI service
+│   │   ├── customer_memory_service.py             # Customer memory
+│   │   ├── embedding_service.py                   # Vector embeddings
+│   │   ├── restaurant_service.py                  # Restaurant logic
+│   │   └── whatsapp_service.py                    # WhatsApp messaging
+│   │
+│   ├── schemas/                # Pydantic data models
+│   │   ├── chat.py            # Chat request/response schemas
+│   │   ├── restaurant.py      # Restaurant data schemas
+│   │   ├── auth.py           # Authentication schemas
+│   │   └── whatsapp.py       # WhatsApp message schemas
+│   │
+│   ├── models/                # Database model definitions
+│   │   └── customer_profile.py
+│   │
+│   ├── uploads/               # File upload storage
+│   │   └── menu/             # Menu image uploads
+│   │
+│   └── gpu_embedding_service/ # Secure embedding API
+│       ├── Dockerfile
+│       ├── docker-compose.yml
+│       └── secure_embedding_api.py
 │
-├── services/            # Business logic
-│   ├── mia_chat_service_*.py     # MIA integrations
-│   ├── customer_memory_service.py # Customer memory
-│   ├── embedding_service.py       # Embeddings
-│   └── restaurant_service.py      # Restaurant logic
+├── Front_end/project/           # React TypeScript frontend
+│   ├── package.json            # Node.js dependencies
+│   ├── vite.config.ts         # Vite build configuration
+│   ├── tailwind.config.js     # Tailwind CSS config
+│   │
+│   ├── src/                   # React source code
+│   │   ├── App.tsx           # Main application component
+│   │   ├── main.tsx          # Application entry point
+│   │   │
+│   │   ├── components/       # Reusable UI components
+│   │   │   ├── Chat/        # Chat interface components
+│   │   │   ├── Forms/       # Business and menu forms
+│   │   │   ├── Layout/      # Layout wrapper components
+│   │   │   ├── WhatsApp/    # WhatsApp integration UI
+│   │   │   └── ui/          # Base UI components
+│   │   │
+│   │   ├── pages/           # Route page components
+│   │   │   ├── Admin/       # Admin dashboard pages
+│   │   │   ├── Owner/       # Business owner pages
+│   │   │   ├── Auth/        # Authentication pages
+│   │   │   └── Public/      # Public-facing pages
+│   │   │
+│   │   ├── services/        # API communication layer
+│   │   ├── contexts/        # React context providers
+│   │   ├── types/          # TypeScript type definitions
+│   │   └── utils/          # Helper functions
+│   │
+│   ├── public/             # Static assets
+│   └── build/             # Production build output
 │
-├── schemas/             # Pydantic models
-│   ├── chat.py         # Chat schemas
-│   ├── restaurant.py   # Restaurant schemas
-│   └── auth.py         # Auth schemas
+├── whatsapp-service/         # Node.js WhatsApp service
+│   ├── server.js            # WhatsApp webhook server
+│   ├── package.json        # Node.js dependencies
+│   └── qr-codes/          # QR code storage
 │
-├── migrations/          # Database migrations
-├── uploads/            # File uploads
-└── whatsapp-service/   # WhatsApp Node.js service
+├── install_miner_oneliner.sh  # GPU miner installation script
+└── test_*.py                  # Testing and validation scripts
 ```
+
+### Key Components Breakdown
+
+#### Backend Services Architecture
+- **Main AI Service**: `services/mia_chat_service_internal_tools_v5.py` - Complete two-phase AI system
+- **Customer Memory**: Persistent conversation history and preferences
+- **Tool Calling**: Database queries executed locally for safety
+- **Multi-Business**: Support for restaurants, bakeries, cafes, legal services
+- **WhatsApp Integration**: Full Business API with QR code generation
+
+#### Frontend Architecture
+- **Role-Based Access**: Admin, business owner, and public user interfaces
+- **Real-Time Chat**: WebSocket-ready chat interface with tool call visualization
+- **Menu Management**: Visual editor with drag-drop, photos, allergen tracking
+- **Dark Theme**: Cosmic-themed UI with animated backgrounds
+- **Responsive Design**: Mobile-first approach with Tailwind CSS
 
 ## Testing
 
