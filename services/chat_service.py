@@ -11,18 +11,18 @@ from sqlalchemy.orm import Session
 import models
 import uuid
 
-def get_or_create_client(db: Session, client_id: str, name: str, restaurant_id: str):
-    """Get or create a client record"""
-    client = db.query(models.Client).filter(
-        models.Client.client_id == client_id,
-        models.Client.restaurant_id == restaurant_id
+def get_or_create_client(db: Session, client_id: str, restaurant_id: str):
+    """Get or create a client"""
+    client = db.query(models.Client).filter_by(
+        id=client_id,
+        restaurant_id=restaurant_id
     ).first()
     
     if not client:
         client = models.Client(
-            client_id=client_id,
-            name=name,
-            restaurant_id=restaurant_id
+            id=client_id,
+            restaurant_id=restaurant_id,
+            device_info={}
         )
         db.add(client)
         db.commit()
