@@ -237,6 +237,18 @@ AVAILABLE TOOLS:
    
 8. no_tool_needed - For greetings, thanks, general chat
 
+9. explain_reasoning - Customer asking why you said/did something
+   Parameters: none needed
+   
+10. handle_misunderstanding - Customer confused or disagrees
+    Parameters: none needed
+    
+11. restaurant_info - Questions about restaurant/service
+    Parameters: info_type (hours, location, contact, general)
+    
+12. change_preference - Customer wants something different
+    Parameters: none needed
+
 RULES:
 1. Select tools that best answer the customer's request
 2. Include all necessary tools (e.g., allergy filter + category search)
@@ -269,6 +281,20 @@ EXAMPLES:
   
 - "Thanks" → 
   [{{"tool": "no_tool_needed"}}]
+  
+- "Why do you offer me pasta?" → 
+  [{{"tool": "explain_reasoning"}}]
+  
+- "I didn't ask for that" → 
+  [{{"tool": "handle_misunderstanding"}}]
+  
+- "What time do you close?" → 
+  [{{"tool": "restaurant_info", "parameters": {{"info_type": "hours"}}}}]
+  
+- "Show me something else" → 
+  [{{"tool": "change_preference"}}]
+
+IMPORTANT: If customer questions your suggestions ("why do you..."), use explain_reasoning NOT food search tools.
 
 Respond with ONLY the JSON array."""
     
@@ -599,6 +625,67 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 
+def execute_non_food_tool(tool_name: str, params: Dict, customer_profile: Optional[Any] = None) -> Dict:
+    """Execute non-food related tools that don't need menu context"""
+    
+    # Get customer restrictions for context (but won't suggest food)
+    has_restrictions = False
+    restriction_info = []
+    if customer_profile:
+        allergies = getattr(customer_profile, 'allergies', []) or []
+        dietary = getattr(customer_profile, 'dietary_restrictions', []) or []
+        restriction_info = allergies + dietary
+        has_restrictions = bool(restriction_info)
+    
+    if tool_name == "explain_reasoning":
+        return {
+            "tool": tool_name,
+            "response_type": "explanation_needed",
+            "context": "Customer questioning AI behavior",
+            "has_dietary_restrictions": has_restrictions,
+            "restrictions": restriction_info,
+            "do_not_suggest_food": True
+        }
+    
+    elif tool_name == "handle_misunderstanding":
+        return {
+            "tool": tool_name,
+            "response_type": "clarification_needed",
+            "context": "Customer seems confused or disagrees",
+            "has_dietary_restrictions": has_restrictions,
+            "restrictions": restriction_info,
+            "do_not_suggest_food": True
+        }
+    
+    elif tool_name == "restaurant_info":
+        info_type = params.get("info_type", "general")
+        info_map = {
+            "hours": "Mon-Thu: 11:30 AM - 10:00 PM, Fri-Sat: 11:30 AM - 11:00 PM, Sun: 10:00 AM - 9:00 PM",
+            "location": "Located in the heart of downtown at 123 Main Street",
+            "contact": "Phone: (555) 123-4567, Email: info@bellavista.com",
+            "general": "Bella Vista is a modern Italian restaurant serving authentic cuisine since 2015"
+        }
+        return {
+            "tool": tool_name,
+            "info_type": info_type,
+            "info": info_map.get(info_type, info_map["general"]),
+            "has_dietary_restrictions": has_restrictions,
+            "do_not_suggest_food": True
+        }
+    
+    elif tool_name == "change_preference":
+        return {
+            "tool": tool_name,
+            "response_type": "preference_change",
+            "context": "Customer wants different options",
+            "has_dietary_restrictions": has_restrictions,
+            "restrictions": restriction_info,
+            "do_not_suggest_food": False  # This one might involve food suggestions
+        }
+    
+    else:
+        return {"error": f"Unknown non-food tool: {tool_name}"}
+
 def execute_tools_single_pass(tools: List[Dict], menu_items: List[Dict], customer_profile: Optional[Any]) -> List[Dict]:
     """Execute multiple search/filter tools in a single pass for performance"""
     logger.info(f"Executing {len(tools)} tools in single pass over {len(menu_items)} items")
@@ -761,8 +848,22 @@ def build_phase2_prompt(message: str, tool_results: List[Dict], restaurant_name:
                        chat_history: List[Dict] = None) -> str:
     """Build Phase 2 prompt for final response generation"""
     
+    # Check if any non-food tools were executed
+    non_food_tools_executed = any(
+        result.get("tool") in ["explain_reasoning", "handle_misunderstanding", "restaurant_info", "change_preference"]
+        and result.get("do_not_suggest_food", False)
+        for result in tool_results
+    )
+    
     # Context-specific intro
-    if context_type == "allergen_safety":
+    if non_food_tools_executed:
+        # Non-food context - focus on answering the meta-question without suggesting food
+        prompt = f"""You are Maria, a helpful server at {restaurant_name}.
+
+The customer is asking a question that is NOT about ordering food. Focus on answering their specific question.
+
+"""
+    elif context_type == "allergen_safety":
         prompt = f"""You are Maria, a safety-conscious server at {restaurant_name}.
 
 CRITICAL: Customer has restrictions: {', '.join(context_data.get('all_restrictions', []))}
@@ -855,7 +956,43 @@ MENU DATA FROM SEARCH:
                     prompt += f"❌ No items found in this category.\n"
     
     # Response guidelines
-    if context_type == "allergen_safety":
+    if non_food_tools_executed:
+        # Non-food context - special guidelines
+        prompt += """
+IMPORTANT GUIDELINES FOR NON-FOOD QUESTIONS:
+1. DO NOT suggest any food items or dishes
+2. DO NOT ask what the customer would like to eat
+3. DO NOT recommend menu items
+4. Focus ONLY on answering their specific question:
+"""
+        # Add specific guidelines based on which non-food tool was used
+        for result in tool_results:
+            if result.get("tool") == "explain_reasoning":
+                prompt += """
+   - They asked WHY you suggested certain items - explain your reasoning based on their restrictions/preferences
+   - Reference the specific allergens or dietary requirements that guided your suggestions
+"""
+            elif result.get("tool") == "handle_misunderstanding":
+                prompt += """
+   - They seem confused or there's a misunderstanding - clarify what you meant
+   - Be patient and helpful in clearing up any confusion
+"""
+            elif result.get("tool") == "restaurant_info":
+                prompt += """
+   - They want information about the restaurant - provide relevant details
+   - This might include hours, policies, location, or general information
+"""
+            elif result.get("tool") == "change_preference":
+                prompt += """
+   - They want to change their preferences or restrictions
+   - Acknowledge the change and confirm you'll remember it
+"""
+        
+        prompt += """
+5. Keep response concise and directly address their question
+6. After answering, do NOT transition back to suggesting food unless they explicitly ask
+"""
+    elif context_type == "allergen_safety":
         customer_allergies = getattr(customer_profile, 'allergies', []) if customer_profile else []
         prompt += f"""
 SAFETY RULES:
@@ -1046,9 +1183,13 @@ Respond:"""
         tool_results = []
         logger.info(f"Executing {len(selected_tools)} tools. Menu has {len(menu_items)} items")
         
+        # Define non-food tools that don't need menu context
+        NON_FOOD_TOOLS = ["explain_reasoning", "handle_misunderstanding", "restaurant_info", "change_preference"]
+        
         # Separate tools by type for efficient execution
         search_filter_tools = []
         other_tools = []
+        non_food_tools = []
         
         for tool_data in selected_tools:
             tool_name = tool_data.get("tool")
@@ -1062,8 +1203,18 @@ Respond:"""
                              "search_menu_by_ingredient", "filter_vegetarian", "filter_vegan", 
                              "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free"]:
                 search_filter_tools.append(tool_data)
+            elif tool_name in NON_FOOD_TOOLS:
+                non_food_tools.append(tool_data)
             else:
                 other_tools.append(tool_data)
+        
+        # Execute non-food tools first (they don't need menu data)
+        for tool_data in non_food_tools:
+            tool_name = tool_data.get("tool")
+            params = tool_data.get("parameters", {})
+            result = execute_non_food_tool(tool_name, params, customer_profile)
+            tool_results.append(result)
+            logger.info(f"Non-food tool {tool_name} executed")
         
         # Execute search/filter tools in single pass for performance
         if search_filter_tools:
