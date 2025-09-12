@@ -278,10 +278,10 @@ AVAILABLE TOOLS:
    Parameters: info_type (MUST be one of: hours, location, contact, general)
 
 PRIORITY RULES:
-1. For greetings/goodbyes/thanks → ALWAYS use no_food_response
-2. For food questions → use appropriate search/filter tools
+1. For greetings/goodbyes/thanks WITHOUT food context → use no_food_response
+2. For ANY question about food, dishes, menu, recommendations, specialties → use food search tools
 3. For "I'll take it" type messages → check history and use get_dish_details
-4. For "best dishes" or "recommendations" → use search_by_course_type with "main" parameter
+4. For recommendations ("recommend", "suggest", "try", "popular", "specialty") → use search_by_course_type with "main"
 
 EXAMPLES:
 - "Good evening" → [{{"tool": "no_food_response", "parameters": {{"response_type": "greeting"}}}}]
@@ -290,6 +290,8 @@ EXAMPLES:
 - "What time do you close?" → [{{"tool": "no_food_response", "parameters": {{"response_type": "hours", "include_hours": true}}}}]
 - "What pasta do you have?" → [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
 - "What are your best dishes?" → [{{"tool": "search_by_course_type", "parameters": {{"course_type": "main"}}}}]
+- "What should I try?" → [{{"tool": "search_by_course_type", "parameters": {{"course_type": "main"}}}}]
+- "What's your specialty?" → [{{"tool": "search_by_course_type", "parameters": {{"course_type": "main"}}}}]
 - "I'm allergic to nuts" → [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
 
 Respond with ONLY the JSON array."""
