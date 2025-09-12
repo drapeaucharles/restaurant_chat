@@ -653,17 +653,32 @@ MENU DATA FROM SEARCH:
     if not has_results and not any(r.get("tool") in ["update_allergy_add", "restaurant_info"] for r in tool_results):
         prompt += "\nNo specific items found matching the request.\n"
     
+    # Check if this is a follow-up to greeting
+    is_followup = False
+    if chat_history:
+        for msg in chat_history:
+            if msg["role"] == "assistant" and any(greeting in msg["message"].lower() for greeting in ["hello", "welcome", "hi"]):
+                is_followup = True
+                break
+    
     # Response guidelines
-    prompt += """
+    if is_followup:
+        prompt += """
+CRITICAL INSTRUCTIONS - THIS IS A FOLLOW-UP MESSAGE:
+- DO NOT greet again (no "Hello", "Hi", "Welcome")
+- DO NOT use the customer's name
+- Start DIRECTLY with food recommendations
+- Example: "I'd recommend the Quinoa Power Bowl ($14.99) or the Mushroom Risotto ($22.99)."
+
+Your response:"""
+    else:
+        prompt += """
 RESPONSE GUIDELINES:
 1. Be conversational and helpful
 2. Mention 2-3 specific items with prices when relevant
 3. For allergen contexts, emphasize safety
 4. Keep responses concise (2-3 sentences)
 5. Don't repeat allergy warnings unless directly relevant
-6. If this is a follow-up to a greeting (check conversation history), go straight to recommendations
-7. If customer introduces themselves WITH a food question in same message, you may greet briefly then recommend
-8. Never repeat customer names in follow-up messages
 
 Your response:"""
     
