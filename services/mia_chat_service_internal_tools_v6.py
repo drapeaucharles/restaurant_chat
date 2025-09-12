@@ -652,6 +652,7 @@ Your response:"""
 
 def mia_chat_service_internal_tools_v6(req: ChatRequest, db: Session) -> ChatResponse:
     """V6: Improved phase-based MIA chat with better non-food response handling"""
+    logger.info("=== USING V6 SERVICE ===")
     
     try:
         start_time = time.time()
@@ -713,6 +714,7 @@ def mia_chat_service_internal_tools_v6(req: ChatRequest, db: Session) -> ChatRes
         selection_text = selection_text.strip()
         
         try:
+            logger.info(f"Phase 1 raw response: {selection_text[:200]}...")
             selected_tools = json.loads(selection_text)
             if not isinstance(selected_tools, list):
                 selected_tools = [{"tool": "no_food_response", "parameters": {"response_type": "general"}}]
