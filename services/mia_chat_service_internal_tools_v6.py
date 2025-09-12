@@ -656,16 +656,22 @@ MENU DATA FROM SEARCH:
     # Check if this is a follow-up to greeting
     is_followup = False
     if chat_history:
-        logger.info(f"Checking chat history for greetings, found {len(chat_history)} messages")
-        for msg in chat_history:
+        logger.info(f"DEBUG: Checking chat history for greetings, found {len(chat_history)} messages")
+        for i, msg in enumerate(chat_history):
+            logger.info(f"DEBUG: Message {i}: role={msg['role']}, content={msg['message'][:50]}...")
             if msg["role"] == "assistant" and any(greeting in msg["message"].lower() for greeting in ["hello", "welcome", "hi"]):
                 is_followup = True
-                logger.info(f"Found greeting in previous message, marking as follow-up")
+                logger.info(f"DEBUG: Found greeting in previous message, marking as follow-up")
                 break
+    else:
+        logger.info("DEBUG: No chat history provided")
     
     # Response guidelines
     if is_followup:
         prompt += """
+
+[SYSTEM: This is a FOLLOW-UP to a greeting. Previous messages show greeting already done.]
+
 CRITICAL INSTRUCTIONS - THIS IS A FOLLOW-UP MESSAGE:
 - DO NOT greet again (no "Hello", "Hi", "Welcome")
 - DO NOT use the customer's name
