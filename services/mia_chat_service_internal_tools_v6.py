@@ -209,8 +209,11 @@ def build_phase1_prompt(message: str, customer_profile: Any, chat_history: List[
     
     prompt = f"""You are a tool selector for {restaurant_name}. 
 
-CRITICAL INSTRUCTION: Focus PRIMARILY on the CURRENT MESSAGE intent. 
-Only use conversation history when the current message explicitly references it (e.g., "I'll take it", "that one", "the first option").
+CRITICAL INSTRUCTIONS:
+1. Focus PRIMARILY on the CURRENT MESSAGE intent
+2. Only use conversation history when current message explicitly references it
+3. ONLY use parameter values that are EXPLICITLY listed below - DO NOT make up values
+4. If the requested category doesn't match available options, use the closest match or different tool
 
 CURRENT MESSAGE TO ANALYZE: "{message}"
 """
@@ -250,13 +253,13 @@ AVAILABLE TOOLS:
    Parameters: dish_name (can be partial like "carbonara" or have typos)
    
 3. search_by_meal_time - Search dishes by when they're served
-   Parameters: meal_time (from: {', '.join(categories['meal_times'])})
+   Parameters: meal_time (MUST be one of: {', '.join(categories['meal_times'])})
    
 4. search_by_course_type - Search dishes by course
-   Parameters: course_type (from: {', '.join(categories['course_types'])})
+   Parameters: course_type (MUST be one of: {', '.join(categories['course_types'])})
    
 5. search_by_food_type - Search dishes by food category
-   Parameters: food_type (from: {', '.join(categories['food_categories'])})
+   Parameters: food_type (MUST be one of: {', '.join(categories['food_categories'])})
    
 6. search_menu_by_ingredient - Search dishes containing ingredient
    Parameters: ingredient (any ingredient name)
@@ -268,12 +271,13 @@ AVAILABLE TOOLS:
    Parameters: allergies (list), reason (for remove)
    
 9. restaurant_info - Questions about restaurant/service
-   Parameters: info_type (hours, location, contact, general)
+   Parameters: info_type (MUST be one of: hours, location, contact, general)
 
 PRIORITY RULES:
 1. For greetings/goodbyes/thanks → ALWAYS use no_food_response
 2. For food questions → use appropriate search/filter tools
 3. For "I'll take it" type messages → check history and use get_dish_details
+4. For "best dishes" or "recommendations" → use search_by_course_type with "main" parameter
 
 EXAMPLES:
 - "Good evening" → [{{"tool": "no_food_response", "parameters": {{"response_type": "greeting"}}}}]
@@ -281,6 +285,7 @@ EXAMPLES:
 - "Thanks!" → [{{"tool": "no_food_response", "parameters": {{"response_type": "thanks"}}}}]
 - "What time do you close?" → [{{"tool": "no_food_response", "parameters": {{"response_type": "hours", "include_hours": true}}}}]
 - "What pasta do you have?" → [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
+- "What are your best dishes?" → [{{"tool": "search_by_course_type", "parameters": {{"course_type": "main"}}}}]
 - "I'm allergic to nuts" → [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
 
 Respond with ONLY the JSON array."""
