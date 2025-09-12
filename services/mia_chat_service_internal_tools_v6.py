@@ -661,6 +661,9 @@ RESPONSE GUIDELINES:
 3. For allergen contexts, emphasize safety
 4. Keep responses concise (2-3 sentences)
 5. Don't repeat allergy warnings unless directly relevant
+6. If this is a follow-up to a greeting (check conversation history), go straight to recommendations
+7. If customer introduces themselves WITH a food question in same message, you may greet briefly then recommend
+8. Never repeat customer names in follow-up messages
 
 Your response:"""
     
