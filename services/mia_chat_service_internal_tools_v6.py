@@ -45,7 +45,11 @@ def create_menu_summary(menu_items: List[Dict]) -> str:
         if item.get('is_vegan'): dietary_tags.append('vegan')
         if item.get('is_gluten_free'): dietary_tags.append('gf')
         
-        item_str = f"{name} ${price:.2f}"
+        # Handle price as string or number
+        if isinstance(price, (int, float)):
+            item_str = f"{name} ${price:.2f}"
+        else:
+            item_str = f"{name} ${price}"
         if dietary_tags:
             item_str += f" ({','.join(dietary_tags)})"
         
@@ -637,7 +641,12 @@ MENU DATA FROM SEARCH:
             items = result["items"][:5]  # Limit items shown
             prompt += f"\nFrom {result.get('tool')} ({len(items)} items):\n"
             for item in items:
-                prompt += f"- {item['name']} - ${item['price']:.2f}\n"
+                # Handle price as string or float
+                price = item.get('price', '0')
+                if isinstance(price, (int, float)):
+                    prompt += f"- {item['name']} - ${price:.2f}\n"
+                else:
+                    prompt += f"- {item['name']} - ${price}\n"
     
     if not has_results and not any(r.get("tool") in ["update_allergy_add", "restaurant_info"] for r in tool_results):
         prompt += "\nNo specific items found matching the request.\n"
