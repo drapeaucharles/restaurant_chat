@@ -680,8 +680,8 @@ def mia_chat_service_internal_tools_v6(req: ChatRequest, db: Session) -> ChatRes
         restaurant_name = restaurant_data.get('business_name', 'our restaurant')
         
         # Get context
-        customer_profile = get_customer_profile(db, req.client_id, req.restaurant_id)
-        chat_history = get_chat_history(db, req.client_id, req.restaurant_id, limit=3)
+        customer_profile = get_customer_profile(db, str(req.client_id), req.restaurant_id)
+        chat_history = get_chat_history(db, str(req.client_id), req.restaurant_id, limit=3)
         context_type, context_data = get_context_type(customer_profile, req.message)
         
         logger.info(f"=== V6 2-Phase System - Restaurant: {req.restaurant_id} ===")
@@ -702,24 +702,27 @@ def mia_chat_service_internal_tools_v6(req: ChatRequest, db: Session) -> ChatRes
         )
         
         if response.status_code != 200:
-            return ChatResponse(answer="I'm having trouble understanding. Please try again.", response_id=None, confidence_score=0.0)
-        
-        # Parse tool selection
-        response_data = response.json()
-        selection_text = response_data.get("response", "")
-        
-        if selection_text is None:
-            selection_text = ""
-        
-        selection_text = selection_text.strip()
-        
-        try:
-            logger.info(f"Phase 1 raw response: {selection_text[:200]}...")
-            selected_tools = json.loads(selection_text)
-            if not isinstance(selected_tools, list):
-                selected_tools = [{"tool": "no_food_response", "parameters": {"response_type": "general"}}]
-        except:
+            logger.error(f"Phase 1 failed with status {response.status_code}: {response.text}")
+            # Fallback to no_food_response for non-200 status
             selected_tools = [{"tool": "no_food_response", "parameters": {"response_type": "general"}}]
+        else:
+            # Parse tool selection
+            response_data = response.json()
+            selection_text = response_data.get("response", "")
+            
+            if selection_text is None:
+                selection_text = ""
+            
+            selection_text = selection_text.strip()
+            
+            try:
+                logger.info(f"Phase 1 raw response: {selection_text[:200]}...")
+                selected_tools = json.loads(selection_text)
+                if not isinstance(selected_tools, list):
+                    selected_tools = [{"tool": "no_food_response", "parameters": {"response_type": "general"}}]
+            except Exception as e:
+                logger.error(f"Failed to parse tools JSON: {e}")
+                selected_tools = [{"tool": "no_food_response", "parameters": {"response_type": "general"}}]
         
         logger.info(f"Selected tools: {selected_tools}")
         
