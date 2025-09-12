@@ -27,13 +27,8 @@ try:
 except ImportError as e:
     logger.warning(f"Internal tools V7 service not available: {str(e)}")
 
-# Keep v6 as fallback
-try:
-    from services.mia_chat_service_internal_tools_v6 import mia_chat_service_internal_tools_v6
-    chat_services['internal_tools_v6'] = mia_chat_service_internal_tools_v6
-    logger.info("Loaded internal tools service V6")
-except ImportError as e:
-    logger.warning(f"Internal tools V6 service not available: {str(e)}")
+# V6 is broken - DO NOT USE
+# V6 has wrong field names causing 0 results and AI hallucination
 
 # Keep v5 as fallback
 try:
