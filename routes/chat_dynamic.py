@@ -18,12 +18,20 @@ router = APIRouter()
 # Import only available services
 chat_services = {}
 
-# Default service (mia_chat_service_internal_tools_v6)
+# Default service (mia_chat_service_internal_tools_v7)
+try:
+    from services.mia_chat_service_internal_tools_v7 import mia_chat_service_internal_tools_v7
+    chat_services['internal_tools_v7'] = mia_chat_service_internal_tools_v7
+    chat_services['default'] = mia_chat_service_internal_tools_v7
+    logger.info("Loaded internal tools service V7 (default)")
+except ImportError as e:
+    logger.warning(f"Internal tools V7 service not available: {str(e)}")
+
+# Keep v6 as fallback
 try:
     from services.mia_chat_service_internal_tools_v6 import mia_chat_service_internal_tools_v6
     chat_services['internal_tools_v6'] = mia_chat_service_internal_tools_v6
-    chat_services['default'] = mia_chat_service_internal_tools_v6
-    logger.info("Loaded internal tools service V6 (default)")
+    logger.info("Loaded internal tools service V6")
 except ImportError as e:
     logger.warning(f"Internal tools V6 service not available: {str(e)}")
 
@@ -90,11 +98,11 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             if not restaurant:
                 raise HTTPException(status_code=404, detail="Restaurant/Business not found")
             
-            rag_mode = getattr(restaurant, 'rag_mode', 'internal_tools_v6')
+            rag_mode = getattr(restaurant, 'rag_mode', 'internal_tools_v7')
         
         # If restaurant doesn't have rag_mode set, use default
         if not rag_mode:
-            rag_mode = os.getenv("DEFAULT_RAG_MODE", "internal_tools_v6")
+            rag_mode = os.getenv("DEFAULT_RAG_MODE", "internal_tools_v7")
         
         logger.info(f"Restaurant {req.restaurant_id} using RAG mode: {rag_mode}")
         
@@ -154,5 +162,5 @@ async def get_available_modes():
     """Get list of available chat modes"""
     return {
         "available_modes": list(chat_services.keys()),
-        "default_mode": "internal_tools_v6"
+        "default_mode": "internal_tools_v7"
     }
