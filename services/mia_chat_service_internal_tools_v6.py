@@ -573,6 +573,7 @@ def build_phase2_prompt(message: str, tool_results: List[Dict], restaurant_name:
                        customer_profile: Any, context_type: str, context_data: Dict,
                        chat_history: List[Dict] = None) -> str:
     """Build Phase 2 prompt for final response generation"""
+    logger.info(f"DEBUG: build_phase2_prompt called with chat_history={'None' if chat_history is None else f'{len(chat_history)} messages'}")
     
     # Check for no_food_response tool
     no_food_response = next((r for r in tool_results if r.get("tool") == "no_food_response"), None)
