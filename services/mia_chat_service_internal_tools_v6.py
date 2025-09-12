@@ -656,9 +656,11 @@ MENU DATA FROM SEARCH:
     # Check if this is a follow-up to greeting
     is_followup = False
     if chat_history:
+        logger.info(f"Checking chat history for greetings, found {len(chat_history)} messages")
         for msg in chat_history:
             if msg["role"] == "assistant" and any(greeting in msg["message"].lower() for greeting in ["hello", "welcome", "hi"]):
                 is_followup = True
+                logger.info(f"Found greeting in previous message, marking as follow-up")
                 break
     
     # Response guidelines
