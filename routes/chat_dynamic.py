@@ -18,25 +18,25 @@ router = APIRouter()
 # Import only available services
 chat_services = {}
 
-# Default service (mia_chat_service_internal_tools_v7)
+# Default service - using V5 as stable baseline
 try:
-    from services.mia_chat_service_internal_tools_v7 import mia_chat_service_internal_tools_v7
-    chat_services['internal_tools_v7'] = mia_chat_service_internal_tools_v7
-    chat_services['default'] = mia_chat_service_internal_tools_v7
-    logger.info("Loaded internal tools service V7 (default)")
+    from services.mia_chat_service_internal_tools_v5 import mia_chat_service_internal_tools_v5
+    chat_services['internal_tools_v5'] = mia_chat_service_internal_tools_v5
+    chat_services['default'] = mia_chat_service_internal_tools_v5
+    logger.info("Loaded internal tools service V5 (default)")
 except ImportError as e:
-    logger.warning(f"Internal tools V7 service not available: {str(e)}")
+    logger.warning(f"Internal tools V5 service not available: {str(e)}")
 
 # V6 is broken - DO NOT USE
 # V6 has wrong field names causing 0 results and AI hallucination
 
-# Keep v5 as fallback
+# V7 available but not default
 try:
-    from services.mia_chat_service_internal_tools_v5 import mia_chat_service_internal_tools_v5
-    chat_services['internal_tools_v5'] = mia_chat_service_internal_tools_v5
-    logger.info("Loaded internal tools service V5 (fallback)")
+    from services.mia_chat_service_internal_tools_v7 import mia_chat_service_internal_tools_v7
+    chat_services['internal_tools_v7'] = mia_chat_service_internal_tools_v7
+    logger.info("Loaded internal tools service V7")
 except ImportError as e:
-    logger.warning(f"Internal tools V5 service not available: {str(e)}")
+    logger.warning(f"Internal tools V7 service not available: {str(e)}")
 
 # RAG services that exist
 try:
@@ -93,11 +93,11 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             if not restaurant:
                 raise HTTPException(status_code=404, detail="Restaurant/Business not found")
             
-            rag_mode = getattr(restaurant, 'rag_mode', 'internal_tools_v7')
+            rag_mode = getattr(restaurant, 'rag_mode', 'internal_tools_v5')
         
         # If restaurant doesn't have rag_mode set, use default
         if not rag_mode:
-            rag_mode = os.getenv("DEFAULT_RAG_MODE", "internal_tools_v7")
+            rag_mode = os.getenv("DEFAULT_RAG_MODE", "internal_tools_v5")
         
         logger.info(f"Restaurant {req.restaurant_id} using RAG mode: {rag_mode}")
         
@@ -157,5 +157,5 @@ async def get_available_modes():
     """Get list of available chat modes"""
     return {
         "available_modes": list(chat_services.keys()),
-        "default_mode": "internal_tools_v7"
+        "default_mode": "internal_tools_v5"
     }
