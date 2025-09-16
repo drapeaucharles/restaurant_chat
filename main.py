@@ -390,10 +390,10 @@ def root():
         "deployment": {
             "branch": branch,
             "commit": commit,
-            "version": "v5-with-goodbye-mia-hallucination-fix",
+            "version": "v5-handle-no-food-response-in-simple-flow",
             "has_pasta_fixes": True,
             "mia_chat_service": "rag_enhanced_lightweight",
-            "deployment_timestamp": "2025-01-14-2000",
+            "deployment_timestamp": "2025-09-16-1500",
             "features": ["lightweight_rag", "huggingface_api", "maria_personality", "redis_caching", "vector_embeddings", "no_ml_libs"],
             "latest_addition": "lightweight_embeddings_api",
             "notes": {
