@@ -390,7 +390,7 @@ def root():
         "deployment": {
             "branch": branch,
             "commit": commit,
-            "version": "v5-with-goodbye-fix",
+            "version": "v5-with-goodbye-mia-hallucination-fix",
             "has_pasta_fixes": True,
             "mia_chat_service": "rag_enhanced_lightweight",
             "deployment_timestamp": "2025-01-14-2000",
