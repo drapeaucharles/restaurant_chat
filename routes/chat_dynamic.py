@@ -30,13 +30,7 @@ except ImportError as e:
 # V6 is broken - DO NOT USE
 # V6 has wrong field names causing 0 results and AI hallucination
 
-# V7 available but not default
-try:
-    from services.mia_chat_service_internal_tools_v7 import mia_chat_service_internal_tools_v7
-    chat_services['internal_tools_v7'] = mia_chat_service_internal_tools_v7
-    logger.info("Loaded internal tools service V7")
-except ImportError as e:
-    logger.warning(f"Internal tools V7 service not available: {str(e)}")
+# V7 removed - using V5 with proper goodbye handling
 
 # RAG services that exist
 try:
