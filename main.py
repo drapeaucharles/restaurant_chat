@@ -390,7 +390,7 @@ def root():
         "deployment": {
             "branch": branch,
             "commit": commit,
-            "version": "v7-rag-lightweight-READY",
+            "version": "v5-with-goodbye-fix",
             "has_pasta_fixes": True,
             "mia_chat_service": "rag_enhanced_lightweight",
             "deployment_timestamp": "2025-01-14-2000",
