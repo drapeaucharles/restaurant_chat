@@ -1250,7 +1250,7 @@ Respond:"""
         logger.info(f"Executing {len(selected_tools)} tools. Menu has {len(menu_items)} items")
         
         # Define non-food tools that don't need menu context
-        NON_FOOD_TOOLS = ["explain_reasoning", "handle_misunderstanding", "restaurant_info", "change_preference"]
+        NON_FOOD_TOOLS = ["explain_reasoning", "handle_misunderstanding", "restaurant_info", "change_preference", "no_food_response"]
         
         # Separate tools by type for efficient execution
         search_filter_tools = []
