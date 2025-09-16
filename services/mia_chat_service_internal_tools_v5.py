@@ -1145,11 +1145,20 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
         
         logger.info(f"Selected tools with params: {selected_tools}")
         
-        # Handle simple flow (no tools needed)
-        if len(selected_tools) == 1 and selected_tools[0].get("tool") == "no_tool_needed":
-            # Check if this is a goodbye message
+        # Handle simple flow (no tools needed or no_food_response)
+        if len(selected_tools) == 1 and selected_tools[0].get("tool") in ["no_tool_needed", "no_food_response"]:
+            # Check message type
             goodbye_keywords = ["goodbye", "bye", "see you", "later", "take care", "have a good"]
-            is_goodbye = any(keyword in req.message.lower() for keyword in goodbye_keywords)
+            greeting_keywords = ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"]
+            thanks_keywords = ["thank", "thanks", "appreciate"]
+            
+            message_lower = req.message.lower()
+            is_goodbye = any(keyword in message_lower for keyword in goodbye_keywords)
+            is_greeting = any(keyword in message_lower for keyword in greeting_keywords)
+            is_thanks = any(keyword in message_lower for keyword in thanks_keywords)
+            
+            # For no_food_response, always exclude menu
+            exclude_menu = selected_tools[0].get("tool") == "no_food_response" or is_goodbye
             
             simple_prompt = f"""You are Maria at {restaurant_name}.
 
@@ -1166,17 +1175,20 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
                     simple_prompt += f"{role}: {msg['message']}\n"
                 simple_prompt += "\n"
             
-            if is_goodbye:
+            if exclude_menu:
                 simple_prompt += f"""Current message: "{req.message}"
 
 GUIDELINES:
-- This is a goodbye/farewell message
+- {"This is a goodbye/farewell message" if is_goodbye else ""}
+- {"This is a greeting" if is_greeting else ""}
+- {"Customer is thanking you" if is_thanks else ""}
 - Be warm and friendly
-- Thank them for their visit/interest
+- {"Thank them for their visit/interest" if is_goodbye else ""}
 - DO NOT suggest any menu items or mention food
 - Keep it brief (1-2 sentences)
 
 Respond:"""
+                menu_summary = ""  # No menu for excluded cases
             else:
                 menu_summary = create_menu_summary(menu_items)
                 simple_prompt += f"""MENU INFORMATION:
@@ -1202,10 +1214,14 @@ Respond:"""
                 answer = response.json().get("response", "")
                 
                 # Always add debug info
+                tool_name = selected_tools[0].get("tool")
                 debug_info = {
-                    "flow": "simple (no_tool_needed)",
+                    "flow": f"simple ({tool_name})",
                     "is_goodbye": is_goodbye,
-                    "menu_summary_length": 0 if is_goodbye else len(menu_summary),
+                    "is_greeting": is_greeting,
+                    "is_thanks": is_thanks,
+                    "menu_excluded": exclude_menu,
+                    "menu_summary_length": 0 if exclude_menu else len(menu_summary),
                     "context_type": context_type,
                     "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else [],
                     "response_time": f"{time.time() - start_time:.2f}s"
