@@ -721,7 +721,8 @@ def execute_non_food_tool(tool_name: str, params: Dict, customer_profile: Option
             "tool": tool_name,
             "response_type": response_type,
             "do_not_suggest_food": True,
-            "suppress_allergies": True
+            "suppress_allergies": True,
+            "info": "No execution needed"  # Add this to prevent fallback
         }
     
     else:
