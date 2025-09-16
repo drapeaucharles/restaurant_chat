@@ -254,7 +254,7 @@ AVAILABLE TOOLS:
 7. update_allergy_add/remove - Update customer allergies
    Parameters: allergies (list), reason (for remove)
    
-8. no_tool_needed - For greetings, thanks, general chat
+8. no_tool_needed - For greetings, goodbyes, thanks, general chat
 
 9. explain_reasoning - Customer asking why you said/did something
    Parameters: none needed
@@ -299,6 +299,9 @@ EXAMPLES:
   [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
   
 - "Thanks" → 
+  [{{"tool": "no_tool_needed"}}]
+  
+- "Goodbye" or "See you soon" → 
   [{{"tool": "no_tool_needed"}}]
   
 - "Why do you offer me pasta?" → 
@@ -1124,7 +1127,9 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
         
         # Handle simple flow (no tools needed)
         if len(selected_tools) == 1 and selected_tools[0].get("tool") == "no_tool_needed":
-            menu_summary = create_menu_summary(menu_items)
+            # Check if this is a goodbye message
+            goodbye_keywords = ["goodbye", "bye", "see you", "later", "take care", "have a good"]
+            is_goodbye = any(keyword in req.message.lower() for keyword in goodbye_keywords)
             
             simple_prompt = f"""You are Maria at {restaurant_name}.
 
@@ -1141,7 +1146,20 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
                     simple_prompt += f"{role}: {msg['message']}\n"
                 simple_prompt += "\n"
             
-            simple_prompt += f"""MENU INFORMATION:
+            if is_goodbye:
+                simple_prompt += f"""Current message: "{req.message}"
+
+GUIDELINES:
+- This is a goodbye/farewell message
+- Be warm and friendly
+- Thank them for their visit/interest
+- DO NOT suggest any menu items or mention food
+- Keep it brief (1-2 sentences)
+
+Respond:"""
+            else:
+                menu_summary = create_menu_summary(menu_items)
+                simple_prompt += f"""MENU INFORMATION:
 {menu_summary}
 
 Current message: "{req.message}"
@@ -1166,7 +1184,8 @@ Respond:"""
                 # Always add debug info
                 debug_info = {
                     "flow": "simple (no_tool_needed)",
-                    "menu_summary_length": len(menu_summary),
+                    "is_goodbye": is_goodbye,
+                    "menu_summary_length": 0 if is_goodbye else len(menu_summary),
                     "context_type": context_type,
                     "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else [],
                     "response_time": f"{time.time() - start_time:.2f}s"
