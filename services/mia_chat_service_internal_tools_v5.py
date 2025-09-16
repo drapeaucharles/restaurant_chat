@@ -316,7 +316,10 @@ EXAMPLES:
 - "Show me something else" → 
   [{{"tool": "change_preference"}}]
 
-IMPORTANT: If customer questions your suggestions ("why do you..."), use explain_reasoning NOT food search tools.
+IMPORTANT: 
+- If customer questions your suggestions ("why do you..."), use explain_reasoning NOT food search tools.
+- ONLY use the tools listed above. Do NOT use any other tools like "no_food_response" or others.
+- For goodbyes, use "no_tool_needed"
 
 Respond with ONLY the JSON array."""
     
@@ -644,6 +647,12 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         # These are handled separately in the main function
         return {"tool": tool_name, "action": "pending", "allergies": params.get("allergies", [])}
     
+    elif tool_name == "no_food_response":
+        # Handle MIA backend hallucinating this tool from v6/v7 usage
+        # Treat it as no_tool_needed to prevent fallback
+        logger.warning("MIA selected non-existent 'no_food_response' tool - treating as no_tool_needed")
+        return {"info": "No execution needed", "tool": tool_name}
+    
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 
@@ -703,6 +712,16 @@ def execute_non_food_tool(tool_name: str, params: Dict, customer_profile: Option
             "has_dietary_restrictions": has_restrictions,
             "restrictions": restriction_info,
             "do_not_suggest_food": False  # This one might involve food suggestions
+        }
+    
+    elif tool_name == "no_food_response":
+        # Handle MIA backend hallucinating this tool from v6/v7 usage
+        response_type = params.get("response_type", "greeting")
+        return {
+            "tool": tool_name,
+            "response_type": response_type,
+            "do_not_suggest_food": True,
+            "suppress_allergies": True
         }
     
     else:
