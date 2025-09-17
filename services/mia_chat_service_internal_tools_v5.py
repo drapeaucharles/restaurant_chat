@@ -1157,8 +1157,8 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
             is_greeting = any(keyword in message_lower for keyword in greeting_keywords)
             is_thanks = any(keyword in message_lower for keyword in thanks_keywords)
             
-            # For no_food_response, always exclude menu
-            exclude_menu = selected_tools[0].get("tool") == "no_food_response" or is_goodbye
+            # Always exclude menu for no_tool_needed - if food info is needed, AI should use search tools
+            exclude_menu = True
             
             simple_prompt = f"""You are Maria at {restaurant_name}.
 
@@ -1175,34 +1175,23 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
                     simple_prompt += f"{role}: {msg['message']}\n"
                 simple_prompt += "\n"
             
-            if exclude_menu:
-                simple_prompt += f"""Current message: "{req.message}"
+            # Since exclude_menu is always True for no_tool_needed, we don't need menu
+            simple_prompt += f"""Current message: "{req.message}"
 
-GUIDELINES:
+CRITICAL INSTRUCTIONS:
 - {"This is a goodbye/farewell message" if is_goodbye else ""}
 - {"This is a greeting" if is_greeting else ""}
 - {"Customer is thanking you" if is_thanks else ""}
 - Be warm and friendly
 - {"Thank them for their visit/interest" if is_goodbye else ""}
-- DO NOT suggest any menu items or mention food
+- ABSOLUTELY NO food suggestions, menu items, dishes, or prices
+- DO NOT mention any food whatsoever
+- DO NOT ask about food preferences or dietary needs
 - Keep it brief (1-2 sentences)
+- Focus only on the greeting/thanks/goodbye itself
 
 Respond:"""
-                menu_summary = ""  # No menu for excluded cases
-            else:
-                menu_summary = create_menu_summary(menu_items)
-                simple_prompt += f"""MENU INFORMATION:
-{menu_summary}
-
-Current message: "{req.message}"
-
-GUIDELINES:
-- Be concise (2-3 sentences max)
-- Use exact prices from menu
-- {"Greet warmly ONCE" if not chat_history or len(chat_history) <= 1 else "NO greeting"}
-- Be helpful and natural
-
-Respond:"""
+            menu_summary = ""  # No menu for no_tool_needed
             
             response = requests.post(
                 f"{MIA_BACKEND_URL}/chat",
@@ -1220,8 +1209,8 @@ Respond:"""
                     "is_goodbye": is_goodbye,
                     "is_greeting": is_greeting,
                     "is_thanks": is_thanks,
-                    "menu_excluded": exclude_menu,
-                    "menu_summary_length": 0 if exclude_menu else len(menu_summary),
+                    "menu_excluded": True,  # Always true for no_tool_needed
+                    "menu_summary_length": 0,
                     "context_type": context_type,
                     "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else [],
                     "response_time": f"{time.time() - start_time:.2f}s"
