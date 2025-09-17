@@ -988,14 +988,19 @@ MENU DATA FROM SEARCH:
                     if dietary_info:
                         prompt += f"  Dietary: {', '.join(dietary_info)}\n"
             else:
-                # Handle empty filter results
+                # Handle empty filter results with clearer messaging
                 filter_type = result.get('filter', '')
+                food_type = result.get('food_type', '')
+                
                 if filter_type:
                     prompt += f"\n{filter_type.upper()} SEARCH RESULTS:\n"
-                    prompt += f"❌ No {filter_type} options found that meet all criteria.\n"
+                    prompt += f"❌ We don't have any {filter_type.replace('_', ' ')} options on our menu.\n"
+                elif food_type:
+                    prompt += f"\n{food_type.upper()} SEARCH RESULTS:\n"
+                    prompt += f"❌ We don't have {food_type} on our menu.\n"
                 else:
                     prompt += f"\n{result.get('category', 'SEARCH')} RESULTS:\n"
-                    prompt += f"❌ No items found in this category.\n"
+                    prompt += f"❌ No items found matching your request.\n"
     
     # Response guidelines
     if non_food_tools_executed:
@@ -1063,10 +1068,19 @@ RESPONSE GUIDELINES:
 - NEVER say "Hello" if already greeted
 - If listing multiple items, include prices for each
 - Be natural and helpful
-- IMPORTANT: If a dish was not found, politely inform the customer we don't have that item
+
+STRICT RULES FOR 0 ITEMS:
+- If customer asked for X and search returned 0 items, say: "We don't have [X] on our menu"
+- NEVER say "We have X" when X wasn't found in the search
+- NEVER try to make other dishes sound like what they asked for (e.g., don't call carpaccio a "burger")
+- First acknowledge what we DON'T have, then offer to help find alternatives
+- Example: "We don't have pizza, but I'd be happy to suggest some Italian pasta dishes instead"
+- For breakfast/lunch queries: "We're a dinner restaurant and don't serve breakfast/lunch. We open at 5 PM"
+
+GENERAL RULES:
 - NEVER invent or suggest dishes that aren't in the search results above
 - If NO items were found for a dietary filter, explain that we don't have options that meet ALL their restrictions
-- When filters return empty, suggest checking individual restrictions or offer alternatives
+- When offering alternatives, ask first: "Would you like me to suggest similar dishes?"
 """
     
     prompt += "\nRespond naturally:"
@@ -1317,57 +1331,9 @@ Respond:"""
                 all_empty = False
                 break
         
-        # FALLBACK: If no results and NOT allergen-related, use simple flow with full menu
-        if all_empty and not has_allergen_filter and context_type != "allergen_safety":
-            logger.info("No results from tools, falling back to simple flow with full menu")
-            
-            menu_summary = create_menu_summary(menu_items)
-            
-            fallback_prompt = f"""You are Maria at {restaurant_name}.
-
-The customer asked: "{req.message}"
-
-No specific matches were found, but here's our full menu to help you answer:
-
-{menu_summary}
-
-INSTRUCTIONS:
-- The search tools found no exact matches, but check the full menu above
-- If they asked for a specific dish (like pesto, pizza, etc) that's not in our menu, politely say we don't have it
-- Suggest similar items or alternatives based on what they asked for
-- DO NOT pretend we have dishes that aren't listed above
-- Use exact prices from the menu
-- Be helpful and explain what options are available
-- Keep response concise (2-3 sentences)
-
-Respond:"""
-            
-            response = requests.post(
-                f"{MIA_BACKEND_URL}/chat",
-                json={"message": fallback_prompt, "max_tokens": 200},
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                answer = response.json().get("response", "")
-                
-                # Always add debug info
-                debug_info = {
-                    "flow": "fallback (no results from tools)",
-                    "phase1_tools_selected": selected_tools,
-                    "tool_results": tool_results,
-                    "menu_summary_length": len(menu_summary),
-                    "context_type": context_type,
-                    "customer_allergies": getattr(customer_profile, 'allergies', []) if customer_profile else [],
-                    "response_time": f"{time.time() - start_time:.2f}s"
-                }
-                answer = f"{answer}\n\n[DEBUG INFO]\n{json.dumps(debug_info, indent=2)}"
-                
-                return ChatResponse(
-                    answer=answer,
-                    response_id=response.json().get("job_id"),
-                    confidence_score=0.8
-                )
+        # NO FALLBACK: Always use tool_flow even with 0 results
+        # This prevents hallucinations and ensures honest responses
+        logger.info(f"All searches empty: {all_empty}, proceeding with tool_flow for honest response")
         
         # (Allergy updates already processed above, removed duplicate code)
         
