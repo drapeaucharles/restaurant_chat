@@ -272,9 +272,13 @@ RULES:
 1. Select tools that best answer the customer's request
 2. Include all necessary tools (e.g., allergy filter + category search)
 3. For get_dish_details: use what the customer said (tool handles fuzzy matching)
-4. For categories: use exact category names from the list above
+4. For categories: use EXACT category names from the list above
+   - Accept typos/synonyms ONLY if clearly same thing (e.g., "apetizers" → "Appetizers", "main course" → "main")
+   - NEVER substitute with "closest" category (e.g., DON'T use "Pasta" for "Pizza", "Seafood" for "Sushi")
+   - If requested category doesn't exist, use get_dish_details instead to search as a dish
 5. For "seafood" requests: use "Seafood" category (includes both fish and shellfish)
-6. Return JSON array with tool names and parameters
+6. If customer asks for something NOT in our categories (like pizza, burgers, tacos), search as dish with get_dish_details
+7. Return JSON array with tool names and parameters
 
 EXAMPLES:
 - "What pasta dishes do you have?" → 
@@ -316,9 +320,21 @@ EXAMPLES:
 - "Show me something else" → 
   [{{"tool": "change_preference"}}]
 
+EXAMPLES FOR NON-EXISTENT CATEGORIES (use get_dish_details):
+- "Do you have pizza?" → 
+  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "pizza"}}}}]
+  
+- "Show me your burgers" → 
+  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "burger"}}}}]
+  
+- "Any sushi options?" → 
+  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "sushi"}}}}]
+
 IMPORTANT: 
-- If customer questions your suggestions ("why do you..."), use explain_reasoning NOT food search tools.
-- ONLY use the tools listed above. Do NOT use any other tools like "no_food_response" or others.
+- If customer asks for a category NOT in our list, use get_dish_details to search for it
+- NEVER substitute with a different category (Pizza ≠ Pasta, Sushi ≠ Seafood, Burger ≠ Meat)
+- If customer questions your suggestions ("why do you..."), use explain_reasoning NOT food search tools
+- ONLY use the tools listed above. Do NOT use any other tools like "no_food_response" or others
 - For goodbyes, use "no_tool_needed"
 
 Respond with ONLY the JSON array."""
