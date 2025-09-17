@@ -1229,11 +1229,13 @@ Respond:"""
             if tool_data.get("tool") in ["update_allergy_add", "update_allergy_remove"]:
                 try:
                     allergies = tool_data.get("parameters", {}).get("allergies", [])
+                    # Normalize allergies to lowercase for consistency
+                    allergies = [str(a).lower().strip() for a in allergies if a]
                     
                     if tool_data["tool"] == "update_allergy_add":
                         # Add allergies to profile
                         if customer_profile:
-                            existing_allergies = set(customer_profile.allergies or [])
+                            existing_allergies = set(str(a).lower().strip() for a in (customer_profile.allergies or []) if a)
                             existing_allergies.update(allergies)
                             customer_profile.allergies = list(existing_allergies)
                             db.commit()
@@ -1241,7 +1243,7 @@ Respond:"""
                     else:
                         # Remove allergies from profile
                         if customer_profile:
-                            existing_allergies = set(customer_profile.allergies or [])
+                            existing_allergies = set(str(a).lower().strip() for a in (customer_profile.allergies or []) if a)
                             for allergy in allergies:
                                 existing_allergies.discard(allergy)
                             customer_profile.allergies = list(existing_allergies)
@@ -1484,7 +1486,7 @@ Respond:"""
             # Always add debug info
             debug_info = {
                 "flow": "tool_flow",
-                "phase1_tools_selected": [{"tool": t.get("tool"), "params": t.get("parameters", {})} for t in selected_tools],
+                "phase1_tools_selected": [{"tool": t.get("tool"), "parameters": t.get("parameters", {})} for t in selected_tools],
                 "tool_results_summary": [
                     {
                         "tool": r.get("tool"),
