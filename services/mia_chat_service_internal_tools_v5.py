@@ -1061,26 +1061,40 @@ SAFETY RULES:
 Customer is allergic to: {', '.join(customer_allergies) if customer_allergies else 'nothing specified'}
 """
     else:
-        prompt += """
+        # Check if any search returned 0 items
+        has_zero_results = any(
+            result.get("found") == 0 
+            for result in tool_results 
+            if isinstance(result.get("found"), int)
+        )
+        
+        if has_zero_results:
+            # Strict guidelines for 0 items
+            prompt += """
+STRICT RULES - WE FOUND 0 ITEMS:
+- Customer asked for something we DON'T have
+- You MUST first say: "We don't have [X] on our menu"
+- NEVER say "We have X" when X wasn't found
+- NEVER try to make other dishes sound like what they asked for (e.g., don't call carpaccio a "burger")
+- After acknowledging what we DON'T have, offer: "Would you like me to suggest some alternatives?"
+- For breakfast/lunch: Say "We're a dinner restaurant and don't serve breakfast/lunch. We open at 5 PM"
+- Be honest, then helpful
+
+Example responses:
+- "We don't have pizza on our menu. Would you like me to suggest some Italian pasta dishes instead?"
+- "We don't have burgers. Would you like to see our other meat dishes?"
+- "We don't serve breakfast as we're a dinner restaurant. We open at 5 PM with our dinner menu."
+"""
+        else:
+            # Normal guidelines when items were found
+            prompt += """
 RESPONSE GUIDELINES:
 - Use EXACT dish names and prices from the menu data above
 - Keep response concise (2-3 sentences max)
 - NEVER say "Hello" if already greeted
 - If listing multiple items, include prices for each
 - Be natural and helpful
-
-STRICT RULES FOR 0 ITEMS:
-- If customer asked for X and search returned 0 items, say: "We don't have [X] on our menu"
-- NEVER say "We have X" when X wasn't found in the search
-- NEVER try to make other dishes sound like what they asked for (e.g., don't call carpaccio a "burger")
-- First acknowledge what we DON'T have, then offer to help find alternatives
-- Example: "We don't have pizza, but I'd be happy to suggest some Italian pasta dishes instead"
-- For breakfast/lunch queries: "We're a dinner restaurant and don't serve breakfast/lunch. We open at 5 PM"
-
-GENERAL RULES:
 - NEVER invent or suggest dishes that aren't in the search results above
-- If NO items were found for a dietary filter, explain that we don't have options that meet ALL their restrictions
-- When offering alternatives, ask first: "Would you like me to suggest similar dishes?"
 """
     
     prompt += "\nRespond naturally:"
