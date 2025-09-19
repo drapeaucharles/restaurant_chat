@@ -248,7 +248,7 @@ AVAILABLE TOOLS:
 5. search_menu_by_ingredient - Search dishes containing ingredient
    Parameters: ingredient (any ingredient name)
    
-6. filter_vegetarian/vegan/gluten_free/nut_free/dairy_free/shellfish_free - Filter safe dishes
+6. filter_vegetarian/vegan/gluten_free/nut_free/dairy_free/shellfish_free/fish_free - Filter safe dishes
    Parameters: none needed
    
 7. update_allergy_add/remove - Update customer allergies
@@ -386,79 +386,60 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         for item in menu_items:
             item_name = (item.get('dish', '') or item.get('name', '')).lower()
             if dish_name == item_name:
-                return {
-                    "tool": tool_name,
-                    "found": True,
-                    "dish": {
-                        "name": item.get('dish') or item.get('name'),
-                        "price": item.get('price'),
-                        "description": item.get('description'),
-                        "ingredients": item.get('ingredients', []),
-                        "allergens": item.get('allergens', [])
-                    }
-                }
-        
-        # Try partial match (e.g., "carbonara" for "Spaghetti Carbonara")
-        matches = []
-        for item in menu_items:
-            item_name = (item.get('dish', '') or item.get('name', '')).lower()
-            
-            # Check if search term is contained in dish name
-            if dish_name in item_name:
-                matches.append(item)
-            # Check if all words in search are in dish name (handles reordering)
-            elif all(word in item_name for word in dish_name.split()):
-                matches.append(item)
-        
-        # If exactly one match, return it
-        if len(matches) == 1:
-            item = matches[0]
-            return {
-                "tool": tool_name,
-                "found": True,
-                "dish": {
-                    "name": item.get('dish') or item.get('name'),
-                    "price": item.get('price'),
-                    "description": item.get('description'),
-                    "ingredients": item.get('ingredients', []),
-                    "allergens": item.get('allergens', [])
-                }
-            }
-        
-        # If multiple matches, return not found (ambiguous)
-        elif len(matches) > 1:
-            return {
-                "tool": tool_name, 
-                "found": False, 
-                "error": f"Multiple dishes match '{params.get('dish_name')}'. Please be more specific.",
-                "suggestions": [m.get('dish') or m.get('name') for m in matches[:3]]
-            }
-        
-        # Try fuzzy matching for spelling mistakes
-        from difflib import get_close_matches
-        all_dish_names = [(item.get('dish') or item.get('name')) for item in menu_items]
-        close_matches = get_close_matches(params.get("dish_name"), all_dish_names, n=3, cutoff=0.7)
-        
-        if close_matches:
-            # Get the best match
-            best_match = close_matches[0]
-            for item in menu_items:
-                if (item.get('dish') or item.get('name')) == best_match:
+                # Check allergen safety even for exact matches
+                if is_safe_for_customer(item):
                     return {
                         "tool": tool_name,
-                        "found": True,
-                        "corrected": True,
-                        "original_query": params.get("dish_name"),
-                        "dish": {
+                        "found": 1,
+                        "match_type": "exact",
+                        "items": [{
                             "name": item.get('dish') or item.get('name'),
                             "price": item.get('price'),
                             "description": item.get('description'),
                             "ingredients": item.get('ingredients', []),
                             "allergens": item.get('allergens', [])
-                        }
+                        }]
                     }
         
-        return {"tool": tool_name, "found": False, "error": "Dish not found"}
+        # Smart partial matching - ALL search words must be present
+        matches = []
+        search_words = dish_name.split()
+        
+        for item in menu_items:
+            item_name = (item.get('dish', '') or item.get('name', '')).lower()
+            
+            # Check if ALL search words are in the dish name
+            if all(word in item_name for word in search_words):
+                # Also check allergen safety
+                if is_safe_for_customer(item):
+                    matches.append(item)
+        
+        # Return results based on matches found
+        if len(matches) > 0:
+            return {
+                "tool": tool_name,
+                "found": len(matches),
+                "match_type": "partial",
+                "search_term": dish_name,
+                "items": [
+                    {
+                        "name": item.get('dish') or item.get('name'),
+                        "price": item.get('price'),
+                        "description": item.get('description'),
+                        "ingredients": item.get('ingredients', []),
+                        "allergens": item.get('allergens', [])
+                    } for item in matches
+                ]
+            }
+        
+        # No matches found
+        return {
+            "tool": tool_name, 
+            "found": 0,
+            "match_type": "none",
+            "search_term": dish_name,
+            "items": []
+        }
     
     elif tool_name == "search_menu_by_ingredient":
         ingredient = params.get("ingredient", "").lower()
@@ -605,7 +586,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             "pre_filtered": customer_allergies is not None and len(customer_allergies) > 0
         }
     
-    elif tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free"]:
+    elif tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free", "filter_fish_free"]:
         filter_type = tool_name.replace("filter_", "").replace("_", "-")
         results = []
         
@@ -632,6 +613,11 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                 # No boolean field for shellfish, check allergens
                 allergens = [a.lower() for a in item.get('allergens', [])]
                 if "shellfish" not in allergens:
+                    suitable = True
+            elif filter_type == "fish-free":
+                # Check for fish in allergens
+                allergens = [a.lower() for a in item.get('allergens', [])]
+                if "fish" not in allergens:
                     suitable = True
             
             # Also check customer allergies - BACKEND PRE-FILTERING
@@ -747,6 +733,7 @@ def execute_non_food_tool(tool_name: str, params: Dict, customer_profile: Option
 def execute_tools_single_pass(tools: List[Dict], menu_items: List[Dict], customer_profile: Optional[Any]) -> List[Dict]:
     """Execute multiple search/filter tools in a single pass for performance"""
     logger.info(f"Executing {len(tools)} tools in single pass over {len(menu_items)} items")
+    logger.info(f"Tools to execute: {[t.get('tool') for t in tools]}")
     
     # Get customer allergies once
     customer_allergies = []
@@ -846,6 +833,10 @@ def execute_tools_single_pass(tools: List[Dict], menu_items: List[Dict], custome
                     allergens = [a.lower() for a in item.get('allergens', [])]
                     if "shellfish" not in allergens:
                         suitable = True
+                elif filter_type == "fish-free":
+                    allergens = [a.lower() for a in item.get('allergens', [])]
+                    if "fish" not in allergens:
+                        suitable = True
                 
                 if suitable:
                     tool_results[i]["items"].append(item_result)
@@ -899,6 +890,12 @@ def execute_tools_single_pass(tools: List[Dict], menu_items: List[Dict], custome
             })
     
     logger.info(f"Single pass execution complete. Found items: {[r['found'] for r in final_results]}")
+    
+    # Debug log to check if something is wrong
+    if all(r['found'] == 0 for r in final_results) and len(final_results) > 1:
+        logger.warning(f"WARNING: All {len(final_results)} tools returned 0 items! This might be a bug.")
+        logger.warning(f"Menu items passed: {len(menu_items)}, Tools: {[r['tool'] for r in final_results]}")
+    
     return final_results
 
 def build_phase2_prompt(message: str, tool_results: List[Dict], restaurant_name: str, 
@@ -927,6 +924,12 @@ The customer is asking a question that is NOT about ordering food. Focus on answ
 CRITICAL: Customer has restrictions: {', '.join(context_data.get('all_restrictions', []))}
 
 """
+    elif context_type == "intersection_zero_with_options":
+        prompt = f"""You are Maria, a helpful and understanding server at {restaurant_name}.
+
+The customer is looking for items with multiple criteria but we don't have anything that matches ALL their requirements.
+
+"""
     else:
         prompt = f"""You are Maria, a warm and knowledgeable server at {restaurant_name}.
 
@@ -951,72 +954,76 @@ MENU DATA FROM SEARCH:
 """
     
     # Format tool results clearly
-    for result in tool_results:
-        if result.get("tool") == "no_tool_needed":
-            continue
-        elif result.get("tool") == "get_dish_details":
-            if result.get("found"):
-                dish = result["dish"]
-                prompt += f"\nDISH DETAILS:\n"
-                
-                # If spelling was corrected, note it
-                if result.get("corrected"):
-                    prompt += f"(Found match for '{result.get('original_query')}')\n"
+    # Special handling for intersection_zero_with_options - don't show any food items
+    if context_type == "intersection_zero_with_options":
+        prompt += "\nNO ITEMS MATCH ALL CRITERIA - See guidelines below for how to respond\n"
+    else:
+        for result in tool_results:
+            if result.get("tool") == "no_tool_needed":
+                continue
+            elif result.get("tool") == "get_dish_details":
+                if result.get("found"):
+                    dish = result["dish"]
+                    prompt += f"\nDISH DETAILS:\n"
                     
-                prompt += f"- {dish['name']} - {dish['price']}\n"
-                prompt += f"  {dish['description']}\n"
-                if dish.get('allergens'):
-                    prompt += f"  Allergens: {', '.join(dish['allergens'])}\n"
-            else:
-                # Handle dish not found
-                prompt += f"\nDISH SEARCH RESULT:\n"
-                
-                # Check if it's ambiguous (multiple matches)
-                if "Multiple dishes match" in result.get("error", ""):
-                    prompt += f"❌ {result['error']}\n"
-                    if result.get("suggestions"):
-                        prompt += f"Did you mean one of these: {', '.join(result['suggestions'])}?\n"
+                    # If spelling was corrected, note it
+                    if result.get("corrected"):
+                        prompt += f"(Found match for '{result.get('original_query')}')\n"
+                        
+                    prompt += f"- {dish['name']} - {dish['price']}\n"
+                    prompt += f"  {dish['description']}\n"
+                    if dish.get('allergens'):
+                        prompt += f"  Allergens: {', '.join(dish['allergens'])}\n"
                 else:
-                    prompt += f"❌ The requested dish was not found in our menu.\n"
-        elif "items" in result:
-            if result.get("found", 0) > 0:
-                # Check if pre-filtered
-                if result.get("pre_filtered"):
-                    prompt += f"\n{result.get('category', result.get('filter', result.get('food_type', 'SEARCH'))).upper()} RESULTS (pre-filtered for safety):\n"
-                else:
-                    prompt += f"\n{result.get('category', result.get('filter', result.get('food_type', 'SEARCH'))).upper()} RESULTS:\n"
+                    # Handle dish not found
+                    prompt += f"\nDISH SEARCH RESULT:\n"
                     
-                for item in result["items"]:
-                    prompt += f"- {item['name']} {item['price']}\n"
-                    # Always include ingredient and allergen info for safety
-                    if item.get('ingredients'):
-                        prompt += f"  Ingredients: {', '.join(item['ingredients'])}\n"
-                    if item.get('allergens'):
-                        prompt += f"  Contains: {', '.join(item['allergens'])}\n"
-                    # Include dietary flags
-                    dietary_info = []
-                    if item.get('is_vegan'):
-                        dietary_info.append("Vegan")
-                    if item.get('is_vegetarian') and not item.get('is_vegan'):
-                        dietary_info.append("Vegetarian")
-                    if item.get('is_gluten_free'):
-                        dietary_info.append("Gluten-Free")
-                    if dietary_info:
-                        prompt += f"  Dietary: {', '.join(dietary_info)}\n"
-            else:
-                # Handle empty filter results with clearer messaging
-                filter_type = result.get('filter', '')
-                food_type = result.get('food_type', '')
-                
-                if filter_type:
-                    prompt += f"\n{filter_type.upper()} SEARCH RESULTS:\n"
-                    prompt += f"❌ We don't have any {filter_type.replace('_', ' ')} options on our menu.\n"
-                elif food_type:
-                    prompt += f"\n{food_type.upper()} SEARCH RESULTS:\n"
-                    prompt += f"❌ We don't have {food_type} on our menu.\n"
+                    # Check if it's ambiguous (multiple matches)
+                    if "Multiple dishes match" in result.get("error", ""):
+                        prompt += f"❌ {result['error']}\n"
+                        if result.get("suggestions"):
+                            prompt += f"Did you mean one of these: {', '.join(result['suggestions'])}?\n"
+                    else:
+                        prompt += f"❌ The requested dish was not found in our menu.\n"
+            elif "items" in result:
+                if result.get("found", 0) > 0:
+                    # Check if pre-filtered
+                    if result.get("pre_filtered"):
+                        prompt += f"\n{result.get('category', result.get('filter', result.get('food_type', 'SEARCH'))).upper()} RESULTS (pre-filtered for safety):\n"
+                    else:
+                        prompt += f"\n{result.get('category', result.get('filter', result.get('food_type', 'SEARCH'))).upper()} RESULTS:\n"
+                        
+                    for item in result["items"]:
+                        prompt += f"- {item['name']} {item['price']}\n"
+                        # Always include ingredient and allergen info for safety
+                        if item.get('ingredients'):
+                            prompt += f"  Ingredients: {', '.join(item['ingredients'])}\n"
+                        if item.get('allergens'):
+                            prompt += f"  Contains: {', '.join(item['allergens'])}\n"
+                        # Include dietary flags
+                        dietary_info = []
+                        if item.get('is_vegan'):
+                            dietary_info.append("Vegan")
+                        if item.get('is_vegetarian') and not item.get('is_vegan'):
+                            dietary_info.append("Vegetarian")
+                        if item.get('is_gluten_free'):
+                            dietary_info.append("Gluten-Free")
+                        if dietary_info:
+                            prompt += f"  Dietary: {', '.join(dietary_info)}\n"
                 else:
-                    prompt += f"\n{result.get('category', 'SEARCH')} RESULTS:\n"
-                    prompt += f"❌ No items found matching your request.\n"
+                    # Handle empty filter results with clearer messaging
+                    filter_type = result.get('filter', '')
+                    food_type = result.get('food_type', '')
+                    
+                    if filter_type:
+                        prompt += f"\n{filter_type.upper()} SEARCH RESULTS:\n"
+                        prompt += f"❌ We don't have any {filter_type.replace('_', ' ')} options on our menu.\n"
+                    elif food_type:
+                        prompt += f"\n{food_type.upper()} SEARCH RESULTS:\n"
+                        prompt += f"❌ We don't have {food_type} on our menu.\n"
+                    else:
+                        prompt += f"\n{result.get('category', 'SEARCH')} RESULTS:\n"
+                        prompt += f"❌ No items found matching your request.\n"
     
     # Response guidelines
     if non_food_tools_executed:
@@ -1063,18 +1070,63 @@ SAFETY RULES:
    - Trust the data provided, but always check the "Contains" and "Ingredients" fields before confirming.
 2. Never invent or modify information.
    - No new dishes, no fake prices, no new allergens, no new dietary labels.
-3. A dish is SAFE if it does not contain the customer's allergens.
+3. ALLERGEN FACTS - IMPORTANT:
+   - Fish (salmon, tuna, sea bass) are NOT shellfish
+   - Shellfish includes: shrimp, crab, lobster, oysters, clams, mussels, scallops
+   - Common allergens are SEPARATE categories: Dairy, Eggs, Nuts, Soy, Sesame, Gluten, Shellfish, Fish
+   - NEVER say one allergen "is also" another type (e.g., don't say "soy is a shellfish allergen")
+4. A dish is SAFE if it does not contain the customer's allergens.
    A dish is UNSAFE if the allergen is explicitly listed.
    A dish is UNKNOWN if not listed in menu results — politely say it's not available.
-4. If allergen might reasonably appear in an ingredient but isn't listed, say:
+5. If allergen might reasonably appear in an ingredient but isn't listed, say:
    "Based on the provided menu data, this dish does not list [allergen], but I recommend double-checking with staff for your safety."
-5. Responses must be concise (2–3 sentences max).
+6. Responses must be concise (2–3 sentences max).
    - Use exact dish names and prices.
    - Use short lists for multiple dishes.
-6. Always continue applying allergy/dietary filters from Phase 1.
-7. Stay natural, warm, and professional — but never compromise on menu accuracy or safety.
+7. Always continue applying allergy/dietary filters from Phase 1.
+8. Stay natural, warm, and professional — but never compromise on menu accuracy or safety.
 
 Customer is allergic to: {', '.join(customer_allergies) if customer_allergies else 'nothing specified'}
+"""
+    elif context_type == "intersection_zero_with_options":
+        # Extract the original counts before intersection
+        original_counts = context_data.get("original_counts", {})
+        
+        prompt += f"""
+SPECIAL HANDLING - NO ITEMS MATCH ALL CRITERIA:
+You searched for items with multiple criteria, but nothing matches ALL requirements together.
+
+ORIGINAL SEARCH RESULTS (before combining):
+"""
+        # Show what each individual filter would have found
+        for i, result in enumerate(tool_results):
+            tool_name = result.get("tool", "")
+            original_count = original_counts.get(i, 0)
+            if original_count > 0:
+                if tool_name == "search_by_food_type":
+                    prompt += f"- {result.get('food_type', 'Food type')}: {original_count} items available\n"
+                elif tool_name.startswith("filter_"):
+                    filter_type = tool_name.replace("filter_", "").replace("_", " ")
+                    prompt += f"- {filter_type.title()}: {original_count} items available\n"
+                elif tool_name == "search_by_meal_time":
+                    prompt += f"- {result.get('meal_time', 'Meal time')}: {original_count} items available\n"
+                elif tool_name == "search_by_course_type":
+                    prompt += f"- {result.get('course_type', 'Course type')}: {original_count} items available\n"
+
+        prompt += """
+HOW TO RESPOND:
+1. Be understanding and acknowledge their specific request
+2. Explain that while we don't have items matching ALL criteria, we have options for each individual requirement
+3. Offer to help them choose based on what's most important to them
+4. Keep the tone helpful and solution-focused
+
+Example response structure:
+"I understand you're looking for [specific combination]. While we don't have any dishes that are both [X] AND [Y], I can offer you some great options:
+- For [X], we have [specific dishes]
+- For [Y], we have [other specific dishes]
+Which preference is most important to you today, or would you like me to describe some of these options?"
+
+IMPORTANT: Be specific about what combination wasn't available, and be clear about what IS available.
 """
     else:
         # Check if any search returned 0 items
@@ -1084,9 +1136,84 @@ Customer is allergic to: {', '.join(customer_allergies) if customer_allergies el
             if isinstance(result.get("found"), int)
         )
         
+        # Check if this is due to intersection of multiple filters
+        search_filter_tools_used = []
+        for result in tool_results:
+            tool_name = result.get("tool", "")
+            if tool_name in ["search_by_food_type", "search_by_meal_time", "search_by_course_type", 
+                           "filter_vegetarian", "filter_vegan", "filter_gluten_free", 
+                           "filter_nut_free", "filter_dairy_free", "filter_shellfish_free", "filter_fish_free"]:
+                search_filter_tools_used.append(tool_name)
+        
+        is_intersection_zero = len(search_filter_tools_used) > 1 and has_zero_results
+        
         if has_zero_results:
-            # Strict guidelines for 0 items
-            prompt += """
+            if is_intersection_zero:
+                # Multiple filters resulted in 0 items - be specific about the combination
+                prompt += """
+STRICT RULES - NO ITEMS MATCH ALL YOUR CRITERIA:
+- Multiple filters were applied and NO items match ALL criteria
+- Be SPECIFIC about what combination wasn't found
+- IMPORTANT: We likely have items that match SOME criteria, just not ALL
+
+How to respond:
+1. Say specifically: "We don't have any [X] that is also [Y] and [Z]"
+2. Then offer items that match SOME criteria:
+   - "However, we do have [X] options that are [Y]" 
+   - "And we have [Z] dishes that are [X]"
+3. Ask which they'd prefer or if they'd like to adjust criteria
+
+Example responses:
+- "We don't have any pasta dishes that are both gluten-free AND dairy-free. However, we have gluten-free pasta options like Mushroom Risotto, and dairy-free pasta like Penne Arrabbiata. Which would you prefer?"
+- "We don't have any appetizers that are vegan. However, we have vegetarian appetizers like Caprese Skewers, or vegan main dishes like Buddha Bowl. What sounds good?"
+"""
+                # Add tool information to help craft specific response
+                filter_descriptions = []
+                for result in tool_results:
+                    tool = result.get("tool", "")
+                    if tool == "search_by_food_type":
+                        filter_descriptions.append(f"{result.get('food_type', '')} dishes")
+                    elif tool == "filter_vegetarian":
+                        filter_descriptions.append("vegetarian")
+                    elif tool == "filter_vegan":
+                        filter_descriptions.append("vegan")
+                    elif tool == "filter_gluten_free":
+                        filter_descriptions.append("gluten-free")
+                    elif tool == "filter_dairy_free":
+                        filter_descriptions.append("dairy-free")
+                    elif tool == "filter_nut_free":
+                        filter_descriptions.append("nut-free")
+                    elif tool == "filter_shellfish_free":
+                        filter_descriptions.append("shellfish-free")
+                    elif tool == "filter_fish_free":
+                        filter_descriptions.append("fish-free")
+                
+                if filter_descriptions:
+                    prompt += f"\nFilters applied: {' AND '.join(filter_descriptions)}\n"
+                
+                # Add information about items that match SOME criteria
+                partial_matches_info = []
+                for result in tool_results:
+                    if result.get("found", 0) > 0:
+                        tool = result.get("tool", "")
+                        if tool == "search_by_food_type":
+                            partial_matches_info.append(f"- We have {result.get('found')} {result.get('food_type', '')} dishes")
+                        elif tool == "filter_vegetarian":
+                            partial_matches_info.append(f"- We have {result.get('found')} vegetarian options")
+                        elif tool == "filter_vegan":
+                            partial_matches_info.append(f"- We have {result.get('found')} vegan options")
+                        elif tool == "filter_gluten_free":
+                            partial_matches_info.append(f"- We have {result.get('found')} gluten-free items")
+                        elif tool == "filter_dairy_free":
+                            partial_matches_info.append(f"- We have {result.get('found')} dairy-free items")
+                        elif tool == "filter_nut_free":
+                            partial_matches_info.append(f"- We have {result.get('found')} nut-free items")
+                
+                if partial_matches_info:
+                    prompt += "\nWhat we DO have:\n" + "\n".join(partial_matches_info) + "\n"
+            else:
+                # Single search returned 0 or category doesn't exist
+                prompt += """
 STRICT RULES - WE FOUND 0 ITEMS:
 - Customer asked for something we DON'T have
 - You MUST first say: "We don't have [X] on our menu"
@@ -1318,7 +1445,7 @@ Respond:"""
                 tool_results.append(result)
             elif tool_name in ["search_by_food_type", "search_by_meal_time", "search_by_course_type", 
                              "search_menu_by_ingredient", "filter_vegetarian", "filter_vegan", 
-                             "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free"]:
+                             "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free", "filter_fish_free"]:
                 search_filter_tools.append(tool_data)
             elif tool_name in NON_FOOD_TOOLS:
                 non_food_tools.append(tool_data)
@@ -1353,7 +1480,7 @@ Respond:"""
             result = tool_results[i]
             
             # Check if this is an allergen filter
-            if tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free"]:
+            if tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free", "filter_fish_free"]:
                 has_allergen_filter = True
             
             # Check if this search returned results
@@ -1426,6 +1553,17 @@ Respond:"""
                 if intersected_names:
                     logger.info(f"Intersected items: {list(intersected_names)[:10]}")
                 
+                # Store original counts before intersection
+                original_counts = {}
+                for idx in search_filter_indices:
+                    result = tool_results[idx]
+                    items_key = "items" if "items" in result else "results"
+                    original_counts[idx] = {
+                        "tool": result.get("tool"),
+                        "count": len(result.get(items_key, [])),
+                        "items": result.get(items_key, [])[:5]  # Store first 5 items as examples
+                    }
+                
                 # Update each tool's results to only include intersected items
                 for idx in search_filter_indices:
                     result = tool_results[idx]
@@ -1442,7 +1580,24 @@ Respond:"""
                     result[items_key] = filtered_items
                     result["found"] = len(filtered_items)
                     
+                    # If intersection resulted in 0 items, store original info for context
+                    if len(filtered_items) == 0 and len(original_items) > 0:
+                        result["original_found"] = len(original_items)
+                        result["had_results_before_intersection"] = True
+                    
                     logger.info(f"Tool {result.get('tool')}: filtered from {len(original_items)} to {len(filtered_items)} items")
+        
+        # Check if intersection resulted in 0 items but individual tools had results
+        intersection_zero_with_options = False
+        if len(search_filter_indices) > 1:
+            all_zero = all(tool_results[idx].get("found", 0) == 0 for idx in search_filter_indices)
+            had_results_before = any(tool_results[idx].get("had_results_before_intersection", False) for idx in search_filter_indices)
+            intersection_zero_with_options = all_zero and had_results_before
+            
+            if intersection_zero_with_options:
+                # Override context type for this special case
+                context_type = "intersection_zero_with_options"
+                context_data["original_counts"] = original_counts
         
         # === PHASE 2: Generate Response ===
         logger.info("PHASE 2: Generating response from tool results")
