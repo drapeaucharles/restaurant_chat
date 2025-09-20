@@ -974,17 +974,19 @@ MENU DATA FROM SEARCH:
                 continue
             elif result.get("tool") == "get_dish_details":
                 if result.get("found"):
-                    dish = result["dish"]
-                    prompt += f"\nDISH DETAILS:\n"
-                    
-                    # If spelling was corrected, note it
-                    if result.get("corrected"):
-                        prompt += f"(Found match for '{result.get('original_query')}')\n"
+                    items = result.get("items", [])
+                    if items:
+                        prompt += f"\nDISH DETAILS:\n"
                         
-                    prompt += f"- {dish['name']} - {dish['price']}\n"
-                    prompt += f"  {dish['description']}\n"
-                    if dish.get('allergens'):
-                        prompt += f"  Allergens: {', '.join(dish['allergens'])}\n"
+                        # If spelling was corrected, note it
+                        if result.get("corrected"):
+                            prompt += f"(Found match for '{result.get('original_query')}')\n"
+                        
+                        for dish in items:
+                            prompt += f"- {dish['name']} - {dish['price']}\n"
+                            prompt += f"  {dish['description']}\n"
+                            if dish.get('allergens'):
+                                prompt += f"  Allergens: {', '.join(dish['allergens'])}\n"
                 else:
                     # Handle dish not found
                     prompt += f"\nDISH SEARCH RESULT:\n"
