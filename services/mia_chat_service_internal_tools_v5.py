@@ -1006,8 +1006,11 @@ MENU DATA FROM SEARCH:
                     else:
                         prompt += f"\n{result.get('category', result.get('filter', result.get('food_type', 'SEARCH'))).upper()} RESULTS:\n"
                         
-                    for item in result["items"]:
-                        prompt += f"- {item['name']} {item['price']}\n"
+                    items = result.get("items", [])
+                    for item in items:
+                        name = item.get('name', 'Unknown')
+                        price = item.get('price', 'Price not available')
+                        prompt += f"- {name} {price}\n"
                         # Always include ingredient and allergen info for safety
                         if item.get('ingredients'):
                             prompt += f"  Ingredients: {', '.join(item['ingredients'])}\n"
