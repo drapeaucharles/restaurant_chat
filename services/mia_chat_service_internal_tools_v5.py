@@ -253,9 +253,12 @@ AVAILABLE TOOLS:
    
 7. update_allergy_add/remove - Update customer allergies
    Parameters: allergies (list)
-   IMPORTANT: For corrections like "I'm not allergic to X, I'm allergic to Y", use BOTH tools:
-   - First remove X with update_allergy_remove
-   - Then add Y with update_allergy_add
+   CRITICAL RULES:
+   - ONLY use when customer EXPLICITLY mentions allergies/restrictions
+   - NEVER use these tools for regular food searches
+   - For "I'm allergic to X" → use update_allergy_add
+   - For "I'm no longer allergic to X" or "I'm not allergic to X anymore" → use ONLY update_allergy_remove
+   - For corrections "I'm not allergic to X, I'm allergic to Y" → use BOTH (remove X, then add Y)
    
 8. no_tool_needed - For greetings, goodbyes, thanks, general chat
 
@@ -311,6 +314,12 @@ EXAMPLES:
   
 - "I'm no longer allergic to shellfish" → 
   [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["shellfish"]}}}}]
+
+- "Show me pasta" → 
+  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
+  
+- "What pasta do you have?" → 
+  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
   
 - "Thanks" → 
   [{{"tool": "no_tool_needed"}}]
@@ -347,6 +356,8 @@ IMPORTANT:
 - ONLY use the tools listed above. Do NOT use any other tools like "no_food_response" or others
 - For goodbyes, use "no_tool_needed"
 - For allergy corrections (e.g., "not X but Y"), ALWAYS use BOTH remove and add tools
+- NEVER use allergy tools unless allergies are EXPLICITLY mentioned
+- "Show me pasta" is NOT an allergy request - use search tools only
 
 Respond with ONLY the JSON array."""
     
