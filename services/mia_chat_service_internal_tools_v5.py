@@ -337,7 +337,7 @@ RULES:
 4. For categories: use EXACT category names from the list above
    - Accept typos/synonyms ONLY if clearly same thing (e.g., "apetizers" → "Appetizers", "main course" → "main")
    - NEVER substitute with "closest" category (e.g., DON'T use "Pasta" for "Pizza", "Seafood" for "Sushi")
-   - If requested category doesn't exist, use get_dish_details instead to search as a dish
+   - If requested category does not exist, use get_dish_details instead to search as a dish
 5. For "seafood" requests: use "Seafood" category (includes both fish and shellfish)
 6. If customer asks for something NOT in our categories (like pizza, burgers, tacos), search as dish with get_dish_details
 7. Return JSON array with tool names and parameters
@@ -346,7 +346,7 @@ EXAMPLES:
 - "What pasta dishes do you have?" → 
   [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
   
-- "What's for dinner?" → 
+- "What is for dinner?" → 
   [{{"tool": "search_by_meal_time", "parameters": {{"meal_time": "Dinner"}}}}]
   
 - "Show me your starters" → 
@@ -392,7 +392,7 @@ EXAMPLES:
 - "Why do you offer me pasta?" → 
   [{{"tool": "explain_reasoning"}}]
   
-- "I didn't ask for that" → 
+- "I did not ask for that" → 
   [{{"tool": "handle_misunderstanding"}}]
   
 - "What time do you close?" → 
@@ -422,8 +422,8 @@ IMPORTANT:
 - "Show me pasta" is NOT an allergy request - use search tools only
 
 Respond with ONLY the JSON array."""
-    """  # END OF OLD CONTENT
     
+    # END OF OLD CONTENT
     # The new return statement is above at line 291
 
 def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Optional[Any] = None) -> Dict:
@@ -1217,7 +1217,7 @@ IMPORTANT GUIDELINES FOR NON-FOOD QUESTIONS:
             elif result.get("tool") == "change_preference":
                 prompt += """
    - They want to change their preferences or restrictions
-   - Acknowledge the change and confirm you'll remember it
+   - Acknowledge the change and confirm you will remember it
 """
         
         prompt += """
@@ -1237,16 +1237,16 @@ SAFETY RULES:
    - Shellfish includes: shrimp, crab, lobster, oysters, clams, mussels, scallops
    - Common allergens are SEPARATE categories: Dairy, Eggs, Nuts, Soy, Sesame, Gluten, Shellfish, Fish
    - NEVER say one allergen "is also" another type (e.g., do not say "soy is a shellfish allergen")
-4. A dish is SAFE if it does not contain the customer's allergens.
+4. A dish is SAFE if it does not contain the customer allergens.
    A dish is UNSAFE if the allergen is explicitly listed.
-   A dish is UNKNOWN if not listed in menu results — politely say it's not available.
-5. If allergen might reasonably appear in an ingredient but isn't listed, say:
+   A dish is UNKNOWN if not listed in menu results - politely say it is not available.
+5. If allergen might reasonably appear in an ingredient but is not listed, say:
    "Based on the provided menu data, this dish does not list [allergen], but I recommend double-checking with staff for your safety."
-6. Responses must be concise (2–3 sentences max).
+6. Responses must be concise (2-3 sentences max).
    - Use exact dish names and prices.
    - Use short lists for multiple dishes.
 7. Always continue applying allergy/dietary filters from Phase 1.
-8. Stay natural, warm, and professional — but never compromise on menu accuracy or safety.
+8. Stay natural, warm, and professional - but never compromise on menu accuracy or safety.
 
 Customer is allergic to: {', '.join(customer_allergies) if customer_allergies else 'nothing specified'}
 """
@@ -1275,20 +1275,20 @@ ORIGINAL SEARCH RESULTS (before combining):
                 elif tool_name == "search_by_course_type":
                     prompt += f"- {result.get('course_type', 'Course type')}: {original_count} items available\n"
 
-        prompt += """
+        prompt += f"""
 HOW TO RESPOND:
 1. Be understanding and acknowledge their specific request
 2. Explain that while we do not have items matching ALL criteria, we have options for each individual requirement
-3. Offer to help them choose based on what's most important to them
+3. Offer to help them choose based on what is most important to them
 4. Keep the tone helpful and solution-focused
 
 Example response structure:
-"I understand you are looking for [specific combination]. While we do not have any dishes that are both [X] AND [Y], I can offer you some great options:
-- For [X], we have [specific dishes]
+\"I understand you are looking for [specific combination]. While we do not have any dishes that are both [X] AND [Y], I can offer you some great options:
+- For [X], we have [specific dishes]  
 - For [Y], we have [other specific dishes]
-Which preference is most important to you today, or would you like me to describe some of these options?"
+Which preference is most important to you today, or would you like me to describe some of these options?\"
 
-IMPORTANT: Be specific about what combination wasn't available, and be clear about what IS available.
+IMPORTANT: Be specific about what combination was not available, and be clear about what IS available.
 """
     else:
         # Check if any search returned 0 items
