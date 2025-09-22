@@ -1275,7 +1275,7 @@ ORIGINAL SEARCH RESULTS (before combining):
                 elif tool_name == "search_by_course_type":
                     prompt += f"- {result.get('course_type', 'Course type')}: {original_count} items available\n"
 
-        prompt += f"""
+        prompt += """
 HOW TO RESPOND:
 1. Be understanding and acknowledge their specific request
 2. Explain that while we do not have items matching ALL criteria, we have options for each individual requirement
@@ -1283,10 +1283,10 @@ HOW TO RESPOND:
 4. Keep the tone helpful and solution-focused
 
 Example response structure:
-\"I understand you are looking for [specific combination]. While we do not have any dishes that are both [X] AND [Y], I can offer you some great options:
+"I understand you are looking for [specific combination]. While we do not have any dishes that are both [X] AND [Y], I can offer you some great options:
 - For [X], we have [specific dishes]  
 - For [Y], we have [other specific dishes]
-Which preference is most important to you today, or would you like me to describe some of these options?\"
+Which preference is most important to you today, or would you like me to describe some of these options?"
 
 IMPORTANT: Be specific about what combination was not available, and be clear about what IS available.
 """
@@ -1473,7 +1473,22 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
             selected_tools = json.loads(selection_text)
             if not isinstance(selected_tools, list):
                 selected_tools = [{"tool": "no_tool_needed"}]
-        except:
+            else:
+                # Ensure all elements are dictionaries
+                fixed_tools = []
+                for tool in selected_tools:
+                    if isinstance(tool, dict):
+                        fixed_tools.append(tool)
+                    elif isinstance(tool, str):
+                        # Convert string to proper format
+                        logger.warning(f"Tool returned as string: {tool}, converting to dict")
+                        fixed_tools.append({"tool": tool})
+                    else:
+                        logger.error(f"Unknown tool format: {type(tool)} - {tool}")
+                        fixed_tools.append({"tool": "no_tool_needed"})
+                selected_tools = fixed_tools if fixed_tools else [{"tool": "no_tool_needed"}]
+        except Exception as e:
+            logger.error(f"Failed to parse tool selection: {e}, selection_text: {selection_text[:200]}")
             selected_tools = [{"tool": "no_tool_needed"}]
         
         logger.info(f"Selected tools with params: {selected_tools}")
