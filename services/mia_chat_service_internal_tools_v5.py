@@ -754,7 +754,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         return {"error": f"Unknown tool: {tool_name}"}
 
 def execute_non_food_tool(tool_name: str, params: Dict, customer_profile: Optional[Any] = None) -> Dict:
-    """Execute non-food related tools that don't need menu context"""
+    """Execute non-food related tools that do not need menu context"""
     
     # Get customer restrictions for context (but won't suggest food)
     has_restrictions = False
@@ -1031,7 +1031,7 @@ def build_phase2_prompt(message: str, tool_results: List[Dict], restaurant_name:
         
         prompt = f"""You are a Clarifier assistant for {restaurant_name}.
 
-Your ONLY job is to ask a clarifying question when the customer's intent is ambiguous.
+Your ONLY job is to ask a clarifying question when the customer intent is ambiguous.
 
 CONTEXT:
 Customer said: "{message}"
@@ -1077,7 +1077,7 @@ CRITICAL: Customer has restrictions: {', '.join(context_data.get('all_restrictio
     elif context_type == "intersection_zero_with_options":
         prompt = f"""You are Maria, a helpful and understanding server at {restaurant_name}.
 
-The customer is looking for items with multiple criteria but we don't have anything that matches ALL their requirements.
+The customer is looking for items with multiple criteria but we do not have anything that matches ALL their requirements.
 
 """
     else:
@@ -1104,7 +1104,7 @@ MENU DATA FROM SEARCH:
 """
     
     # Format tool results clearly
-    # Special handling for intersection_zero_with_options - don't show any food items
+    # Special handling for intersection_zero_with_options - do not show any food items
     if context_type == "intersection_zero_with_options":
         prompt += "\nNO ITEMS MATCH ALL CRITERIA - See guidelines below for how to respond\n"
     else:
@@ -1172,10 +1172,10 @@ MENU DATA FROM SEARCH:
                     
                     if filter_type:
                         prompt += f"\n{filter_type.upper()} SEARCH RESULTS:\n"
-                        prompt += f"❌ We don't have any {filter_type.replace('_', ' ')} options on our menu.\n"
+                        prompt += f"❌ We do not have any {filter_type.replace('_', ' ')} options on our menu.\n"
                     elif food_type:
                         prompt += f"\n{food_type.upper()} SEARCH RESULTS:\n"
-                        prompt += f"❌ We don't have {food_type} on our menu.\n"
+                        prompt += f"❌ We do not have {food_type} on our menu.\n"
                     else:
                         prompt += f"\n{result.get('category', 'SEARCH')} RESULTS:\n"
                         prompt += f"❌ No items found matching your request.\n"
@@ -1199,7 +1199,7 @@ IMPORTANT GUIDELINES FOR NON-FOOD QUESTIONS:
 """
             elif result.get("tool") == "handle_misunderstanding":
                 prompt += """
-   - They seem confused or there's a misunderstanding - clarify what you meant
+   - They seem confused or there is a misunderstanding - clarify what you meant
    - Be patient and helpful in clearing up any confusion
 """
             elif result.get("tool") == "ask_clarify":
@@ -1236,7 +1236,7 @@ SAFETY RULES:
    - Fish (salmon, tuna, sea bass) are NOT shellfish
    - Shellfish includes: shrimp, crab, lobster, oysters, clams, mussels, scallops
    - Common allergens are SEPARATE categories: Dairy, Eggs, Nuts, Soy, Sesame, Gluten, Shellfish, Fish
-   - NEVER say one allergen "is also" another type (e.g., don't say "soy is a shellfish allergen")
+   - NEVER say one allergen "is also" another type (e.g., do not say "soy is a shellfish allergen")
 4. A dish is SAFE if it does not contain the customer's allergens.
    A dish is UNSAFE if the allergen is explicitly listed.
    A dish is UNKNOWN if not listed in menu results — politely say it's not available.
@@ -1278,12 +1278,12 @@ ORIGINAL SEARCH RESULTS (before combining):
         prompt += """
 HOW TO RESPOND:
 1. Be understanding and acknowledge their specific request
-2. Explain that while we don't have items matching ALL criteria, we have options for each individual requirement
+2. Explain that while we do not have items matching ALL criteria, we have options for each individual requirement
 3. Offer to help them choose based on what's most important to them
 4. Keep the tone helpful and solution-focused
 
 Example response structure:
-"I understand you're looking for [specific combination]. While we don't have any dishes that are both [X] AND [Y], I can offer you some great options:
+"I understand you are looking for [specific combination]. While we do not have any dishes that are both [X] AND [Y], I can offer you some great options:
 - For [X], we have [specific dishes]
 - For [Y], we have [other specific dishes]
 Which preference is most important to you today, or would you like me to describe some of these options?"
@@ -1319,15 +1319,15 @@ STRICT RULES - NO ITEMS MATCH ALL YOUR CRITERIA:
 - IMPORTANT: We likely have items that match SOME criteria, just not ALL
 
 How to respond:
-1. Say specifically: "We don't have any [X] that is also [Y] and [Z]"
+1. Say specifically: "We do not have any [X] that is also [Y] and [Z]"
 2. Then offer items that match SOME criteria:
    - "However, we do have [X] options that are [Y]" 
    - "And we have [Z] dishes that are [X]"
 3. Ask which they'd prefer or if they'd like to adjust criteria
 
 Example responses:
-- "We don't have any pasta dishes that are both gluten-free AND dairy-free. However, we have gluten-free pasta options like Mushroom Risotto, and dairy-free pasta like Penne Arrabbiata. Which would you prefer?"
-- "We don't have any appetizers that are vegan. However, we have vegetarian appetizers like Caprese Skewers, or vegan main dishes like Buddha Bowl. What sounds good?"
+- "We do not have any pasta dishes that are both gluten-free AND dairy-free. However, we have gluten-free pasta options like Mushroom Risotto, and dairy-free pasta like Penne Arrabbiata. Which would you prefer?"
+- "We do not have any appetizers that are vegan. However, we have vegetarian appetizers like Caprese Skewers, or vegan main dishes like Buddha Bowl. What sounds good?"
 """
                 # Add tool information to help craft specific response
                 filter_descriptions = []
@@ -1377,18 +1377,18 @@ Example responses:
                 # Single search returned 0 or category doesn't exist
                 prompt += """
 STRICT RULES - WE FOUND 0 ITEMS:
-- Customer asked for something we DON'T have
-- You MUST first say: "We don't have [X] on our menu"
+- Customer asked for something we DO NOT have
+- You MUST first say: "We do not have [X] on our menu"
 - NEVER say "We have X" when X wasn't found
-- NEVER try to make other dishes sound like what they asked for (e.g., don't call carpaccio a "burger")
-- After acknowledging what we DON'T have, offer: "Would you like me to suggest some alternatives?"
-- For breakfast/lunch: Say "We're a dinner restaurant and don't serve breakfast/lunch. We open at 5 PM"
+- NEVER try to make other dishes sound like what they asked for (e.g., do not call carpaccio a "burger")
+- After acknowledging what we DO NOT have, offer: "Would you like me to suggest some alternatives?"
+- For breakfast/lunch: Say "We are a dinner restaurant and do not serve breakfast/lunch. We open at 5 PM"
 - Be honest, then helpful
 
 Example responses:
-- "We don't have pizza on our menu. Would you like me to suggest some Italian pasta dishes instead?"
-- "We don't have burgers. Would you like to see our other meat dishes?"
-- "We don't serve breakfast as we're a dinner restaurant. We open at 5 PM with our dinner menu."
+- "We do not have pizza on our menu. Would you like me to suggest some Italian pasta dishes instead?"
+- "We do not have burgers. Would you like to see our other meat dishes?"
+- "We do not serve breakfast as we are a dinner restaurant. We open at 5 PM with our dinner menu."
 """
         else:
             # Normal guidelines when items were found
