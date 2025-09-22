@@ -1010,12 +1010,55 @@ def build_phase2_prompt(message: str, tool_results: List[Dict], restaurant_name:
                        chat_history: List[Dict] = None) -> str:
     """Build Phase 2 prompt for final response generation"""
     
+    # Check if ask_clarify tool was executed
+    ask_clarify_executed = any(
+        result.get("tool") == "ask_clarify"
+        for result in tool_results
+    )
+    
     # Check if any non-food tools were executed
     non_food_tools_executed = any(
         result.get("tool") in ["explain_reasoning", "handle_misunderstanding", "restaurant_info", "change_preference"]
         and result.get("do_not_suggest_food", False)
         for result in tool_results
     )
+    
+    # Special handling for ask_clarify
+    if ask_clarify_executed:
+        # Build specialized clarification prompt
+        clarify_result = next(r for r in tool_results if r.get("tool") == "ask_clarify")
+        clarify_question = clarify_result.get("question", "Could you clarify what you mean?")
+        
+        prompt = f"""You are a Clarifier assistant for {restaurant_name}.
+
+Your ONLY job is to ask a clarifying question when the customer's intent is ambiguous.
+
+CONTEXT:
+Customer said: "{message}"
+
+AMBIGUITY DETECTED:
+The system needs clarification about what the customer wants.
+
+YOUR TASK:
+Ask ONE short, specific clarifying question to understand their intent better.
+
+RESPONSE FORMAT:
+- Ask only ONE question
+- Keep it under 20 words
+- Use quick reply buttons format: [Option 1] [Option 2]
+- Be friendly and natural
+
+EXAMPLES:
+- "Do you want to [remove dairy from your allergies] or [see dairy-free dishes]?"
+- "Are you looking for [pasta dishes] or just asking about [specific pasta types]?"
+- "Would you like me to [update your allergies] or [show you safe menu items]?"
+
+SUGGESTED QUESTION (you can rephrase):
+{clarify_question}
+
+Your clarifying question:"""
+        
+        return prompt
     
     # Context-specific intro
     if non_food_tools_executed:
@@ -1717,6 +1760,12 @@ Respond:"""
                 # Override context type for this special case
                 context_type = "intersection_zero_with_options"
                 context_data["original_counts"] = original_counts
+        
+        # Check if ask_clarify tool was used - override context type
+        ask_clarify_used = any(result.get("tool") == "ask_clarify" for result in tool_results)
+        if ask_clarify_used:
+            context_type = "ask_clarify"
+            logger.info("ask_clarify tool detected - using specialized context")
         
         # === PHASE 2: Generate Response ===
         logger.info("PHASE 2: Generating response from tool results")
