@@ -257,8 +257,13 @@ AVAILABLE TOOLS:
    - ONLY use when customer EXPLICITLY mentions allergies/restrictions
    - NEVER use these tools for regular food searches
    - For "I'm allergic to X" → use update_allergy_add
-   - For "I'm no longer allergic to X" or "I'm not allergic to X anymore" → use ONLY update_allergy_remove
-   - For corrections "I'm not allergic to X, I'm allergic to Y" → use BOTH (remove X, then add Y)
+   - For removal ONLY (no other allergy mentioned) → use ONLY update_allergy_remove:
+     * "I'm no longer allergic to X"
+     * "Actually, I'm not allergic to X" (when X is the only allergy mentioned)
+     * "Remove X from my allergies"
+   - For corrections with BOTH allergies mentioned → use BOTH tools:
+     * "I'm not allergic to X, I'm allergic to Y" → remove X, then add Y
+     * "Actually I meant Y, not X" → remove X, then add Y
    
 8. no_tool_needed - For greetings, goodbyes, thanks, general chat
 
@@ -314,6 +319,12 @@ EXAMPLES:
   
 - "I'm no longer allergic to shellfish" → 
   [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["shellfish"]}}}}]
+
+- "Actually, I'm not allergic to dairy" → 
+  [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["dairy"]}}}}]
+  
+- "Remove dairy from my allergies" → 
+  [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["dairy"]}}}}]
 
 - "Show me pasta" → 
   [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
