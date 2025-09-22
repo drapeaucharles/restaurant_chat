@@ -190,57 +190,108 @@ def get_context_type(customer_profile: Any, message: str) -> Tuple[str, Dict]:
 
 def build_phase1_prompt(message: str, customer_profile: Any, chat_history: List[Dict], 
                        menu_items: List[Dict], restaurant_name: str) -> str:
-    """Build Phase 1 prompt with restaurant context for tool AND parameter selection"""
+    """Build deterministic Phase 1 prompt based on rule-based system"""
     
     # Get available data
     categories = get_available_categories(menu_items)
     dish_names = get_available_dish_names(menu_items)
     
-    prompt = f"""You are a tool selector for {restaurant_name}. Analyze the conversation and select tools WITH parameters.
-
-"""
-    
-    # Add chat history
-    if chat_history and len(chat_history) > 0:
-        prompt += "CONVERSATION HISTORY:\n"
-        for msg in chat_history[:-1]:
-            role = "Customer" if msg["role"] == "user" else "You"
-            prompt += f"{role}: {msg['message']}\n"
-        prompt += "\n"
-    
-    prompt += f"""CURRENT MESSAGE: "{message}"
-
-"""
-    
-    # Add customer context
+    # Get current allergies
+    current_allergies = []
     if customer_profile:
-        allergies = getattr(customer_profile, 'allergies', []) or []
-        dietary = getattr(customer_profile, 'dietary_restrictions', []) or []
-        
-        if allergies or dietary:
-            prompt += f"""CUSTOMER INFO:
-- Allergies: {', '.join(allergies) if allergies else 'None'}
-- Dietary: {', '.join(dietary) if dietary else 'None'}
+        current_allergies = [str(a).lower().strip() for a in (getattr(customer_profile, 'allergies', []) or [])]
+    
+    prompt = f"""You are ToolSelector, a deterministic policy agent for {restaurant_name}.
+
+Consider ONLY these inputs:
+- last_user_message: "{message}"
+- current_profile_allergies: {json.dumps(current_allergies)}
+- business_domain: "restaurant"
 
 """
     
-    # Add restaurant context
-    prompt += f"""RESTAURANT CONTEXT:
-- Meal times: {', '.join(categories['meal_times'])} (when dishes are served)
-- Course types: {', '.join(categories['course_types'])} (starter, main, dessert)
-- Food categories: {', '.join(categories['food_categories'])} (type of food)
-- All dishes in menu: {', '.join(dish_names)}
+    # Note: Not including chat history in deterministic approach
+    # Only considering last message as per recommendation
+    
+    prompt += f"""AVAILABLE CATEGORIES:
+- Meal times: {json.dumps(categories['meal_times'])}
+- Course types: {json.dumps(categories['course_types'])}
+- Food categories: {json.dumps(categories['food_categories'])}
 
-AVAILABLE TOOLS:
-1. get_dish_details - Get info about a SPECIFIC dish
-   Parameters: dish_name (can be partial like "carbonara" or have typos like "lasagni" - the tool will fuzzy match)
-   
-2. search_by_meal_time - Search dishes by when they're served
-   Parameters: meal_time (from available: {', '.join(categories['meal_times'])})
-   
-3. search_by_course_type - Search dishes by course
-   Parameters: course_type (from available: {', '.join(categories['course_types'])})
-   
+ALLOWED TOOL SETS (choose exactly one):
+1. ["update_allergy_add"]
+2. ["update_allergy_remove"] 
+3. ["update_allergy_remove", "update_allergy_add"]
+4. ["search_by_food_type"] (with food_type parameter)
+5. ["search_by_meal_time"] (with meal_time parameter)
+6. ["search_by_course_type"] (with course_type parameter)
+7. ["get_dish_details"] (with dish_name parameter)
+8. ["search_menu_by_ingredient"] (with ingredient parameter)
+9. ["filter_vegetarian"] / ["filter_vegan"] / ["filter_gluten_free"] / ["filter_nut_free"] / ["filter_dairy_free"] / ["filter_shellfish_free"] / ["filter_fish_free"]
+10. ["no_tool_needed"]
+11. ["explain_reasoning"] / ["handle_misunderstanding"] / ["restaurant_info"]
+12. ["ask_clarify"] (when ambiguous)
+
+DECISION RULES (apply in order):
+
+Rule 1: ALLERGY-MENTION GATE
+If message contains allergy-related words ("allergic", "allergy", "intolerance", "can't eat", "fine with", "no longer allergic", "remove from allergies"):
+→ Proceed to rules 2-4
+Otherwise:
+→ Skip to rule 5 (non-allergy tools)
+
+Rule 2: SIMPLE REMOVAL (one item removed, no new item)
+Triggers: "not allergic to X", "no longer allergic to X", "fine with X now", "remove X from allergies", "Actually I'm not allergic to X"
+→ If exactly one allergy mentioned for removal and NO new allergy: return ["update_allergy_remove"]
+→ If X not in current_profile_allergies: return ["ask_clarify"] with question
+
+Rule 3: CORRECTION/REPLACEMENT (remove X, add Y)
+Triggers: "not allergic to X, allergic to Y", "meant Y not X", "Actually Y not X", "I'm allergic to Y instead of X"
+→ Return ["update_allergy_remove", "update_allergy_add"]
+
+Rule 4: ADDITION ONLY
+Triggers: "I'm allergic to X", "add X to allergies", "I have X allergy"
+→ Return ["update_allergy_add"]
+
+Rule 5: FOOD SEARCH RULES (if no allergy mention)
+- Food type request (pasta, seafood, meat, etc.) → ["search_by_food_type"]
+- Meal time request (dinner, lunch) → ["search_by_meal_time"]
+- Course type request (appetizer, main, dessert) → ["search_by_course_type"]
+- Specific dish name → ["get_dish_details"]
+- Ingredient search → ["search_menu_by_ingredient"]
+- Dietary filter (vegetarian, vegan, etc.) → ["filter_X"]
+- Questions about restaurant → ["restaurant_info"]
+- Confusion/disagreement → ["handle_misunderstanding"] or ["explain_reasoning"]
+- Greetings/thanks/goodbye → ["no_tool_needed"]
+
+Rule 6: AMBIGUITY RULE
+If unclear (e.g., "remove dairy" could mean menu filter or allergy list):
+→ Return ["ask_clarify"] with clarification question
+
+NORMALIZATION:
+Apply these mappings when clear:
+- "milk" → "dairy"
+- "peanut"/"peanuts" → "nuts"
+- "shell fish"/"crustacean" → "shellfish"
+- "lactose" → "dairy" (only if context is clear)
+
+OUTPUT FORMAT:
+Return ONLY a JSON array. Choose from the allowed tool sets above.
+Include parameters when needed.
+
+Examples:
+- Message: "I'm allergic to nuts" → [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
+- Message: "Show me pasta" → [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
+- Message: "I'm no longer allergic to dairy" → [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["dairy"]}}}}]
+- Message: "Actually I meant dairy, not nuts" → [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["nuts"]}}}}, {{"tool": "update_allergy_add", "parameters": {{"allergies": ["dairy"]}}}}]
+- Message: "Remove dairy" (ambiguous) → [{{"tool": "ask_clarify", "parameters": {{"question": "Do you want to remove dairy from your allergy list, or see dairy-free menu items?"}}}}]
+
+CRITICAL: Follow the rules in order. Apply normalization. Return ONLY the JSON array."""
+
+    return prompt
+
+    # OLD CONTENT BELOW - TO BE REMOVED
+    """
 4. search_by_food_type - Search dishes by food category
    Parameters: food_type (from available: {', '.join(categories['food_categories'])})
    Note: Items can belong to multiple categories (e.g., Salmon is both "Fish" and "Seafood")
@@ -371,8 +422,9 @@ IMPORTANT:
 - "Show me pasta" is NOT an allergy request - use search tools only
 
 Respond with ONLY the JSON array."""
+    """  # END OF OLD CONTENT
     
-    return prompt
+    # The new return statement is above at line 291
 
 def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Optional[Any] = None) -> Dict:
     """Execute a tool with given parameters"""
@@ -682,6 +734,16 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         # These are handled separately in the main function
         return {"tool": tool_name, "action": "pending", "allergies": params.get("allergies", [])}
     
+    elif tool_name == "ask_clarify":
+        # Handle ambiguous requests that need clarification
+        question = params.get("question", "Could you clarify what you mean?")
+        return {
+            "tool": tool_name,
+            "response_type": "clarification_needed",
+            "question": question,
+            "do_not_suggest_food": True
+        }
+    
     elif tool_name == "no_food_response":
         # Handle MIA backend hallucinating this tool from v6/v7 usage
         # Treat it as no_tool_needed to prevent fallback
@@ -747,6 +809,18 @@ def execute_non_food_tool(tool_name: str, params: Dict, customer_profile: Option
             "has_dietary_restrictions": has_restrictions,
             "restrictions": restriction_info,
             "do_not_suggest_food": False  # This one might involve food suggestions
+        }
+    
+    elif tool_name == "ask_clarify":
+        # Handle clarification requests
+        question = params.get("question", "Could you clarify what you mean?")
+        return {
+            "tool": tool_name,
+            "response_type": "clarification_needed", 
+            "question": question,
+            "do_not_suggest_food": True,
+            "has_dietary_restrictions": has_restrictions,
+            "restrictions": restriction_info
         }
     
     elif tool_name == "no_food_response":
@@ -1084,6 +1158,13 @@ IMPORTANT GUIDELINES FOR NON-FOOD QUESTIONS:
                 prompt += """
    - They seem confused or there's a misunderstanding - clarify what you meant
    - Be patient and helpful in clearing up any confusion
+"""
+            elif result.get("tool") == "ask_clarify":
+                question = result.get("question", "Could you clarify what you mean?")
+                prompt += f"""
+   - The request was ambiguous and needs clarification
+   - Ask this specific question: "{question}"
+   - Do not suggest food items until the clarification is received
 """
             elif result.get("tool") == "restaurant_info":
                 prompt += """
@@ -1466,7 +1547,7 @@ Respond:"""
         logger.info(f"Executing {len(selected_tools)} tools. Menu has {len(menu_items)} items")
         
         # Define non-food tools that don't need menu context
-        NON_FOOD_TOOLS = ["explain_reasoning", "handle_misunderstanding", "restaurant_info", "change_preference", "no_food_response"]
+        NON_FOOD_TOOLS = ["explain_reasoning", "handle_misunderstanding", "restaurant_info", "change_preference", "no_food_response", "ask_clarify"]
         
         # Separate tools by type for efficient execution
         search_filter_tools = []
