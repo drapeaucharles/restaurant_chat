@@ -234,26 +234,34 @@ ALLOWED TOOL SETS (choose exactly one):
 
 DECISION RULES (apply in order):
 
-Rule 1: ALLERGY-MENTION GATE
-If message contains allergy-related words ("allergic", "allergy", "intolerance", "can't eat", "fine with", "no longer allergic", "remove from allergies"):
-→ Proceed to rules 2-4
-Otherwise:
-→ Skip to rule 5 (non-allergy tools)
+Rule 1: CHECK FOR AMBIGUITY FIRST
+If message matches ambiguous patterns:
+- "remove [allergen]" (just these two words) → ["ask_clarify"]
+- "no [allergen]" (just these two words) → ["ask_clarify"]
+- "[allergen]" alone → ["ask_clarify"]
+- "without [allergen]" (unclear context) → ["ask_clarify"]
+→ Return ["ask_clarify"] with appropriate question
 
-Rule 2: SIMPLE REMOVAL (one item removed, no new item)
+Rule 2: ALLERGY-MENTION GATE
+If message contains allergy-related words ("allergic", "allergy", "intolerance", "can't eat", "fine with", "no longer allergic", "remove from allergies") AND mentions a known allergen:
+→ Proceed to rules 3-5 for allergy handling
+Otherwise:
+→ Skip to rule 6 (non-allergy tools)
+
+Rule 3: SIMPLE REMOVAL (one item removed, no new item)
 Triggers: "not allergic to X", "no longer allergic to X", "fine with X now", "remove X from allergies", "Actually I'm not allergic to X"
 → If exactly one allergy mentioned for removal and NO new allergy: return ["update_allergy_remove"]
 → If X not in current_profile_allergies: return ["ask_clarify"] with question
 
-Rule 3: CORRECTION/REPLACEMENT (remove X, add Y)
+Rule 4: CORRECTION/REPLACEMENT (remove X, add Y)
 Triggers: "not allergic to X, allergic to Y", "meant Y not X", "Actually Y not X", "I'm allergic to Y instead of X"
 → Return ["update_allergy_remove", "update_allergy_add"]
 
-Rule 4: ADDITION ONLY
+Rule 5: ADDITION ONLY
 Triggers: "I'm allergic to X", "add X to allergies", "I have X allergy"
 → Return ["update_allergy_add"]
 
-Rule 5: FOOD SEARCH RULES (if no allergy mention)
+Rule 6: FOOD SEARCH RULES (if no allergy mention)
 - Food type request (pasta, seafood, meat, etc.) → ["search_by_food_type"]
 - Meal time request (dinner, lunch) → ["search_by_meal_time"]
 - Course type request (appetizer, main, dessert) → ["search_by_course_type"]
@@ -263,10 +271,6 @@ Rule 5: FOOD SEARCH RULES (if no allergy mention)
 - Questions about restaurant → ["restaurant_info"]
 - Confusion/disagreement → ["handle_misunderstanding"] or ["explain_reasoning"]
 - Greetings/thanks/goodbye → ["no_tool_needed"]
-
-Rule 6: AMBIGUITY RULE
-If unclear (e.g., "remove dairy" could mean menu filter or allergy list):
-→ Return ["ask_clarify"] with clarification question
 
 NORMALIZATION:
 Apply these mappings when clear:
