@@ -224,19 +224,18 @@ Consider ONLY these inputs:
 - Course types: {json.dumps(categories['course_types'])}
 - Food categories: {json.dumps(categories['food_categories'])}
 
-ALLOWED TOOL SETS (choose exactly one):
-1. ["update_allergy_add"]
-2. ["update_allergy_remove"] 
-3. ["update_allergy_remove", "update_allergy_add"]
-4. ["search_by_food_type"] (with food_type parameter)
-5. ["search_by_meal_time"] (with meal_time parameter)
-6. ["search_by_course_type"] (with course_type parameter)
-7. ["get_dish_details"] (with dish_name parameter)
-8. ["search_menu_by_ingredient"] (with ingredient parameter)
-9. ["filter_vegetarian"] / ["filter_vegan"] / ["filter_gluten_free"] / ["filter_nut_free"] / ["filter_dairy_free"] / ["filter_shellfish_free"] / ["filter_fish_free"]
-10. ["no_tool_needed"]
-11. ["explain_reasoning"] / ["handle_misunderstanding"] / ["restaurant_info"]
-12. ["ask_clarify"] (when ambiguous)
+AVAILABLE TOOLS:
+- update_allergy_add (parameters: allergies)
+- update_allergy_remove (parameters: allergies)
+- search_by_food_type (parameters: food_type) 
+- search_by_meal_time (parameters: meal_time)
+- search_by_course_type (parameters: course_type)
+- get_dish_details (parameters: dish_name)
+- search_menu_by_ingredient (parameters: ingredient)
+- filter_vegetarian, filter_vegan, filter_gluten_free, filter_nut_free, filter_dairy_free, filter_shellfish_free, filter_fish_free (no parameters)
+- no_tool_needed (no parameters)
+- explain_reasoning, handle_misunderstanding, restaurant_info (no parameters)
+- ask_clarify (parameters: question)
 
 DECISION RULES (apply in order):
 
@@ -308,8 +307,7 @@ FINAL REMINDER: Return ONLY the JSON array. No other text."""
 
     return prompt
 
-    # OLD CONTENT BELOW - TO BE REMOVED
-    """
+# OLD CONTENT REMOVED - The old prompt format was causing confusion
 4. search_by_food_type - Search dishes by food category
    Parameters: food_type (from available: {', '.join(categories['food_categories'])})
    Note: Items can belong to multiple categories (e.g., Salmon is both "Fish" and "Seafood")
@@ -441,8 +439,7 @@ IMPORTANT:
 
 Respond with ONLY the JSON array."""
     
-    # END OF OLD CONTENT
-    # The new return statement is above at line 291
+    # End of old content block"""
 
 def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Optional[Any] = None) -> Dict:
     """Execute a tool with given parameters"""
@@ -1505,7 +1502,21 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
         # DEBUG: Log raw response
         logger.info(f"=== PHASE 1 RAW RESPONSE ===")
         logger.info(f"Message: '{req.message}'")
-        logger.info(f"Raw selection text: {selection_text[:500]}")
+        logger.info(f"Raw selection text: {repr(selection_text[:500])}")
+        
+        # Check for common LLM response issues
+        if selection_text.startswith("```json"):
+            logger.warning("LLM returned markdown code block, extracting JSON")
+            selection_text = selection_text.replace("```json", "").replace("```", "").strip()
+        
+        # Check if LLM added explanation text
+        if selection_text and not selection_text.strip().startswith("["):
+            logger.warning("LLM may have added explanation text before JSON")
+            # Try to find the JSON array
+            json_start = selection_text.find("[")
+            if json_start != -1:
+                selection_text = selection_text[json_start:]
+                logger.info(f"Extracted JSON from position {json_start}")
         
         try:
             selected_tools = json.loads(selection_text)
