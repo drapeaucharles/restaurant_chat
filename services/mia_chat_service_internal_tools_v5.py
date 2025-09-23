@@ -241,48 +241,48 @@ DECISION RULES (apply in order):
 
 Rule 1: CHECK FOR AMBIGUITY FIRST
 If message matches ambiguous patterns:
-- "remove [allergen]" (just these two words) → ["ask_clarify"]
-- "no [allergen]" (just these two words) → ["ask_clarify"]
-- "[allergen]" alone → ["ask_clarify"]
-- "without [allergen]" (unclear context) → ["ask_clarify"]
-→ Return ["ask_clarify"] with appropriate question
+- "remove [allergen]" (just these two words) -> ["ask_clarify"]
+- "no [allergen]" (just these two words) -> ["ask_clarify"]
+- "[allergen]" alone -> ["ask_clarify"]
+- "without [allergen]" (unclear context) -> ["ask_clarify"]
+-> Return ["ask_clarify"] with appropriate question
 
 Rule 2: ALLERGY-MENTION GATE
 If message contains allergy-related words ("allergic", "allergy", "intolerance", "can't eat", "fine with", "no longer allergic", "remove from allergies") AND mentions a known allergen:
-→ Proceed to rules 3-5 for allergy handling
+-> Proceed to rules 3-5 for allergy handling
 Otherwise:
-→ Skip to rule 6 (non-allergy tools)
+-> Skip to rule 6 (non-allergy tools)
 
 Rule 3: SIMPLE REMOVAL (one item removed, no new item)
 Triggers: "not allergic to X", "no longer allergic to X", "fine with X now", "remove X from allergies", "Actually I'm not allergic to X"
-→ If exactly one allergy mentioned for removal and NO new allergy: return ["update_allergy_remove"]
-→ If X not in current_profile_allergies: return ["ask_clarify"] with question
+-> If exactly one allergy mentioned for removal and NO new allergy: return ["update_allergy_remove"]
+-> If X not in current_profile_allergies: return ["ask_clarify"] with question
 
 Rule 4: CORRECTION/REPLACEMENT (remove X, add Y)
 Triggers: "not allergic to X, allergic to Y", "meant Y not X", "Actually Y not X", "I'm allergic to Y instead of X"
-→ Return ["update_allergy_remove", "update_allergy_add"]
+-> Return ["update_allergy_remove", "update_allergy_add"]
 
 Rule 5: ADDITION ONLY
 Triggers: "I'm allergic to X", "add X to allergies", "I have X allergy"
-→ Return ["update_allergy_add"]
+-> Return ["update_allergy_add"]
 
 Rule 6: FOOD SEARCH RULES (if no allergy mention)
-- Food type request (pasta, seafood, meat, etc.) → ["search_by_food_type"]
-- Meal time request (dinner, lunch) → ["search_by_meal_time"]
-- Course type request (appetizer, main, dessert) → ["search_by_course_type"]
-- Specific dish name → ["get_dish_details"]
-- Ingredient search → ["search_menu_by_ingredient"]
-- Dietary filter (vegetarian, vegan, etc.) → ["filter_X"]
-- Questions about restaurant → ["restaurant_info"]
-- Confusion/disagreement → ["handle_misunderstanding"] or ["explain_reasoning"]
-- Greetings/thanks/goodbye → ["no_tool_needed"]
+- Food type request (pasta, seafood, meat, etc.) -> ["search_by_food_type"]
+- Meal time request (dinner, lunch) -> ["search_by_meal_time"]
+- Course type request (appetizer, main, dessert) -> ["search_by_course_type"]
+- Specific dish name -> ["get_dish_details"]
+- Ingredient search -> ["search_menu_by_ingredient"]
+- Dietary filter (vegetarian, vegan, etc.) -> ["filter_X"]
+- Questions about restaurant -> ["restaurant_info"]
+- Confusion/disagreement -> ["handle_misunderstanding"] or ["explain_reasoning"]
+- Greetings/thanks/goodbye -> ["no_tool_needed"]
 
 NORMALIZATION:
 Apply these mappings when clear:
-- "milk" → "dairy"
-- "peanut"/"peanuts" → "nuts"
-- "shell fish"/"crustacean" → "shellfish"
-- "lactose" → "dairy" (only if context is clear)
+- "milk" -> "dairy"
+- "peanut"/"peanuts" -> "nuts"
+- "shell fish"/"crustacean" -> "shellfish"
+- "lactose" -> "dairy" (only if context is clear)
 
 OUTPUT FORMAT:
 Return ONLY a JSON array. Each tool MUST have this exact structure:
@@ -296,150 +296,16 @@ CRITICAL REQUIREMENTS:
 5. Return ONLY the JSON array, no explanations
 
 Examples with EXACT format to follow:
-- "I'm allergic to nuts" → [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
-- "Show me pasta" → [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
-- "I'm no longer allergic to dairy" → [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["dairy"]}}}}]
-- "Actually I meant dairy, not nuts" → [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["nuts"]}}}}, {{"tool": "update_allergy_add", "parameters": {{"allergies": ["dairy"]}}}}]
-- "Remove dairy" → [{{"tool": "ask_clarify", "parameters": {{"question": "Do you want to remove dairy from your allergy list, or see dairy-free menu items?"}}}}]
-- "hello" → [{{"tool": "no_tool_needed", "parameters": {{}}}}]
+- "I'm allergic to nuts" -> [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
+- "Show me pasta" -> [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
+- "I'm no longer allergic to dairy" -> [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["dairy"]}}}}]
+- "Actually I meant dairy, not nuts" -> [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["nuts"]}}}}, {{"tool": "update_allergy_add", "parameters": {{"allergies": ["dairy"]}}}}]
+- "Remove dairy" -> [{{"tool": "ask_clarify", "parameters": {{"question": "Do you want to remove dairy from your allergy list, or see dairy-free menu items?"}}}}]
+- "hello" -> [{{"tool": "no_tool_needed", "parameters": {{}}}}]
 
 FINAL REMINDER: Return ONLY the JSON array. No other text."""
 
     return prompt
-
-# OLD CONTENT REMOVED - The old prompt format was causing confusion
-4. search_by_food_type - Search dishes by food category
-   Parameters: food_type (from available: {', '.join(categories['food_categories'])})
-   Note: Items can belong to multiple categories (e.g., Salmon is both "Fish" and "Seafood")
-   
-5. search_menu_by_ingredient - Search dishes containing ingredient
-   Parameters: ingredient (any ingredient name)
-   
-6. filter_vegetarian/vegan/gluten_free/nut_free/dairy_free/shellfish_free/fish_free - Filter safe dishes
-   Parameters: none needed
-   
-7. update_allergy_add/remove - Update customer allergies
-   Parameters: allergies (list)
-   CRITICAL RULES:
-   - ONLY use when customer EXPLICITLY mentions allergies/restrictions
-   - NEVER use these tools for regular food searches
-   - For "I'm allergic to X" → use update_allergy_add
-   - For removal ONLY (no other allergy mentioned) → use ONLY update_allergy_remove:
-     * "I'm no longer allergic to X"
-     * "Actually, I'm not allergic to X" (when X is the only allergy mentioned)
-     * "Remove X from my allergies"
-   - For corrections with BOTH allergies mentioned → use BOTH tools:
-     * "I'm not allergic to X, I'm allergic to Y" → remove X, then add Y
-     * "Actually I meant Y, not X" → remove X, then add Y
-   
-8. no_tool_needed - For greetings, goodbyes, thanks, general chat
-
-9. explain_reasoning - Customer asking why you said/did something
-   Parameters: none needed
-   
-10. handle_misunderstanding - Customer confused or disagrees
-    Parameters: none needed
-    
-11. restaurant_info - Questions about restaurant/service
-    Parameters: info_type (hours, location, contact, general)
-    
-12. change_preference - Customer wants something different
-    Parameters: none needed
-
-RULES:
-1. Select tools that best answer the customer's request
-2. Include all necessary tools (e.g., allergy filter + category search)
-3. For get_dish_details: use what the customer said (tool handles fuzzy matching)
-4. For categories: use EXACT category names from the list above
-   - Accept typos/synonyms ONLY if clearly same thing (e.g., "apetizers" → "Appetizers", "main course" → "main")
-   - NEVER substitute with "closest" category (e.g., DON'T use "Pasta" for "Pizza", "Seafood" for "Sushi")
-   - If requested category does not exist, use get_dish_details instead to search as a dish
-5. For "seafood" requests: use "Seafood" category (includes both fish and shellfish)
-6. If customer asks for something NOT in our categories (like pizza, burgers, tacos), search as dish with get_dish_details
-7. Return JSON array with tool names and parameters
-
-EXAMPLES:
-- "What pasta dishes do you have?" → 
-  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
-  
-- "What is for dinner?" → 
-  [{{"tool": "search_by_meal_time", "parameters": {{"meal_time": "Dinner"}}}}]
-  
-- "Show me your starters" → 
-  [{{"tool": "search_by_course_type", "parameters": {{"course_type": "starter"}}}}]
-  
-- "What seafood do you have?" → 
-  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Seafood"}}}}]
-  
-- "Tell me about the Carbonara" → 
-  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "carbonara"}}}}]
-  
-- "Show me gluten-free pasta" → 
-  [{{"tool": "filter_gluten_free"}}, {{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
-  
-- "I'm allergic to nuts" → 
-  [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
-  
-- "Actually I'm not allergic to nuts, I'm allergic to dairy" → 
-  [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["nuts"]}}}}, 
-   {{"tool": "update_allergy_add", "parameters": {{"allergies": ["dairy"]}}}}]
-  
-- "I'm no longer allergic to shellfish" → 
-  [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["shellfish"]}}}}]
-
-- "Actually, I'm not allergic to dairy" → 
-  [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["dairy"]}}}}]
-  
-- "Remove dairy from my allergies" → 
-  [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["dairy"]}}}}]
-
-- "Show me pasta" → 
-  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
-  
-- "What pasta do you have?" → 
-  [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
-  
-- "Thanks" → 
-  [{{"tool": "no_tool_needed"}}]
-  
-- "Goodbye" or "See you soon" → 
-  [{{"tool": "no_tool_needed"}}]
-  
-- "Why do you offer me pasta?" → 
-  [{{"tool": "explain_reasoning"}}]
-  
-- "I did not ask for that" → 
-  [{{"tool": "handle_misunderstanding"}}]
-  
-- "What time do you close?" → 
-  [{{"tool": "restaurant_info", "parameters": {{"info_type": "hours"}}}}]
-  
-- "Show me something else" → 
-  [{{"tool": "change_preference"}}]
-
-EXAMPLES FOR NON-EXISTENT CATEGORIES (use get_dish_details):
-- "Do you have pizza?" → 
-  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "pizza"}}}}]
-  
-- "Show me your burgers" → 
-  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "burger"}}}}]
-  
-- "Any sushi options?" → 
-  [{{"tool": "get_dish_details", "parameters": {{"dish_name": "sushi"}}}}]
-
-IMPORTANT: 
-- If customer asks for a category NOT in our list, use get_dish_details to search for it
-- NEVER substitute with a different category (Pizza ≠ Pasta, Sushi ≠ Seafood, Burger ≠ Meat)
-- If customer questions your suggestions ("why do you..."), use explain_reasoning NOT food search tools
-- ONLY use the tools listed above. Do NOT use any other tools like "no_food_response" or others
-- For goodbyes, use "no_tool_needed"
-- For allergy corrections (e.g., "not X but Y"), ALWAYS use BOTH remove and add tools
-- NEVER use allergy tools unless allergies are EXPLICITLY mentioned
-- "Show me pasta" is NOT an allergy request - use search tools only
-
-Respond with ONLY the JSON array."""
-    
-    # End of old content block"""
 
 def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Optional[Any] = None) -> Dict:
     """Execute a tool with given parameters"""
@@ -1312,10 +1178,10 @@ HOW TO RESPOND:
 4. Keep the tone helpful and solution-focused
 
 Example response structure:
-"I understand you are looking for [specific combination]. While we do not have any dishes that are both [X] AND [Y], I can offer you some great options:
+\"I understand you are looking for [specific combination]. While we do not have any dishes that are both [X] AND [Y], I can offer you some great options:
 - For [X], we have [specific dishes]  
 - For [Y], we have [other specific dishes]
-Which preference is most important to you today, or would you like me to describe some of these options?"
+Which preference is most important to you today, or would you like me to describe some of these options?\"
 
 IMPORTANT: Be specific about what combination was not available, and be clear about what IS available.
 """
@@ -1436,7 +1302,7 @@ RESPONSE GUIDELINES:
     return prompt
 
 def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
-    """2-Phase flow: Tool selection with params → Response generation"""
+    """2-Phase flow: Tool selection with params -> Response generation"""
     from schemas.chat import ChatResponse
     
     try:
