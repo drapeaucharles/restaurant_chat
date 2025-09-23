@@ -196,6 +196,12 @@ def build_phase1_prompt(message: str, customer_profile: Any, chat_history: List[
     categories = get_available_categories(menu_items)
     dish_names = get_available_dish_names(menu_items)
     
+    # DEBUG: Log available categories
+    logger.info(f"=== PHASE 1 PROMPT BUILD ===")
+    logger.info(f"Available food categories: {categories.get('food_categories', [])}")
+    logger.info(f"Menu has {len(menu_items)} items")
+    logger.info(f"Message to process: '{message}'")
+    
     # Get current allergies
     current_allergies = []
     if customer_profile:
@@ -435,7 +441,10 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
     tool_name = tool_data.get("tool")
     params = tool_data.get("parameters", {})
     
-    logger.info(f"execute_tool called: tool={tool_name}, menu_items count={len(menu_items)}")
+    logger.info(f"=== EXECUTING TOOL ===")
+    logger.info(f"Tool: {tool_name}")
+    logger.info(f"Parameters: {params}")
+    logger.info(f"Menu items count: {len(menu_items)}")
     
     # Get customer allergies if profile exists
     customer_allergies = []
@@ -620,6 +629,17 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
     
     elif tool_name == "search_by_food_type":
         food_type = params.get("food_type", "").lower()
+        
+        # CRITICAL: Check if food_type parameter is missing
+        if not food_type:
+            logger.error("search_by_food_type called without food_type parameter!")
+            return {
+                "tool": tool_name,
+                "error": "Missing required parameter: food_type",
+                "found": 0,
+                "items": []
+            }
+        
         results = []
         
         # Debug total items being searched
@@ -1469,33 +1489,58 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
         
         # Handle None case (when MIA returns {"response": null})
         if selection_text is None:
+            logger.warning("MIA returned null response")
             selection_text = ""
         
         selection_text = selection_text.strip()
         
+        # DEBUG: Log raw response
+        logger.info(f"=== PHASE 1 RAW RESPONSE ===")
+        logger.info(f"Message: '{req.message}'")
+        logger.info(f"Raw selection text: {selection_text[:500]}")
+        
         try:
             selected_tools = json.loads(selection_text)
             if not isinstance(selected_tools, list):
+                logger.warning(f"Response not a list: {type(selected_tools)}")
                 selected_tools = [{"tool": "no_tool_needed"}]
             else:
-                # Ensure all elements are dictionaries
+                # Ensure all elements are dictionaries and remove null entries
                 fixed_tools = []
-                for tool in selected_tools:
-                    if isinstance(tool, dict):
+                for i, tool in enumerate(selected_tools):
+                    if tool is None:
+                        logger.warning(f"Tool {i} is null, skipping")
+                        continue
+                    elif isinstance(tool, dict):
+                        # Check if tool has required fields
+                        if not tool.get("tool"):
+                            logger.warning(f"Tool {i} missing 'tool' field: {tool}")
+                            if "parameters" in tool and not tool.get("tool"):
+                                # Skip tools with only parameters but no tool name
+                                continue
                         fixed_tools.append(tool)
                     elif isinstance(tool, str):
                         # Convert string to proper format
-                        logger.warning(f"Tool returned as string: {tool}, converting to dict")
-                        fixed_tools.append({"tool": tool})
+                        logger.warning(f"Tool {i} returned as string: {tool}, converting to dict")
+                        fixed_tools.append({"tool": tool, "parameters": {}})
                     else:
-                        logger.error(f"Unknown tool format: {type(tool)} - {tool}")
-                        fixed_tools.append({"tool": "no_tool_needed"})
+                        logger.error(f"Tool {i} unknown format: {type(tool)} - {tool}")
+                        
                 selected_tools = fixed_tools if fixed_tools else [{"tool": "no_tool_needed"}]
+                
+                # DEBUG: Log parsed tools
+                logger.info(f"Parsed {len(selected_tools)} tools from {len(selected_tools) + (len(selected_tools) - len(fixed_tools))} original")
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {e}")
+            logger.error(f"Failed text: {selection_text[:200]}")
+            selected_tools = [{"tool": "no_tool_needed"}]
         except Exception as e:
-            logger.error(f"Failed to parse tool selection: {e}, selection_text: {selection_text[:200]}")
+            logger.error(f"Unexpected error parsing tools: {e}")
+            logger.error(f"Selection text: {selection_text[:200]}")
             selected_tools = [{"tool": "no_tool_needed"}]
         
-        logger.info(f"Selected tools with params: {selected_tools}")
+        logger.info(f"Final selected tools: {json.dumps(selected_tools, indent=2)}")
         
         # Handle simple flow (no tools needed or no_food_response)
         if len(selected_tools) == 1 and selected_tools[0].get("tool") in ["no_tool_needed", "no_food_response"]:
