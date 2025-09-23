@@ -286,17 +286,25 @@ Apply these mappings when clear:
 - "lactose" → "dairy" (only if context is clear)
 
 OUTPUT FORMAT:
-Return ONLY a JSON array. Choose from the allowed tool sets above.
-Include parameters when needed.
+Return ONLY a JSON array. Each tool MUST have this exact structure:
+{{"tool": "tool_name", "parameters": {{...}}}}
 
-Examples:
-- Message: "I'm allergic to nuts" → [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
-- Message: "Show me pasta" → [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
-- Message: "I'm no longer allergic to dairy" → [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["dairy"]}}}}]
-- Message: "Actually I meant dairy, not nuts" → [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["nuts"]}}}}, {{"tool": "update_allergy_add", "parameters": {{"allergies": ["dairy"]}}}}]
-- Message: "Remove dairy" (ambiguous) → [{{"tool": "ask_clarify", "parameters": {{"question": "Do you want to remove dairy from your allergy list, or see dairy-free menu items?"}}}}]
+CRITICAL REQUIREMENTS:
+1. ALWAYS include "parameters" field (even if empty: {{}})
+2. NEVER include null tools or tools without the "tool" field
+3. For search_by_food_type, ALWAYS include food_type parameter
+4. For ask_clarify, ALWAYS include question parameter
+5. Return ONLY the JSON array, no explanations
 
-CRITICAL: Follow the rules in order. Apply normalization. Return ONLY the JSON array."""
+Examples with EXACT format to follow:
+- "I'm allergic to nuts" → [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
+- "Show me pasta" → [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
+- "I'm no longer allergic to dairy" → [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["dairy"]}}}}]
+- "Actually I meant dairy, not nuts" → [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["nuts"]}}}}, {{"tool": "update_allergy_add", "parameters": {{"allergies": ["dairy"]}}}}]
+- "Remove dairy" → [{{"tool": "ask_clarify", "parameters": {{"question": "Do you want to remove dairy from your allergy list, or see dairy-free menu items?"}}}}]
+- "hello" → [{{"tool": "no_tool_needed", "parameters": {{}}}}]
+
+FINAL REMINDER: Return ONLY the JSON array. No other text."""
 
     return prompt
 
