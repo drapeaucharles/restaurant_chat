@@ -207,103 +207,84 @@ def build_phase1_prompt(message: str, customer_profile: Any, chat_history: List[
     if customer_profile:
         current_allergies = [str(a).lower().strip() for a in (getattr(customer_profile, 'allergies', []) or [])]
     
-    prompt = f"""You are ToolSelector, a deterministic policy agent for {restaurant_name}.
+    prompt = f"""You are **ToolSelector**. Decide which tool to call for a restaurant chatbot.
 
-Consider ONLY these inputs:
-- last_user_message: "{message}"
-- current_profile_allergies: {json.dumps(current_allergies)}
-- business_domain: "restaurant"
+**Inputs:**
+* last_user_message: "{message}"
+* current_profile_allergies: {json.dumps(current_allergies)}
 
-"""
-    
-    # Note: Not including chat history in deterministic approach
-    # Only considering last message as per recommendation
-    
-    prompt += f"""AVAILABLE CATEGORIES:
-- Meal times: {json.dumps(categories['meal_times'])}
-- Course types: {json.dumps(categories['course_types'])}
-- Food categories: {json.dumps(categories['food_categories'])}
+**Output:** Return **only** a JSON **array** (1 item) describing the tool call. **Never** return an empty array.
 
-AVAILABLE TOOLS:
-- update_allergy_add (parameters: allergies)
-- update_allergy_remove (parameters: allergies)
-- search_by_food_type (parameters: food_type) 
-- search_by_meal_time (parameters: meal_time)
-- search_by_course_type (parameters: course_type)
-- get_dish_details (parameters: dish_name)
-- search_menu_by_ingredient (parameters: ingredient)
-- filter_vegetarian, filter_vegan, filter_gluten_free, filter_nut_free, filter_dairy_free, filter_shellfish_free, filter_fish_free (no parameters)
-- no_tool_needed (no parameters)
-- explain_reasoning, handle_misunderstanding, restaurant_info (no parameters)
-- ask_clarify (parameters: question)
+## Allowed tools (exact names)
 
-DECISION RULES (apply in order):
+* `search_by_food_type` {{ "food_type": TitleCase string }}
+* `get_dish_details` {{ "dish_name": string }}
+* `search_by_meal_time` {{ "meal_time": one of ["Breakfast","Lunch","Dinner","Brunch","Late Night"] }}
+* `search_by_course_type` {{ "course": one of ["Appetizer","Main","Dessert","Side","Drink"] }}
+* `search_menu_by_ingredient` {{ "ingredient": TitleCase string }}
+* `filter_dietary` {{ "diet": one of ["Vegetarian","Vegan","Gluten-Free","Halal","Kosher","Keto","Pescatarian"] }}
+* `search_menu_general` {{ "scope": one of ["menu","popular","recommendations","specials"] }}
+* `restaurant_info` {{ "topic": one of ["hours","location","contact","parking","greeting"] }}
+* `update_allergy_add` {{ "allergies": [lowercase string] }}
+* `update_allergy_remove` {{ "allergies": [lowercase string] }}
+* `ask_clarify` {{ "question": string }}
 
-Rule 1: CHECK FOR AMBIGUITY FIRST
-If message matches ambiguous patterns:
-- "remove [allergen]" (just these two words) -> ["ask_clarify"]
-- "no [allergen]" (just these two words) -> ["ask_clarify"]
-- "[allergen]" alone -> ["ask_clarify"]
-- "without [allergen]" (unclear context) -> ["ask_clarify"]
--> Return ["ask_clarify"] with appropriate question
+Output must be a **single-element** JSON array:
+[{{
+  "tool": "<one of the above>",
+  "parameters": {{ ... }}
+}}]
 
-Rule 2: ALLERGY-MENTION GATE
-If message contains allergy-related words ("allergic", "allergy", "intolerance", "can't eat", "fine with", "no longer allergic", "remove from allergies") AND mentions a known allergen:
--> Proceed to rules 3-5 for allergy handling
-Otherwise:
--> Skip to rule 6 (non-allergy tools)
+**Never** return `[]`.
 
-Rule 3: SIMPLE REMOVAL (one item removed, no new item)
-Triggers: "not allergic to X", "no longer allergic to X", "fine with X now", "remove X from allergies", "Actually I'm not allergic to X"
--> If exactly one allergy mentioned for removal and NO new allergy: return ["update_allergy_remove"]
--> If X not in current_profile_allergies: return ["ask_clarify"] with question
+## Decision rules (apply top-down)
 
-Rule 4: CORRECTION/REPLACEMENT (remove X, add Y)
-Triggers: "not allergic to X, allergic to Y", "meant Y not X", "Actually Y not X", "I'm allergic to Y instead of X"
--> Return ["update_allergy_remove", "update_allergy_add"]
+1. **Ambiguity check first**
+   - "remove [allergen]" (just these two words) -> `ask_clarify`
+   - "no [allergen]" (just these two words) -> `ask_clarify`
+   - "[allergen]" alone -> `ask_clarify`
+   - "without [allergen]" (unclear context) -> `ask_clarify`
 
-Rule 5: ADDITION ONLY
-Triggers: "I'm allergic to X", "add X to allergies", "I have X allergy"
--> Return ["update_allergy_add"]
+2. **Allergy mention gate (strict)**
+   If message explicitly mentions allergies/restrictions ("allergic", "allergy", "intolerance", "no longer allergic", "remove from my allergies", "I can/can't eat X"):
+   - **Simple removal**: "not/no longer allergic to X", "remove X from my allergies", "I'm fine with X now" -> `update_allergy_remove` {{ "allergies": ["x"] }}
+   - **Correction/replacement**: "not allergic to X, allergic to Y", "meant Y not X" -> First `update_allergy_remove` {{ "allergies": ["x"] }}
+   - **Addition only**: "I'm allergic to X", "add X to my allergies" -> `update_allergy_add` {{ "allergies": ["x"] }}
+   When any allergy rule triggers, do **not** choose a menu/search tool.
 
-Rule 6: FOOD SEARCH RULES (if no allergy mention)
-- Food type request (pasta, seafood, meat, etc.) -> ["search_by_food_type"]
-- Meal time request (dinner, lunch) -> ["search_by_meal_time"]
-- Course type request (appetizer, main, dessert) -> ["search_by_course_type"]
-- Specific dish name -> ["get_dish_details"]
-- Ingredient search -> ["search_menu_by_ingredient"]
-- Dietary filter (vegetarian, vegan, etc.) -> ["filter_X"]
-- Questions about restaurant -> ["restaurant_info"]
-- Confusion/disagreement -> ["handle_misunderstanding"] or ["explain_reasoning"]
-- Greetings/thanks/goodbye -> ["no_tool_needed"]
+3. **Restaurant info / pure greeting**
+   If message is only greeting/thanks/goodbye or asks for hours/location/contact/parking -> `restaurant_info` with specific topic, or {{"topic":"greeting"}} for pure "hello".
 
-NORMALIZATION:
-Apply these mappings when clear:
-- "milk" -> "dairy"
-- "peanut"/"peanuts" -> "nuts"
-- "shell fish"/"crustacean" -> "shellfish"
-- "lactose" -> "dairy" (only if context is clear)
+4. **Menu & search intents (no allergy mentioned)**
+   - **Food type** (incl. possessives/questions/statements): "your pasta dishes", "what chicken do you have?", "I want pasta", "show me beef" -> `search_by_food_type` {{ "food_type": TitleCase }}
+   - **Specific dish**: "spaghetti carbonara", "chicken tikka masala" -> `get_dish_details` {{ "dish_name": raw string }}
+   - **Meal time**: "what's for lunch/dinner?" -> `search_by_meal_time`
+   - **Course type**: "show appetizers", "any desserts?" -> `search_by_course_type`
+   - **Ingredient**: "dishes with truffle", "mushroom dishes" -> `search_menu_by_ingredient`
+   - **Dietary filter**: "vegetarian options", "vegan dishes" -> `filter_dietary`
+   - **General menu**: "menu", "what's good here?", "what do you have?" -> `search_menu_general` {{ "scope": "menu" or "popular" }}
 
-OUTPUT FORMAT:
-Return ONLY a JSON array. Each tool MUST have this exact structure:
-{{"tool": "tool_name", "parameters": {{...}}}}
+5. **Default rule — forbid empty arrays**
+   If none match but message mentions food/menu -> `search_menu_general` {{ "scope":"menu" }}
+   Only when message is neither food-related nor info-seeking -> `restaurant_info` {{ "topic":"greeting" }}
+   **You must never output an empty array.**
 
-CRITICAL REQUIREMENTS:
-1. ALWAYS include "parameters" field (even if empty: {{}})
-2. NEVER include null tools or tools without the "tool" field
-3. For search_by_food_type, ALWAYS include food_type parameter
-4. For ask_clarify, ALWAYS include question parameter
-5. Return ONLY the JSON array, no explanations
+## Normalization
+Map tokens to TitleCase: pasta->Pasta, chicken->Chicken, beef->Beef
+Possessives/helpers ("your/our/do you have/I want/show me") do NOT change intent; treat like direct commands.
+For allergies: "milk"->"dairy", "peanut"/"peanuts"->"nuts", "shell fish"/"crustacean"->"shellfish"
 
-Examples with EXACT format to follow:
-- "I'm allergic to nuts" -> [{{"tool": "update_allergy_add", "parameters": {{"allergies": ["nuts"]}}}}]
-- "Show me pasta" -> [{{"tool": "search_by_food_type", "parameters": {{"food_type": "Pasta"}}}}]
-- "I'm no longer allergic to dairy" -> [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["dairy"]}}}}]
-- "Actually I meant dairy, not nuts" -> [{{"tool": "update_allergy_remove", "parameters": {{"allergies": ["nuts"]}}}}, {{"tool": "update_allergy_add", "parameters": {{"allergies": ["dairy"]}}}}]
-- "Remove dairy" -> [{{"tool": "ask_clarify", "parameters": {{"question": "Do you want to remove dairy from your allergy list, or see dairy-free menu items?"}}}}]
-- "hello" -> [{{"tool": "no_tool_needed", "parameters": {{}}}}]
+## Output examples
+- "Show me your pasta dishes" -> [{{"tool":"search_by_food_type","parameters":{{"food_type":"Pasta"}}}}]
+- "What chicken do you have?" -> [{{"tool":"search_by_food_type","parameters":{{"food_type":"Chicken"}}}}]
+- "I want pasta" -> [{{"tool":"search_by_food_type","parameters":{{"food_type":"Pasta"}}}}]
+- "Show me the menu" -> [{{"tool":"search_menu_general","parameters":{{"scope":"menu"}}}}]
+- "What's good here?" -> [{{"tool":"search_menu_general","parameters":{{"scope":"popular"}}}}]
+- "Hello" -> [{{"tool":"restaurant_info","parameters":{{"topic":"greeting"}}}}]
+- "I'm allergic to nuts" -> [{{"tool":"update_allergy_add","parameters":{{"allergies":["nuts"]}}}}]
+- "Remove dairy" -> [{{"tool":"ask_clarify","parameters":{{"question":"Do you want to remove dairy from your allergy list, or see dairy-free menu items?"}}}}]
 
-FINAL REMINDER: Return ONLY the JSON array. No other text."""
+Return ONLY the JSON array."""
 
     return prompt
 
@@ -645,6 +626,52 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         logger.warning("MIA selected non-existent 'no_food_response' tool - treating as no_tool_needed")
         return {"info": "No execution needed", "tool": tool_name}
     
+    elif tool_name == "search_menu_general":
+        # New catch-all tool for general menu requests
+        scope = params.get("scope", "menu")
+        results = []
+        
+        if scope == "menu":
+            # Return a diverse selection from the menu
+            results = menu_items[:20]  # First 20 items
+        elif scope == "popular":
+            # Return popular items (for now, just expensive items as proxy)
+            sorted_items = sorted(menu_items, key=lambda x: float(str(x.get('price', '0')).replace('$', '')), reverse=True)
+            results = sorted_items[:10]
+        elif scope == "recommendations":
+            # Return chef recommendations (variety of items)
+            # Get 2-3 from each category
+            by_category = {}
+            for item in menu_items:
+                cat = item.get('subcategory', 'Other')
+                if cat not in by_category:
+                    by_category[cat] = []
+                by_category[cat].append(item)
+            
+            for cat, items in by_category.items():
+                results.extend(items[:2])
+                if len(results) >= 10:
+                    break
+        elif scope == "specials":
+            # Return daily specials (for now, just return some featured items)
+            results = [item for item in menu_items if 'special' in (item.get('name', '') + item.get('dish', '')).lower()][:5]
+            if not results:
+                results = menu_items[5:10]  # Default to some items
+        
+        # Filter for customer safety
+        safe_results = []
+        for item in results:
+            if is_safe_for_customer(item):
+                safe_results.append(item)
+        
+        return {
+            "tool": tool_name,
+            "scope": scope,
+            "found": len(safe_results),
+            "items": safe_results,
+            "category": "GENERAL MENU"
+        }
+    
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 
@@ -681,17 +708,20 @@ def execute_non_food_tool(tool_name: str, params: Dict, customer_profile: Option
         }
     
     elif tool_name == "restaurant_info":
-        info_type = params.get("info_type", "general")
+        # Handle both old parameter name (info_type) and new (topic) for compatibility
+        topic = params.get("topic", params.get("info_type", "general"))
         info_map = {
             "hours": "Mon-Thu: 11:30 AM - 10:00 PM, Fri-Sat: 11:30 AM - 11:00 PM, Sun: 10:00 AM - 9:00 PM",
             "location": "Located in the heart of downtown at 123 Main Street",
             "contact": "Phone: (555) 123-4567, Email: info@bellavista.com",
-            "general": "Bella Vista is a modern Italian restaurant serving authentic cuisine since 2015"
+            "general": "Bella Vista is a modern Italian restaurant serving authentic cuisine since 2015",
+            "greeting": "Welcome to Bella Vista!"  # Add greeting response
         }
         return {
             "tool": tool_name,
-            "info_type": info_type,
-            "info": info_map.get(info_type, info_map["general"]),
+            "info_type": topic,  # Keep for backward compatibility
+            "topic": topic,
+            "info": info_map.get(topic, info_map["general"]),
             "has_dietary_restrictions": has_restrictions,
             "do_not_suggest_food": True
         }
@@ -1411,7 +1441,12 @@ def generate_response_internal_tools_v5(req: Any, db: Session) -> Any:
                     else:
                         logger.error(f"Tool {i} unknown format: {type(tool)} - {tool}")
                         
-                selected_tools = fixed_tools if fixed_tools else [{"tool": "no_tool_needed"}]
+                # CRITICAL FIX: Check if fixed_tools is empty list (not just falsy)
+                if not fixed_tools or len(fixed_tools) == 0:
+                    logger.warning("Empty tools array detected, defaulting to search_menu_general")
+                    selected_tools = [{"tool": "search_menu_general", "parameters": {"scope": "menu"}}]
+                else:
+                    selected_tools = fixed_tools
                 
                 # DEBUG: Log parsed tools
                 logger.info(f"Parsed {len(selected_tools)} tools from {len(selected_tools) + (len(selected_tools) - len(fixed_tools))} original")
