@@ -730,7 +730,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 
-def execute_non_food_tool(tool_name: str, params: Dict, customer_profile: Optional[Any] = None) -> Dict:
+def execute_non_food_tool(tool_name: str, params: Dict, customer_profile: Optional[Any] = None, restaurant_data: Dict = None) -> Dict:
     """Execute non-food related tools that do not need menu context"""
     
     # Get customer restrictions for context (but won't suggest food)
@@ -765,13 +765,38 @@ def execute_non_food_tool(tool_name: str, params: Dict, customer_profile: Option
     elif tool_name == "restaurant_info":
         # Handle both old parameter name (info_type) and new (topic) for compatibility
         topic = params.get("topic", params.get("info_type", "general"))
-        info_map = {
-            "hours": "Mon-Thu: 11:30 AM - 10:00 PM, Fri-Sat: 11:30 AM - 11:00 PM, Sun: 10:00 AM - 9:00 PM",
-            "location": "Located in the heart of downtown at 123 Main Street",
-            "contact": "Phone: (555) 123-4567, Email: info@bellavista.com",
-            "general": "Bella Vista is a modern Italian restaurant serving authentic cuisine since 2015",
-            "greeting": "Welcome to Bella Vista!"  # Add greeting response
-        }
+        
+        # Use actual restaurant data if available
+        if restaurant_data:
+            restaurant_name = restaurant_data.get('business_name', 'our restaurant')
+            hours = restaurant_data.get('opening_hours', 'Please check our website for current hours')
+            address = restaurant_data.get('address', '')
+            phone = restaurant_data.get('contact_info', {}).get('phone', '')
+            email = restaurant_data.get('contact_info', {}).get('email', '')
+            description = restaurant_data.get('business_description', f'{restaurant_name} is here to serve you')
+            
+            # Get greeting from chat settings
+            chat_settings = restaurant_data.get('chat_settings', {})
+            custom_messages = chat_settings.get('custom_messages', {})
+            greeting = custom_messages.get('greeting', f"Welcome to {restaurant_name}!")
+            
+            info_map = {
+                "hours": hours,
+                "location": address if address else "Location information not available",
+                "contact": f"Phone: {phone}, Email: {email}" if phone or email else "Contact information not available",
+                "general": description,
+                "greeting": greeting
+            }
+        else:
+            # Fallback to generic responses
+            info_map = {
+                "hours": "Please check our website for current hours",
+                "location": "Location information not available",
+                "contact": "Contact information not available", 
+                "general": "Welcome to our restaurant",
+                "greeting": "Welcome!"
+            }
+        
         return {
             "tool": tool_name,
             "info_type": topic,  # Keep for backward compatibility
@@ -1381,13 +1406,13 @@ STRICT RULES - WE FOUND 0 ITEMS:
 - NEVER say "We have X" when X wasn't found
 - NEVER try to make other dishes sound like what they asked for (e.g., do not call carpaccio a "burger")
 - After acknowledging what we DO NOT have, offer: "Would you like me to suggest some alternatives?"
-- For breakfast/lunch: Say "We are a dinner restaurant and do not serve breakfast/lunch. We open at 5 PM"
+- For breakfast/lunch: Check custom messages or use default unavailable message
 - Be honest, then helpful
 
 Example responses:
 - "We do not have pizza on our menu. Would you like me to suggest some Italian pasta dishes instead?"
 - "We do not have burgers. Would you like to see our other meat dishes?"
-- "We do not serve breakfast as we are a dinner restaurant. We open at 5 PM with our dinner menu."
+- "We do not serve breakfast. Would you like to see our dinner menu?"
 """
         else:
             # Normal guidelines when items were found
@@ -1679,7 +1704,7 @@ Respond:"""
         for tool_data in non_food_tools:
             tool_name = tool_data.get("tool")
             params = tool_data.get("parameters", {})
-            result = execute_non_food_tool(tool_name, params, customer_profile)
+            result = execute_non_food_tool(tool_name, params, customer_profile, restaurant_data)
             tool_results.append(result)
             logger.info(f"Non-food tool {tool_name} executed")
         
