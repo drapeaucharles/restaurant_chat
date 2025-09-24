@@ -228,6 +228,7 @@ def build_phase1_prompt(message: str, customer_profile: Any, chat_history: List[
 * `update_allergy_add` {{ "allergies": [lowercase string] }}
 * `update_allergy_remove` {{ "allergies": [lowercase string] }}
 * `ask_clarify` {{ "question": string }}
+* `check_meal_availability` {{ "meal_type": one of ["breakfast","lunch","dinner","brunch"] }}
 
 Output must be a **single-element** JSON array:
 [{{
@@ -255,7 +256,11 @@ Output must be a **single-element** JSON array:
 3. **Restaurant info / pure greeting**
    If message is only greeting/thanks/goodbye or asks for hours/location/contact/parking -> `restaurant_info` with specific topic, or {{"topic":"greeting"}} for pure "hello".
 
-4. **Menu & search intents (no allergy mentioned)**
+4. **Meal availability check**
+   - "do you serve breakfast/lunch/dinner?", "is breakfast available?", "can I get lunch?" -> `check_meal_availability` {{ "meal_type": lowercase meal }}
+   - "what time is breakfast/lunch?", "when do you serve lunch?" -> `check_meal_availability` {{ "meal_type": lowercase meal }}
+
+5. **Menu & search intents (no allergy mentioned)**
    - **Food type** (incl. possessives/questions/statements): "your pasta dishes", "what chicken do you have?", "I want pasta", "show me beef" -> `search_by_food_type` {{ "food_type": TitleCase }}
    - **Specific dish**: "spaghetti carbonara", "chicken tikka masala" -> `get_dish_details` {{ "dish_name": raw string }}
    - **Meal time**: "what's for lunch/dinner?" -> `search_by_meal_time`
@@ -264,7 +269,7 @@ Output must be a **single-element** JSON array:
    - **Dietary filter**: "vegetarian options", "vegan dishes" -> `filter_dietary`
    - **General menu**: "menu", "what's good here?", "what do you have?" -> `search_menu_general` {{ "scope": "menu" or "popular" }}
 
-5. **Default rule — forbid empty arrays**
+6. **Default rule — forbid empty arrays**
    If none match but message mentions food/menu -> `search_menu_general` {{ "scope":"menu" }}
    Only when message is neither food-related nor info-seeking -> `restaurant_info` {{ "topic":"greeting" }}
    **You must never output an empty array.**
@@ -288,7 +293,7 @@ Return ONLY the JSON array."""
 
     return prompt
 
-def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Optional[Any] = None) -> Dict:
+def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Optional[Any] = None, restaurant_data: Optional[Dict] = None) -> Dict:
     """Execute a tool with given parameters"""
     tool_name = tool_data.get("tool")
     params = tool_data.get("parameters", {})
@@ -672,6 +677,56 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             "category": "GENERAL MENU"
         }
     
+    elif tool_name == "check_meal_availability":
+        # Check if restaurant serves breakfast/lunch/dinner
+        meal_type = params.get("meal_type", "").lower()
+        
+        # Count items by category
+        meal_counts = {
+            "breakfast": 0,
+            "lunch": 0, 
+            "dinner": 0,
+            "brunch": 0
+        }
+        
+        for item in menu_items:
+            category = (item.get('category', '') or '').lower()
+            if category in meal_counts:
+                meal_counts[category] += 1
+        
+        # Determine availability
+        available = meal_counts.get(meal_type, 0) > 0
+        
+        # Get service times and custom messages if available
+        service_times = {}
+        custom_message = None
+        if restaurant_data:
+            service_times = restaurant_data.get('service_times', {})
+            custom_messages = restaurant_data.get('custom_messages', {})
+            
+            # Check service_times configuration
+            meal_config = service_times.get(meal_type, {})
+            if isinstance(meal_config, dict) and 'available' in meal_config:
+                # Override availability based on configuration
+                available = meal_config.get('available', available)
+            
+            # Get custom message for unavailable meals
+            if not available:
+                if meal_type == "breakfast":
+                    custom_message = custom_messages.get('no_breakfast_message')
+                elif meal_type == "lunch":
+                    custom_message = custom_messages.get('no_lunch_message')
+        
+        return {
+            "tool": tool_name,
+            "meal_type": meal_type,
+            "available": available,
+            "item_count": meal_counts.get(meal_type, 0),
+            "all_meal_counts": meal_counts,
+            "custom_message": custom_message,
+            "service_times": service_times.get(meal_type, {})
+        }
+    
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 
@@ -1036,6 +1091,25 @@ MENU DATA FROM SEARCH:
         for result in tool_results:
             if result.get("tool") == "no_tool_needed":
                 continue
+            elif result.get("tool") == "check_meal_availability":
+                meal_type = result.get("meal_type", "meal")
+                available = result.get("available", False)
+                prompt += f"\nMEAL AVAILABILITY CHECK:\n"
+                if available:
+                    prompt += f"✓ Yes, we serve {meal_type}. We have {result.get('item_count', 0)} {meal_type} items on our menu.\n"
+                else:
+                    # Use custom message if available
+                    custom_message = result.get("custom_message")
+                    if custom_message:
+                        prompt += f"CUSTOM RESPONSE: {custom_message}\n"
+                    else:
+                        prompt += f"✗ We do not serve {meal_type}.\n"
+                    
+                    # Add context about what meals are available
+                    meal_counts = result.get("all_meal_counts", {})
+                    available_meals = [meal for meal, count in meal_counts.items() if count > 0]
+                    if available_meals and not available and not custom_message:
+                        prompt += f"We specialize in: {', '.join(available_meals)}\n"
             elif result.get("tool") == "get_dish_details":
                 if result.get("found"):
                     items = result.get("items", [])
@@ -1595,6 +1669,9 @@ Respond:"""
                 search_filter_tools.append(tool_data)
             elif tool_name in NON_FOOD_TOOLS:
                 non_food_tools.append(tool_data)
+            elif tool_name == "check_meal_availability":
+                # This tool needs menu data but is not a search/filter tool
+                other_tools.append(tool_data)
             else:
                 other_tools.append(tool_data)
         
@@ -1613,7 +1690,7 @@ Respond:"""
         
         # Execute other tools individually (get_dish_details, no_tool_needed, etc)
         for tool_data in other_tools:
-            result = execute_tool(tool_data, menu_items, customer_profile)
+            result = execute_tool(tool_data, menu_items, customer_profile, restaurant_data)
             tool_results.append(result)
             logger.info(f"Tool {tool_data.get('tool')} returned: found={result.get('found', 'N/A')}")
         

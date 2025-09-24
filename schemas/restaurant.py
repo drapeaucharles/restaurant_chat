@@ -167,6 +167,31 @@ class StaffCreateRequest(BaseModel):
 class RestaurantUpdateRequest(BaseModel):
     data: RestaurantDataPartial
 
+class ServiceTime(BaseModel):
+    start: str
+    end: str
+    available: bool
+
+class ServiceTimes(BaseModel):
+    breakfast: Optional[ServiceTime] = None
+    lunch: Optional[ServiceTime] = None
+    dinner: Optional[ServiceTime] = None
+    brunch: Optional[ServiceTime] = None
+
+class CustomMessages(BaseModel):
+    greeting: Optional[str] = None
+    goodbye: Optional[str] = None
+    thanks_response: Optional[str] = None
+    no_breakfast_message: Optional[str] = None
+    no_lunch_message: Optional[str] = None
+    restaurant_description: Optional[str] = None
+
+class ChatSettings(BaseModel):
+    auto_suggest_alternatives: Optional[bool] = True
+    show_prices_in_chat: Optional[bool] = True
+    max_items_to_show: Optional[int] = 10
+    enable_disclaimers: Optional[bool] = True
+
 class RestaurantProfileUpdate(BaseModel):
     name: str
     story: Optional[str] = None
@@ -176,4 +201,7 @@ class RestaurantProfileUpdate(BaseModel):
     whatsapp_number: Optional[str] = None
     restaurant_categories: Optional[List[str]] = None
     rag_mode: Optional[str] = Field(None, description="AI chat mode: 'optimized', 'enhanced_v2', 'enhanced_v3', 'hybrid_smart', 'hybrid_smart_memory'")
+    service_times: Optional[ServiceTimes] = None
+    custom_messages: Optional[CustomMessages] = None
+    chat_settings: Optional[ChatSettings] = None
 

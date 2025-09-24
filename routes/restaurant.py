@@ -250,6 +250,18 @@ def update_restaurant_profile_new(
     if payload.opening_hours:
         updated_data["opening_hours"] = payload.opening_hours.model_dump(exclude_none=True)
     
+    # Handle service times
+    if payload.service_times:
+        updated_data["service_times"] = payload.service_times.model_dump(exclude_none=True)
+    
+    # Handle custom messages
+    if payload.custom_messages:
+        updated_data["custom_messages"] = payload.custom_messages.model_dump(exclude_none=True)
+    
+    # Handle chat settings
+    if payload.chat_settings:
+        updated_data["chat_settings"] = payload.chat_settings.model_dump(exclude_none=True)
+    
     # Update the restaurant data
     current_owner.data = updated_data
     
