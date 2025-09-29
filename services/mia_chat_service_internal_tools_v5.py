@@ -223,7 +223,8 @@ def build_phase1_prompt(message: str, customer_profile: Any, chat_history: List[
 * `search_by_course_type` {{ "course": one of ["Appetizer","Main","Dessert","Side","Drink"] }}
 * `search_menu_by_ingredient` {{ "ingredient": TitleCase string }}
 * `filter_dietary` {{ "diet": one of ["Vegetarian","Vegan","Gluten-Free","Halal","Kosher","Keto","Pescatarian"] }}
-* `search_menu_general` {{ "scope": one of ["menu","popular","recommendations","specials"] }}
+* `filter_dietary_food_type` {{ "diet": [TitleCase], "food_type": TitleCase }}
+* `search_menu_general` {{ "scope": one of ["menu","popular","recommendations","specials"], "message_context": "original user message for context inference" }}
 * `restaurant_info` {{ "topic": one of ["hours","location","contact","parking","greeting"] }}
 * `update_allergy_add` {{ "allergies": [lowercase string] }}
 * `update_allergy_remove` {{ "allergies": [lowercase string] }}
@@ -261,6 +262,8 @@ Output must be a **single-element** JSON array:
    - "what time is breakfast/lunch?", "when do you serve lunch?" -> `check_meal_availability` {{ "meal_type": lowercase meal }}
 
 5. **Menu & search intents (no allergy mentioned)**
+   - **PRIORITY: Combined dietary + food type**: if message contains BOTH a dietary term (vegetarian/vegan/gluten-free/etc.) AND a food type (pasta/pizza/seafood/etc.) -> `filter_dietary_food_type` with both parameters
+     Examples: "vegetarian pasta", "gluten-free pizza", "vegan seafood", "vegetarian pasta that's also gluten-free"
    - **Food type** (incl. possessives/questions/statements): "your pasta dishes", "what chicken do you have?", "I want pasta", "show me beef" -> `search_by_food_type` {{ "food_type": TitleCase }}
    - **Specific dish**: "spaghetti carbonara", "chicken tikka masala" -> `get_dish_details` {{ "dish_name": raw string }}
    - **Meal time**: "what's for lunch/dinner?" -> `search_by_meal_time`
@@ -283,8 +286,11 @@ For allergies: "milk"->"dairy", "peanut"/"peanuts"->"nuts", "shell fish"/"crusta
 - "Show me your pasta dishes" -> [{{"tool":"search_by_food_type","parameters":{{"food_type":"Pasta"}}}}]
 - "What chicken do you have?" -> [{{"tool":"search_by_food_type","parameters":{{"food_type":"Chicken"}}}}]
 - "I want pasta" -> [{{"tool":"search_by_food_type","parameters":{{"food_type":"Pasta"}}}}]
-- "Show me the menu" -> [{{"tool":"search_menu_general","parameters":{{"scope":"menu"}}}}]
-- "What's good here?" -> [{{"tool":"search_menu_general","parameters":{{"scope":"popular"}}}}]
+- "Show me vegetarian pasta that's also gluten-free" -> [{{"tool":"filter_dietary_food_type","parameters":{{"diet":["Vegetarian","Gluten-Free"],"food_type":"Pasta"}}}}]
+- "Do you have vegan pizza?" -> [{{"tool":"filter_dietary_food_type","parameters":{{"diet":["Vegan"],"food_type":"Pizza"}}}}]
+- "Show me the menu" -> [{{"tool":"search_menu_general","parameters":{{"scope":"menu","message_context":"Show me the menu"}}}}]
+- "What's good here?" -> [{{"tool":"search_menu_general","parameters":{{"scope":"popular","message_context":"What's good here?"}}}}]
+- "Which one is most popular?" -> [{{"tool":"search_menu_general","parameters":{{"scope":"popular","message_context":"Which one is most popular?"}}}}]
 - "Hello" -> [{{"tool":"restaurant_info","parameters":{{"topic":"greeting"}}}}]
 - "I'm allergic to nuts" -> [{{"tool":"update_allergy_add","parameters":{{"allergies":["nuts"]}}}}]
 - "Remove dairy" -> [{{"tool":"ask_clarify","parameters":{{"question":"Do you want to remove dairy from your allergy list, or see dairy-free menu items?"}}}}]
@@ -387,13 +393,47 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                 ]
             }
         
-        # No matches found
+        # No matches found - provide alternative suggestions
+        alternatives = []
+        
+        # Try to find similar items based on food type or category
+        if "pizza" in dish_name:
+            # Look for pizza items
+            for item in menu_items:
+                item_name = (item.get('dish', '') or item.get('name', '')).lower()
+                if "pizza" in item_name and is_safe_for_customer(item):
+                    alternatives.append({
+                        "name": item.get('dish') or item.get('name'),
+                        "price": item.get('price'),
+                        "description": item.get('description', ''),
+                        "ingredients": item.get('ingredients', []),
+                        "allergens": item.get('allergens', [])
+                    })
+                    if len(alternatives) >= 3:  # Limit to 3 suggestions
+                        break
+        elif "pasta" in dish_name:
+            # Look for pasta items
+            for item in menu_items:
+                item_name = (item.get('dish', '') or item.get('name', '')).lower()
+                if any(pasta_type in item_name for pasta_type in ["pasta", "spaghetti", "penne", "linguine", "fettuccine", "ravioli", "lasagna"]):
+                    if is_safe_for_customer(item):
+                        alternatives.append({
+                            "name": item.get('dish') or item.get('name'),
+                            "price": item.get('price'),
+                            "description": item.get('description', ''),
+                            "ingredients": item.get('ingredients', []),
+                            "allergens": item.get('allergens', [])
+                        })
+                        if len(alternatives) >= 3:
+                            break
+        
         return {
             "tool": tool_name, 
             "found": 0,
             "match_type": "none",
             "search_term": dish_name,
-            "items": []
+            "items": [],
+            "alternatives": alternatives[:3] if alternatives else []
         }
     
     elif tool_name == "search_menu_by_ingredient":
@@ -510,9 +550,22 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             # Convert to lowercase for comparison
             categories_lower = [cat.lower() for cat in item_categories]
             single_category_lower = single_category.lower()
+            dish_name_lower = (item.get('dish') or item.get('name', '') or '').lower()
+            is_risotto = ('risotto' in dish_name_lower) or ('risotto' in categories_lower) or (single_category_lower == 'risotto')
+            is_pasta_like = any(kw in dish_name_lower for kw in [
+                'spaghetti','penne','linguine','fettuccine','ravioli','lasagna','gnocchi','tagliatelle','pappardelle'
+            ])
             
-            # Check if food_type matches any category
-            if food_type in categories_lower or food_type == single_category_lower:
+            # Check if food_type matches any category or inferred type
+            if (
+                food_type in categories_lower
+                or food_type == single_category_lower
+                or (food_type == 'pasta' and is_pasta_like)
+                or (food_type == 'risotto' and is_risotto)
+            ):
+                # Enforce separation: exclude risotto from pasta unless explicitly requested
+                if food_type == 'pasta' and is_risotto:
+                    continue
                 # Debug logging for seafood + shellfish allergy case
                 if food_type == "seafood" and customer_allergies and "shellfish" in customer_allergies:
                     dish_name = item.get('dish', 'Unknown')
@@ -552,7 +605,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             "pre_filtered": customer_allergies is not None and len(customer_allergies) > 0
         }
     
-    elif tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free", "filter_fish_free"]:
+    elif tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free", "filter_fish_free", "filter_dietary_food_type"]:
         filter_type = tool_name.replace("filter_", "").replace("_", "-")
         results = []
         
@@ -604,11 +657,35 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         if filter_type == "shellfish-free":
             logger.info(f"Shellfish-free filter found {len(results)} items before limiting to 15")
         
+        # If combined dietary + food type filter was requested, post-filter results by food type
+        if tool_name == "filter_dietary_food_type":
+            diet_list = params.get("diet", []) or []
+            food_type = (params.get("food_type", "") or "").lower()
+            filtered = []
+            for item in results:
+                name_lower = (item.get('name') or '').lower()
+                cats = [c.lower() for c in (item.get('restaurant_categories') or [])]
+                single = (item.get('restaurant_category') or '').lower()
+                is_risotto = 'risotto' in name_lower or 'risotto' in cats or single == 'risotto'
+                is_pasta_like = any(kw in name_lower for kw in [
+                    'spaghetti','penne','linguine','fettuccine','ravioli','lasagna','gnocchi','tagliatelle','pappardelle'
+                ])
+                match = (
+                    (food_type in cats or food_type == single)
+                    or (food_type == 'pasta' and is_pasta_like)
+                    or (food_type == 'risotto' and is_risotto)
+                )
+                if match:
+                    if food_type == 'pasta' and is_risotto:
+                        continue
+                    filtered.append(item)
+            results = filtered
+
         return {
             "tool": tool_name,
             "filter": filter_type,
             "found": len(results),
-            "items": results  # Remove limit - let intersection logic handle it
+            "items": results
         }
     
     elif tool_name in ["update_allergy_add", "update_allergy_remove"]:
@@ -640,8 +717,42 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             # Return a diverse selection from the menu
             results = menu_items[:20]  # First 20 items
         elif scope == "popular":
-            # Return popular items (for now, just expensive items as proxy)
-            sorted_items = sorted(menu_items, key=lambda x: float(str(x.get('price', '0')).replace('$', '')), reverse=True)
+            # Popularity selection with optional course filtering (e.g., desserts only)
+            course_type = (params.get("course_type", "") or "").lower()
+            candidates = menu_items
+
+            # Enhanced context inference: if no course_type provided, try to infer from message context
+            if not course_type:
+                # Look for context clues in the message that might indicate a specific course type
+                # This is a simple heuristic - in a real implementation, you'd pass conversation history
+                message_context = params.get("message_context", "").lower()
+                if any(word in message_context for word in ["dessert", "sweet", "cake", "ice cream", "tiramisu", "cheesecake"]):
+                    course_type = "dessert"
+                elif any(word in message_context for word in ["appetizer", "starter", "app", "begin"]):
+                    course_type = "appetizer"
+                elif any(word in message_context for word in ["main", "entree", "dinner", "lunch"]):
+                    course_type = "main"
+
+            # If course_type is provided (e.g., 'dessert', 'starter', 'main'), filter candidates first
+            if course_type:
+                candidates = [it for it in candidates if (it.get('subcategory', '') or '').lower() == course_type]
+
+            # Prefer explicit popularity signals when available, else use price as proxy
+            def _popularity_key(it):
+                explicit = it.get('popularity')
+                try:
+                    price_val = float(str(it.get('price', '0')).replace('$', '').strip() or 0)
+                except Exception:
+                    price_val = 0.0
+                # explicit popularity descending (None -> -1), then price descending
+                return (explicit if isinstance(explicit, (int, float)) else -1, price_val)
+
+            sorted_items = sorted(candidates, key=_popularity_key, reverse=True)
+
+            # If filtering produced no candidates, gracefully fallback to general popular
+            if course_type and not sorted_items:
+                sorted_items = sorted(menu_items, key=_popularity_key, reverse=True)
+
             results = sorted_items[:10]
         elif scope == "recommendations":
             # Return chef recommendations (variety of items)
