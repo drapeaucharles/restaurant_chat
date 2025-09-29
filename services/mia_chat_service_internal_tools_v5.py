@@ -662,24 +662,58 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             diet_list = params.get("diet", []) or []
             food_type = (params.get("food_type", "") or "").lower()
             filtered = []
+            
+            logger.info(f"filter_dietary_food_type: Found {len(results)} dietary matches, now filtering by food_type='{food_type}'")
+            
+            # We need to re-check against the original menu items for food type matching
+            # because the filtered results don't have the full category information
             for item in results:
-                name_lower = (item.get('name') or '').lower()
-                cats = [c.lower() for c in (item.get('restaurant_categories') or [])]
-                single = (item.get('restaurant_category') or '').lower()
-                is_risotto = 'risotto' in name_lower or 'risotto' in cats or single == 'risotto'
-                is_pasta_like = any(kw in name_lower for kw in [
-                    'spaghetti','penne','linguine','fettuccine','ravioli','lasagna','gnocchi','tagliatelle','pappardelle'
-                ])
-                match = (
-                    (food_type in cats or food_type == single)
-                    or (food_type == 'pasta' and is_pasta_like)
-                    or (food_type == 'risotto' and is_risotto)
-                )
-                if match:
-                    if food_type == 'pasta' and is_risotto:
-                        continue
-                    filtered.append(item)
+                # Find the original menu item to get full category information
+                item_name = item.get('name', '').lower()
+                original_item = None
+                for menu_item in menu_items:
+                    menu_name = (menu_item.get('dish') or menu_item.get('name', '')).lower()
+                    if menu_name == item_name:
+                        original_item = menu_item
+                        break
+                
+                if original_item:
+                    # Check food type against original item
+                    name_lower = item_name
+                    cats = [c.lower() for c in (original_item.get('restaurant_categories') or [])]
+                    single = (original_item.get('restaurant_category') or '').lower()
+                    is_risotto = 'risotto' in name_lower or 'risotto' in cats or single == 'risotto'
+                    is_pasta_like = any(kw in name_lower for kw in [
+                        'spaghetti','penne','linguine','fettuccine','ravioli','lasagna','gnocchi','tagliatelle','pappardelle'
+                    ])
+                    match = (
+                        (food_type in cats or food_type == single)
+                        or (food_type == 'pasta' and is_pasta_like)
+                        or (food_type == 'risotto' and is_risotto)
+                    )
+                    if match:
+                        if food_type == 'pasta' and is_risotto:
+                            continue
+                        filtered.append(item)
+                else:
+                    # Fallback: if we can't find original item, use name-based matching
+                    name_lower = item_name
+                    is_risotto = 'risotto' in name_lower
+                    is_pasta_like = any(kw in name_lower for kw in [
+                        'spaghetti','penne','linguine','fettuccine','ravioli','lasagna','gnocchi','tagliatelle','pappardelle'
+                    ])
+                    match = (
+                        (food_type == 'pasta' and is_pasta_like)
+                        or (food_type == 'risotto' and is_risotto)
+                        or (food_type in name_lower)
+                    )
+                    if match:
+                        if food_type == 'pasta' and is_risotto:
+                            continue
+                        filtered.append(item)
+            
             results = filtered
+            logger.info(f"filter_dietary_food_type: After food_type filtering, found {len(results)} items")
 
         return {
             "tool": tool_name,
