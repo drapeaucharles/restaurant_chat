@@ -606,8 +606,16 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         }
     
     elif tool_name in ["filter_vegetarian", "filter_vegan", "filter_gluten_free", "filter_nut_free", "filter_dairy_free", "filter_shellfish_free", "filter_fish_free", "filter_dietary_food_type"]:
-        filter_type = tool_name.replace("filter_", "").replace("_", "-")
+        # For filter_dietary_food_type, we need to get the diet from parameters
+        if tool_name == "filter_dietary_food_type":
+            diet_list = params.get("diet", []) or []
+            filter_type = diet_list[0].lower().replace("_", "-") if diet_list else "vegetarian"
+            logger.info(f"filter_dietary_food_type: Filtering by diet='{filter_type}' from diet_list={diet_list}")
+        else:
+            filter_type = tool_name.replace("filter_", "").replace("_", "-")
         results = []
+        
+        logger.info(f"Dietary filter: tool={tool_name}, filter_type={filter_type}, menu_items={len(menu_items)}")
         
         # Debug logging
         if filter_type == "shellfish-free":
