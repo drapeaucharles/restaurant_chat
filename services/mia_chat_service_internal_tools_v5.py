@@ -570,8 +570,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                 if food_type == "seafood" and customer_allergies and "shellfish" in customer_allergies:
                     dish_name = item.get('dish', 'Unknown')
                     item_allergens = item.get('allergens', [])
-                    # TODO: Fix missing is_safe_for_customer function
-                    is_safe = True  # Temporarily bypass safety check
+                    is_safe = is_safe_for_customer(item)
                     logger.info(f"Seafood item '{dish_name}': categories={categories_lower}, allergens={item_allergens}, safe={is_safe}")
                     
                     # Extra debug for fish items
@@ -579,8 +578,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                         logger.info(f"  -> This is a FISH item, should be safe for shellfish allergy")
                 
                 # Check allergen safety - BACKEND PRE-FILTERING
-                # TODO: Fix missing is_safe_for_customer function - temporarily bypass
-                if True:  # Temporarily bypass safety check
+                if is_safe_for_customer(item):
                     results.append({
                         "name": item.get('dish') or item.get('name'),
                         "price": item.get('price'),
