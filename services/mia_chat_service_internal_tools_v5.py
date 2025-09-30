@@ -677,6 +677,8 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                         original_item = menu_item
                         break
                 
+                logger.info(f"filter_dietary_food_type: Processing item '{item_name}', found original: {original_item is not None}")
+                
                 if original_item:
                     # Check food type against original item
                     name_lower = item_name
@@ -691,9 +693,14 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                         or (food_type == 'pasta' and is_pasta_like)
                         or (food_type == 'risotto' and is_risotto)
                     )
+                    
+                    logger.info(f"filter_dietary_food_type: Item '{item_name}' - cats: {cats}, single: {single}, is_pasta_like: {is_pasta_like}, is_risotto: {is_risotto}, match: {match}")
+                    
                     if match:
                         if food_type == 'pasta' and is_risotto:
+                            logger.info(f"filter_dietary_food_type: Skipping risotto item '{item_name}' for pasta query")
                             continue
+                        logger.info(f"filter_dietary_food_type: Adding item '{item_name}' to filtered results")
                         filtered.append(item)
                 else:
                     # Fallback: if we can't find original item, use name-based matching
