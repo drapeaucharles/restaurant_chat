@@ -597,6 +597,26 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             if len(results) == 0:
                 logger.warning("No seafood items passed safety check! This is likely a bug.")
         
+        # MINIMAL FALLBACK: If no results found by category matching, try item name search
+        if len(results) == 0:
+            logger.info(f"No category matches found for '{food_type}', trying item name search...")
+            for item in menu_items:
+                dish_name = (item.get('dish') or item.get('name', '') or '').lower()
+                if food_type.lower() in dish_name:
+                    if is_safe_for_customer(item):
+                        results.append({
+                            "name": item.get('dish') or item.get('name'),
+                            "price": item.get('price'),
+                            "allergens": item.get('allergens', []),
+                            "ingredients": item.get('ingredients', []),
+                            "is_nut_free": item.get('is_nut_free', True),
+                            "is_dairy_free": item.get('is_dairy_free', False),
+                            "is_gluten_free": item.get('is_gluten_free', False),
+                            "is_vegan": item.get('is_vegan', False),
+                            "is_vegetarian": item.get('is_vegetarian', False)
+                        })
+            logger.info(f"Item name search found {len(results)} items for '{food_type}'")
+        
         return {
             "tool": tool_name,
             "food_type": params.get("food_type"),
