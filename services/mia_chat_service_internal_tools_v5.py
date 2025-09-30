@@ -542,6 +542,10 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         # Debug total items being searched
         logger.info(f"search_by_food_type: Searching for '{food_type}' in {len(menu_items)} items")
         
+        # Debug risotto detection
+        if food_type.lower() == 'risotto':
+            logger.info(f"RISOTTO DEBUG: Starting risotto search with {len(menu_items)} menu items")
+        
         for item in menu_items:
             # Check both single category and array of categories
             item_categories = item.get('restaurant_categories', [])
@@ -563,6 +567,11 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                 or (food_type == 'pasta' and is_pasta_like)
                 or (food_type == 'risotto' and is_risotto)
             ):
+                # Debug risotto items
+                if food_type.lower() == 'risotto' and 'risotto' in dish_name_lower:
+                    logger.info(f"RISOTTO DEBUG: Found risotto item '{dish_name_lower}' - is_risotto: {is_risotto}")
+                    logger.info(f"  categories_lower: {categories_lower}")
+                    logger.info(f"  single_category_lower: '{single_category_lower}'")
                 # Enforce separation: exclude risotto from pasta unless explicitly requested
                 if food_type == 'pasta' and is_risotto:
                     continue
@@ -597,12 +606,14 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             if len(results) == 0:
                 logger.warning("No seafood items passed safety check! This is likely a bug.")
         
-        # MINIMAL FALLBACK: If no results found by category matching, try item name search
+        # GENERAL FALLBACK: If no results found by category matching, try item name search
         if len(results) == 0:
-            logger.info(f"No category matches found for '{food_type}', trying item name search...")
+            logger.info(f"No category matches found for '{food_type}', trying general item name search...")
+            food_type_lower = food_type.lower()
             for item in menu_items:
                 dish_name = (item.get('dish') or item.get('name', '') or '').lower()
-                if food_type.lower() in dish_name:
+                # General item name matching - works for any food type
+                if food_type_lower in dish_name:
                     if is_safe_for_customer(item):
                         results.append({
                             "name": item.get('dish') or item.get('name'),
@@ -615,7 +626,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                             "is_vegan": item.get('is_vegan', False),
                             "is_vegetarian": item.get('is_vegetarian', False)
                         })
-            logger.info(f"Item name search found {len(results)} items for '{food_type}'")
+            logger.info(f"General item name search found {len(results)} items for '{food_type}'")
         
         return {
             "tool": tool_name,
