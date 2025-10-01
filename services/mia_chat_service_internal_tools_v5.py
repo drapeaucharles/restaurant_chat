@@ -2127,4 +2127,4 @@ Respond:"""
         )
 
 def mia_chat_service_internal_tools_v5(req: Any, db: Session) -> Any:
-    return generate_response_internal_tools_v5(req, db)
+    return generate_response_internal_tools_v5(req, db)# Force redeploy - Wed Oct  1 12:30:23 PM WIB 2025
