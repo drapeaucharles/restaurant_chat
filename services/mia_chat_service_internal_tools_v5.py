@@ -264,8 +264,9 @@ Output must be a **single-element** JSON array:
 5. **Menu & search intents (no allergy mentioned)**
    - **PRIORITY: Combined dietary + food type**: if message contains BOTH a dietary term (vegetarian/vegan/gluten-free/etc.) AND a food type (pasta/pizza/seafood/etc.) -> `filter_dietary_food_type` with both parameters
      Examples: "vegetarian pasta", "gluten-free pizza", "vegan seafood", "vegetarian pasta that's also gluten-free"
-   - **Food type** (incl. possessives/questions/statements): "your pasta dishes", "what chicken do you have?", "I want pasta", "show me beef" -> `search_by_food_type` {{ "food_type": TitleCase }}
-   - **Specific dish**: "spaghetti carbonara", "chicken tikka masala" -> `get_dish_details` {{ "dish_name": raw string }}
+   - **Valid food type categories**: "your pasta dishes", "what chicken do you have?", "I want beef", "show me seafood" -> `search_by_food_type` {{ "food_type": TitleCase }}
+     Valid categories: Pasta, Beef, Chicken, Seafood, Fish, Pork, Lamb, Veal, Poultry, Shellfish, Salad, Soup, Dessert, Appetizer, Vegan, Vegetarian, Comfort Food, Gourmet, Healthy, Raw
+   - **Specific dish names**: "spaghetti carbonara", "chicken tikka masala", "risotto", "gnocchi", "arancini" -> `get_dish_details` {{ "dish_name": raw string }}
    - **Meal time**: "what's for lunch/dinner?" -> `search_by_meal_time`
    - **Course type**: "show appetizers", "any desserts?" -> `search_by_course_type`
    - **Ingredient**: "dishes with truffle", "mushroom dishes" -> `search_menu_by_ingredient`
@@ -286,6 +287,8 @@ For allergies: "milk"->"dairy", "peanut"/"peanuts"->"nuts", "shell fish"/"crusta
 - "Show me your pasta dishes" -> [{{"tool":"search_by_food_type","parameters":{{"food_type":"Pasta"}}}}]
 - "What chicken do you have?" -> [{{"tool":"search_by_food_type","parameters":{{"food_type":"Chicken"}}}}]
 - "I want pasta" -> [{{"tool":"search_by_food_type","parameters":{{"food_type":"Pasta"}}}}]
+- "Show me risotto" -> [{{"tool":"get_dish_details","parameters":{{"dish_name":"risotto"}}}}]
+- "Do you have gnocchi?" -> [{{"tool":"get_dish_details","parameters":{{"dish_name":"gnocchi"}}}}]
 - "Show me vegetarian pasta that's also gluten-free" -> [{{"tool":"filter_dietary_food_type","parameters":{{"diet":["Vegetarian","Gluten-Free"],"food_type":"Pasta"}}}}]
 - "Do you have vegan pizza?" -> [{{"tool":"filter_dietary_food_type","parameters":{{"diet":["Vegan"],"food_type":"Pizza"}}}}]
 - "Show me the menu" -> [{{"tool":"search_menu_general","parameters":{{"scope":"menu","message_context":"Show me the menu"}}}}]
