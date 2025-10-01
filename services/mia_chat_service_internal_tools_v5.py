@@ -542,10 +542,6 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         # Debug total items being searched
         logger.info(f"search_by_food_type: Searching for '{food_type}' in {len(menu_items)} items")
         
-        # Debug risotto detection
-        if food_type.lower() == 'risotto':
-            logger.info(f"RISOTTO DEBUG: Starting risotto search with {len(menu_items)} menu items")
-        
         for item in menu_items:
             # Check both single category and array of categories
             item_categories = item.get('restaurant_categories', [])
@@ -555,26 +551,12 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             categories_lower = [cat.lower() for cat in item_categories]
             single_category_lower = single_category.lower()
             dish_name_lower = (item.get('dish') or item.get('name', '') or '').lower()
-            is_risotto = ('risotto' in dish_name_lower) or ('risotto' in categories_lower) or (single_category_lower == 'risotto')
-            is_pasta_like = any(kw in dish_name_lower for kw in [
-                'spaghetti','penne','linguine','fettuccine','ravioli','lasagna','gnocchi','tagliatelle','pappardelle'
-            ])
             
-            # Check if food_type matches any category or inferred type
+            # Check if food_type matches any category
             if (
                 food_type in categories_lower
                 or food_type == single_category_lower
-                or (food_type == 'pasta' and is_pasta_like)
-                or (food_type == 'risotto' and is_risotto)
             ):
-                # Debug risotto items
-                if food_type.lower() == 'risotto' and 'risotto' in dish_name_lower:
-                    logger.info(f"RISOTTO DEBUG: Found risotto item '{dish_name_lower}' - is_risotto: {is_risotto}")
-                    logger.info(f"  categories_lower: {categories_lower}")
-                    logger.info(f"  single_category_lower: '{single_category_lower}'")
-                # Enforce separation: exclude risotto from pasta unless explicitly requested
-                if food_type == 'pasta' and is_risotto:
-                    continue
                 # Debug logging for seafood + shellfish allergy case
                 if food_type == "seafood" and customer_allergies and "shellfish" in customer_allergies:
                     dish_name = item.get('dish', 'Unknown')
