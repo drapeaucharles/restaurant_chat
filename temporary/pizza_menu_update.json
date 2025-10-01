@@ -1,0 +1,118 @@
+{
+  "data": {
+    "menu": [
+      {
+        "title": "Margherita Pizza",
+        "description": "Classic Italian pizza with fresh mozzarella, tomato sauce, and basil",
+        "price": "14.99",
+        "ingredients": [
+          "tomato sauce",
+          "mozzarella",
+          "fresh basil",
+          "olive oil"
+        ],
+        "allergens": [
+          "dairy",
+          "gluten"
+        ],
+        "restaurant_category": "Pizza",
+        "is_vegetarian": true,
+        "is_vegan": false,
+        "is_gluten_free": false,
+        "is_dairy_free": false,
+        "is_nut_free": true
+      },
+      {
+        "title": "Pepperoni Pizza",
+        "description": "Traditional pizza topped with spicy pepperoni and mozzarella cheese",
+        "price": "16.99",
+        "ingredients": [
+          "tomato sauce",
+          "mozzarella",
+          "pepperoni",
+          "oregano"
+        ],
+        "allergens": [
+          "dairy",
+          "gluten",
+          "pork"
+        ],
+        "restaurant_category": "Pizza",
+        "is_vegetarian": false,
+        "is_vegan": false,
+        "is_gluten_free": false,
+        "is_dairy_free": false,
+        "is_nut_free": true
+      },
+      {
+        "title": "Quattro Stagioni Pizza",
+        "description": "Four seasons pizza with artichokes, mushrooms, prosciutto, and olives",
+        "price": "18.99",
+        "ingredients": [
+          "tomato sauce",
+          "mozzarella",
+          "artichokes",
+          "mushrooms",
+          "prosciutto",
+          "olives"
+        ],
+        "allergens": [
+          "dairy",
+          "gluten",
+          "pork"
+        ],
+        "restaurant_category": "Pizza",
+        "is_vegetarian": false,
+        "is_vegan": false,
+        "is_gluten_free": false,
+        "is_dairy_free": false,
+        "is_nut_free": true
+      },
+      {
+        "title": "Vegetarian Supreme Pizza",
+        "description": "Loaded with bell peppers, onions, mushrooms, olives, and tomatoes",
+        "price": "15.99",
+        "ingredients": [
+          "tomato sauce",
+          "mozzarella",
+          "bell peppers",
+          "onions",
+          "mushrooms",
+          "olives",
+          "tomatoes"
+        ],
+        "allergens": [
+          "dairy",
+          "gluten"
+        ],
+        "restaurant_category": "Pizza",
+        "is_vegetarian": true,
+        "is_vegan": false,
+        "is_gluten_free": false,
+        "is_dairy_free": false,
+        "is_nut_free": true
+      },
+      {
+        "title": "Gluten-Free Margherita Pizza",
+        "description": "Classic Margherita pizza made with gluten-free crust",
+        "price": "16.99",
+        "ingredients": [
+          "gluten-free crust",
+          "tomato sauce",
+          "mozzarella",
+          "fresh basil",
+          "olive oil"
+        ],
+        "allergens": [
+          "dairy"
+        ],
+        "restaurant_category": "Pizza",
+        "is_vegetarian": true,
+        "is_vegan": false,
+        "is_gluten_free": true,
+        "is_dairy_free": false,
+        "is_nut_free": true
+      }
+    ]
+  }
+}
