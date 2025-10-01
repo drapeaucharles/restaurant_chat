@@ -2080,6 +2080,35 @@ Respond:"""
         if final_response.status_code == 200:
             answer = final_response.json().get("response", "")
             
+            # === ALLERGY TWO-MESSAGE FLOW ===
+            # Check if this was an allergy update and implement two-message flow
+            allergy_update_tools = [tool for tool in selected_tools if tool.get("tool") in ["update_allergy_add", "update_allergy_remove"]]
+            
+            if allergy_update_tools:
+                # This is an allergy update - implement two-message flow
+                logger.info("Allergy update detected - implementing two-message flow")
+                
+                # Create confirmation message
+                allergy_tool = allergy_update_tools[0]
+                action = "added" if allergy_tool["tool"] == "update_allergy_add" else "removed"
+                allergies = allergy_tool.get("parameters", {}).get("allergies", [])
+                allergy_list = ", ".join(allergies)
+                
+                confirmation_message = f"Got it! I've {action} {allergy_list} to your allergy preferences. Let me show you some safe options."
+                
+                # Save confirmation message to database
+                confirmation_msg = models.ChatMessage(
+                    restaurant_id=req.restaurant_id,
+                    client_id=req.client_id,
+                    sender_type="ai",
+                    message=confirmation_message
+                )
+                db.add(confirmation_msg)
+                db.commit()
+                
+                # The regular response (answer) will be the second message
+                logger.info(f"Two-message flow: Confirmation sent, regular response: {answer[:100]}...")
+            
             # Extract customer info if mentioned
             message_lower = req.message.lower()
             if any(word in message_lower for word in ['allergic', 'intolerant', "can't eat", 'allergy']):
