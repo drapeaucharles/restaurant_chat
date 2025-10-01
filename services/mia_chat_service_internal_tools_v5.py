@@ -590,7 +590,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         
         # GENERAL FALLBACK: If no results found by category matching, try item name search
         if len(results) == 0:
-            logger.info(f"No category matches found for '{food_type}', trying general item name search...")
+            logger.warning(f"[FALLBACK] No category matches found for '{food_type}', trying general item name search...")
             food_type_lower = food_type.lower()
             for item in menu_items:
                 dish_name = (item.get('dish') or item.get('name', '') or '').lower()
@@ -608,7 +608,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                             "is_vegan": item.get('is_vegan', False),
                             "is_vegetarian": item.get('is_vegetarian', False)
                         })
-            logger.info(f"General item name search found {len(results)} items for '{food_type}'")
+            logger.warning(f"[FALLBACK] General item name search found {len(results)} items for '{food_type}'")
         
         return {
             "tool": tool_name,
