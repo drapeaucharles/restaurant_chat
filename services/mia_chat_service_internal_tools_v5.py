@@ -309,6 +309,25 @@ Return ONLY the JSON array."""
 
     return prompt
 
+def is_safe_for_customer(item: Dict, customer_allergies: List[str]) -> bool:
+    """Check if item is safe based on customer allergies"""
+    if not customer_allergies:
+        return True
+    
+    item_allergens = [a.lower() for a in item.get('allergens', [])]
+    ingredients_text = ' '.join(item.get('ingredients', [])).lower()
+    
+    for allergy in customer_allergies:
+        allergy_lower = allergy.lower()
+        # Check allergens list
+        if any(allergy_lower in allergen for allergen in item_allergens):
+            return False
+        # Check ingredients
+        if allergy_lower in ingredients_text:
+            return False
+    
+    return True
+
 def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Optional[Any] = None, restaurant_data: Optional[Dict] = None) -> Dict:
     """Execute a tool with given parameters"""
     tool_name = tool_data.get("tool")
@@ -328,25 +347,6 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         customer_allergies = [str(a).lower() for a in customer_allergies if a]
         logger.info(f"Customer allergies in execute_tool: {customer_allergies}")
     
-    def is_safe_for_customer(item: Dict) -> bool:
-        """Check if item is safe based on customer allergies"""
-        if not customer_allergies:
-            return True
-        
-        item_allergens = [a.lower() for a in item.get('allergens', [])]
-        ingredients_text = ' '.join(item.get('ingredients', [])).lower()
-        
-        for allergy in customer_allergies:
-            allergy_lower = allergy.lower()
-            # Check allergens list
-            if any(allergy_lower in allergen for allergen in item_allergens):
-                return False
-            # Check ingredients
-            if allergy_lower in ingredients_text:
-                return False
-        
-        return True
-    
     if tool_name == "no_tool_needed":
         return {"info": "No execution needed"}
     
@@ -358,7 +358,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             item_name = (item.get('dish', '') or item.get('name', '')).lower()
             if dish_name == item_name:
                 # Check allergen safety even for exact matches
-                if is_safe_for_customer(item):
+                if is_safe_for_customer(item, customer_allergies):
                     return {
                         "tool": tool_name,
                         "found": 1,
@@ -382,7 +382,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             # Check if ALL search words are in the dish name
             if all(word in item_name for word in search_words):
                 # Also check allergen safety
-                if is_safe_for_customer(item):
+                if is_safe_for_customer(item, customer_allergies):
                     matches.append(item)
         
         # Return results based on matches found
@@ -426,7 +426,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             for item in menu_items:
                 item_name = (item.get('dish', '') or item.get('name', '')).lower()
                 if any(pasta_type in item_name for pasta_type in ["pasta", "spaghetti", "penne", "linguine", "fettuccine", "ravioli", "lasagna"]):
-                    if is_safe_for_customer(item):
+                    if is_safe_for_customer(item, customer_allergies):
                         alternatives.append({
                             "name": item.get('dish') or item.get('name'),
                             "price": item.get('price'),
@@ -453,7 +453,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         for item in menu_items:
             if any(ingredient in ing.lower() for ing in item.get('ingredients', [])):
                 # Check allergen safety - BACKEND PRE-FILTERING
-                if is_safe_for_customer(item):
+                if is_safe_for_customer(item, customer_allergies):
                     results.append({
                         "name": item.get('dish') or item.get('name'),
                         "price": item.get('price'),
@@ -483,7 +483,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             
             if meal_time in item_category:
                 # Check allergen safety - BACKEND PRE-FILTERING
-                if is_safe_for_customer(item):
+                if is_safe_for_customer(item, customer_allergies):
                     results.append({
                         "name": item.get('dish') or item.get('name'),
                         "price": item.get('price'),
@@ -513,7 +513,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
             
             if course_type in item_subcategory:
                 # Check allergen safety - BACKEND PRE-FILTERING
-                if is_safe_for_customer(item):
+                if is_safe_for_customer(item, customer_allergies):
                     results.append({
                         "name": item.get('dish') or item.get('name'),
                         "price": item.get('price'),
@@ -571,7 +571,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                 if food_type == "seafood" and customer_allergies and "shellfish" in customer_allergies:
                     dish_name = item.get('dish', 'Unknown')
                     item_allergens = item.get('allergens', [])
-                    is_safe = is_safe_for_customer(item)
+                    is_safe = is_safe_for_customer(item, customer_allergies)
                     logger.info(f"Seafood item '{dish_name}': categories={categories_lower}, allergens={item_allergens}, safe={is_safe}")
                     
                     # Extra debug for fish items
@@ -579,7 +579,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                         logger.info(f"  -> This is a FISH item, should be safe for shellfish allergy")
                 
                 # Check allergen safety - BACKEND PRE-FILTERING
-                if is_safe_for_customer(item):
+                if is_safe_for_customer(item, customer_allergies):
                     results.append({
                         "name": item.get('dish') or item.get('name'),
                         "price": item.get('price'),
@@ -606,7 +606,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                 dish_name = (item.get('dish') or item.get('name', '') or '').lower()
                 # General item name matching - works for any food type
                 if food_type_lower in dish_name:
-                    if is_safe_for_customer(item):
+                    if is_safe_for_customer(item, customer_allergies):
                         results.append({
                             "name": item.get('dish') or item.get('name'),
                             "price": item.get('price'),
@@ -671,7 +671,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
                     suitable = True
             
             # Also check customer allergies - BACKEND PRE-FILTERING
-            if suitable and is_safe_for_customer(item):
+            if suitable and is_safe_for_customer(item, customer_allergies):
                 results.append({
                     "name": item.get('dish') or item.get('name'),
                     "price": item.get('price'),
@@ -849,7 +849,7 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         # Filter for customer safety
         safe_results = []
         for item in results:
-            if is_safe_for_customer(item):
+            if is_safe_for_customer(item, customer_allergies):
                 safe_results.append(item)
         
         return {
