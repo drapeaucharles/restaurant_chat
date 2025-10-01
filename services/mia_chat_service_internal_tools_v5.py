@@ -602,22 +602,44 @@ def execute_tool(tool_data: Dict, menu_items: List[Dict], customer_profile: Opti
         if len(results) == 0:
             logger.warning(f"[FALLBACK] No category matches found for '{food_type}', trying general item name search...")
             food_type_lower = food_type.lower()
+            
+            # Define pizza-related terms for enhanced matching
+            pizza_terms = ['pizza', 'margherita', 'pepperoni', 'flatbread', 'calzone', 'stromboli']
+            
             for item in menu_items:
                 dish_name = (item.get('dish') or item.get('name', '') or '').lower()
-                # General item name matching - works for any food type
-                if food_type_lower in dish_name:
-                    if is_safe_for_customer(item, customer_allergies):
-                        results.append({
-                            "name": item.get('dish') or item.get('name'),
-                            "price": item.get('price'),
-                            "allergens": item.get('allergens', []),
-                            "ingredients": item.get('ingredients', []),
-                            "is_nut_free": item.get('is_nut_free', True),
-                            "is_dairy_free": item.get('is_dairy_free', False),
-                            "is_gluten_free": item.get('is_gluten_free', False),
-                            "is_vegan": item.get('is_vegan', False),
-                            "is_vegetarian": item.get('is_vegetarian', False)
-                        })
+                
+                # Enhanced matching for pizza-related items
+                if food_type_lower == 'pizza':
+                    # Check for pizza-related terms
+                    if any(term in dish_name for term in pizza_terms):
+                        if is_safe_for_customer(item, customer_allergies):
+                            results.append({
+                                "name": item.get('dish') or item.get('name'),
+                                "price": item.get('price'),
+                                "allergens": item.get('allergens', []),
+                                "ingredients": item.get('ingredients', []),
+                                "is_nut_free": item.get('is_nut_free', True),
+                                "is_dairy_free": item.get('is_dairy_free', False),
+                                "is_gluten_free": item.get('is_gluten_free', False),
+                                "is_vegan": item.get('is_vegan', False),
+                                "is_vegetarian": item.get('is_vegetarian', False)
+                            })
+                else:
+                    # General item name matching - works for any other food type
+                    if food_type_lower in dish_name:
+                        if is_safe_for_customer(item, customer_allergies):
+                            results.append({
+                                "name": item.get('dish') or item.get('name'),
+                                "price": item.get('price'),
+                                "allergens": item.get('allergens', []),
+                                "ingredients": item.get('ingredients', []),
+                                "is_nut_free": item.get('is_nut_free', True),
+                                "is_dairy_free": item.get('is_dairy_free', False),
+                                "is_gluten_free": item.get('is_gluten_free', False),
+                                "is_vegan": item.get('is_vegan', False),
+                                "is_vegetarian": item.get('is_vegetarian', False)
+                            })
             logger.warning(f"[FALLBACK] General item name search found {len(results)} items for '{food_type}'")
         
         return {
