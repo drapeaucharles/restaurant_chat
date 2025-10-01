@@ -213,6 +213,10 @@ def build_phase1_prompt(message: str, customer_profile: Any, chat_history: List[
 * last_user_message: "{message}"
 * current_profile_allergies: {json.dumps(current_allergies)}
 
+**Restaurant Data:**
+* Available food categories: {json.dumps(categories.get('food_categories', []))}
+* Sample dish names: {json.dumps(dish_names[:10])} (showing first 10 of {len(dish_names)} total)
+
 **Output:** Return **only** a JSON **array** (1 item) describing the tool call. **Never** return an empty array.
 
 ## Allowed tools (exact names)
@@ -264,9 +268,12 @@ Output must be a **single-element** JSON array:
 5. **Menu & search intents (no allergy mentioned)**
    - **PRIORITY: Combined dietary + food type**: if message contains BOTH a dietary term (vegetarian/vegan/gluten-free/etc.) AND a food type (pasta/pizza/seafood/etc.) -> `filter_dietary_food_type` with both parameters
      Examples: "vegetarian pasta", "gluten-free pizza", "vegan seafood", "vegetarian pasta that's also gluten-free"
-   - **Valid food type categories**: "your pasta dishes", "what chicken do you have?", "I want beef", "show me seafood" -> `search_by_food_type` {{ "food_type": TitleCase }}
-     Valid categories: Pasta, Beef, Chicken, Seafood, Fish, Pork, Lamb, Veal, Poultry, Shellfish, Salad, Soup, Dessert, Appetizer, Vegan, Vegetarian, Comfort Food, Gourmet, Healthy, Raw
-   - **Specific dish names**: "spaghetti carbonara", "chicken tikka masala", "risotto", "gnocchi", "arancini" -> `get_dish_details` {{ "dish_name": raw string }}
+   - **Food type categories**: Use `search_by_food_type` {{ "food_type": TitleCase }} when the user asks for a general food category that exists in the restaurant's available categories
+     Examples: "your pasta dishes", "what chicken do you have?", "I want beef", "show me seafood"
+     Check the "Available food categories" above to see what categories this restaurant actually has
+   - **Specific dish names**: Use `get_dish_details` {{ "dish_name": raw string }} when the user asks for a specific dish name, cooking method, or preparation style
+     Examples: "spaghetti carbonara", "chicken tikka masala", "risotto", "gnocchi", "arancini", "carbonara"
+     Check the "Sample dish names" above to see what dishes this restaurant actually has
    - **Meal time**: "what's for lunch/dinner?" -> `search_by_meal_time`
    - **Course type**: "show appetizers", "any desserts?" -> `search_by_course_type`
    - **Ingredient**: "dishes with truffle", "mushroom dishes" -> `search_menu_by_ingredient`
