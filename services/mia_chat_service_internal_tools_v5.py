@@ -14,6 +14,152 @@ import models
 logger = logging.getLogger(__name__)
 MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
 
+# === CONVERSATION CONTEXT ANALYSIS FUNCTIONS ===
+
+def analyze_conversation_context(chat_history: List[Dict], current_message: str) -> Dict:
+    """Analyze conversation context for AI guidance"""
+    if not chat_history:
+        return {
+            "is_first_message": True,
+            "conversation_length": 0,
+            "last_topic": None,
+            "user_style": "unknown",
+            "conversation_stage": "initial"
+        }
+    
+    # Analyze user communication style
+    user_style = "mixed"
+    formal_indicators = ["please", "thank you", "would you", "could you", "may I"]
+    casual_indicators = ["hey", "hi", "yeah", "sure", "cool", "awesome"]
+    
+    formal_count = sum(1 for msg in chat_history[-3:] if any(indicator in msg.get('message', '').lower() for indicator in formal_indicators))
+    casual_count = sum(1 for msg in chat_history[-3:] if any(indicator in msg.get('message', '').lower() for indicator in casual_indicators))
+    
+    if formal_count > casual_count:
+        user_style = "formal"
+    elif casual_count > formal_count:
+        user_style = "casual"
+    
+    # Determine conversation stage
+    if len(chat_history) <= 2:
+        stage = "initial"
+    elif len(chat_history) <= 5:
+        stage = "developing"
+    else:
+        stage = "ongoing"
+    
+    # Extract last topic
+    last_message = chat_history[-1].get('message', '') if chat_history else ''
+    last_topic = extract_topic_from_message(last_message)
+    
+    return {
+        "is_first_message": False,
+        "conversation_length": len(chat_history),
+        "last_topic": last_topic,
+        "user_style": user_style,
+        "conversation_stage": stage
+    }
+
+def analyze_flow_context(chat_history: List[Dict], current_message: str) -> Dict:
+    """Analyze conversation flow for natural transitions"""
+    if not chat_history:
+        return {
+            "topic_changed": False,
+            "is_follow_up": False,
+            "allergy_update": False,
+            "momentum": "neutral"
+        }
+    
+    # Check for topic changes
+    current_topic = extract_topic_from_message(current_message)
+    last_topic = extract_topic_from_message(chat_history[-1].get('message', '')) if chat_history else None
+    
+    topic_changed = current_topic != last_topic and last_topic is not None
+    
+    # Check for follow-up questions
+    follow_up_indicators = ["what about", "how about", "tell me about", "more", "also", "and"]
+    is_follow_up = any(indicator in current_message.lower() for indicator in follow_up_indicators)
+    
+    # Check for allergy updates
+    allergy_keywords = ["allergic", "allergy", "intolerant", "no longer allergic", "remove from my allergies"]
+    allergy_update = any(keyword in current_message.lower() for keyword in allergy_keywords)
+    
+    # Calculate conversation momentum
+    recent_messages = chat_history[-3:] if len(chat_history) >= 3 else chat_history
+    question_count = sum(1 for msg in recent_messages if '?' in msg.get('message', ''))
+    momentum = "enthusiastic" if question_count >= 2 else "neutral"
+    
+    return {
+        "topic_changed": topic_changed,
+        "is_follow_up": is_follow_up,
+        "allergy_update": allergy_update,
+        "momentum": momentum
+    }
+
+def analyze_tone_context(chat_history: List[Dict], restaurant_data: Dict) -> Dict:
+    """Analyze tone context for natural responses"""
+    # Analyze user formality
+    user_formality = "mixed"
+    if chat_history:
+        formal_count = sum(1 for msg in chat_history[-3:] if any(word in msg.get('message', '').lower() for word in ["please", "thank you", "would you"]))
+        casual_count = sum(1 for msg in chat_history[-3:] if any(word in msg.get('message', '').lower() for word in ["hey", "yeah", "cool"]))
+        
+        if formal_count > casual_count:
+            user_formality = "formal"
+        elif casual_count > formal_count:
+            user_formality = "casual"
+    
+    # Analyze conversation energy
+    energy_level = "calm"
+    if chat_history:
+        enthusiastic_indicators = ["!", "amazing", "great", "love", "excited"]
+        enthusiastic_count = sum(1 for msg in chat_history[-3:] if any(indicator in msg.get('message', '') for indicator in enthusiastic_indicators))
+        if enthusiastic_count >= 2:
+            energy_level = "enthusiastic"
+    
+    # Get restaurant personality (default to friendly)
+    restaurant_personality = restaurant_data.get('personality', 'friendly') if restaurant_data else 'friendly'
+    
+    # Get time context
+    from datetime import datetime
+    current_hour = datetime.now().hour
+    if 6 <= current_hour < 12:
+        time_context = "morning"
+    elif 12 <= current_hour < 17:
+        time_context = "afternoon"
+    elif 17 <= current_hour < 21:
+        time_context = "evening"
+    else:
+        time_context = "night"
+    
+    return {
+        "user_formality": user_formality,
+        "energy_level": energy_level,
+        "restaurant_personality": restaurant_personality,
+        "time_context": time_context
+    }
+
+def extract_topic_from_message(message: str) -> str:
+    """Extract main topic from a message"""
+    message_lower = message.lower()
+    
+    if any(word in message_lower for word in ["allergic", "allergy"]):
+        return "allergy"
+    elif any(word in message_lower for word in ["pasta", "pizza", "seafood", "chicken", "beef"]):
+        return "food_type"
+    elif any(word in message_lower for word in ["hours", "time", "open", "close"]):
+        return "hours"
+    elif any(word in message_lower for word in ["location", "address", "where"]):
+        return "location"
+    elif any(word in message_lower for word in ["spicy", "mild", "sweet", "flavor"]):
+        return "flavor"
+    elif any(word in message_lower for word in ["vegetarian", "vegan", "gluten-free"]):
+        return "dietary"
+    elif any(word in message_lower for word in ["recommend", "suggest", "good"]):
+        return "recommendation"
+    else:
+        return "general"
+
 def create_menu_summary(menu_items: List[Dict]) -> str:
     """Create a compressed menu with all items but no descriptions"""
     if not menu_items:
@@ -1223,6 +1369,12 @@ def build_phase2_prompt(message: str, tool_results: List[Dict], restaurant_name:
                        chat_history: List[Dict] = None) -> str:
     """Build Phase 2 prompt for final response generation"""
     
+    # === CONVERSATION CONTEXT ANALYSIS ===
+    # Analyze conversation context for natural flow
+    conv_context = analyze_conversation_context(chat_history or [], message)
+    flow_context = analyze_flow_context(chat_history or [], message)
+    tone_context = analyze_tone_context(chat_history or [], {})
+    
     # Check if ask_clarify tool was executed
     ask_clarify_executed = any(
         result.get("tool") == "ask_clarify"
@@ -1310,7 +1462,34 @@ The customer is looking for items with multiple criteria but we do not have anyt
                 prompt += f"You: {msg['message']}\n"
         prompt += f"\n[This is message #{interaction_count + 1} in the conversation]\n"
     
+    # === ADD CONVERSATION CONTEXT FOR NATURAL FLOW ===
     prompt += f"""
+CONVERSATION CONTEXT:
+- This is message #{conv_context['conversation_length'] + 1} in the conversation
+- First message: {conv_context['is_first_message']}
+- Last topic: {conv_context['last_topic']}
+- User style: {conv_context['user_style']}
+- Conversation stage: {conv_context['conversation_stage']}
+
+FLOW CONTEXT:
+- Topic changed: {flow_context['topic_changed']}
+- Follow-up: {flow_context['is_follow_up']}
+- Allergy update: {flow_context['allergy_update']}
+- Momentum: {flow_context['momentum']}
+
+TONE CONTEXT:
+- User formality: {tone_context['user_formality']}
+- Energy: {tone_context['energy_level']}
+- Restaurant style: {tone_context['restaurant_personality']}
+- Time: {tone_context['time_context']}
+
+RESPONSE GUIDELINES:
+- GREETING: {"Use warm greeting" if conv_context['is_first_message'] else "Skip greeting or use minimal acknowledgment"}
+- TRANSITIONS: {"Use connecting phrases" if flow_context['topic_changed'] else "Build naturally on previous response"}
+- TONE: Match user's {tone_context['user_formality']} style with {tone_context['energy_level']} energy
+- LANGUAGE: Use contractions and casual language for {tone_context['user_formality']} users
+- PERSONALITY: Be warm, helpful, and natural - avoid robotic responses
+
 Current request: "{message}"
 
 MENU DATA FROM SEARCH:
