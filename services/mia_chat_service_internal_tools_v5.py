@@ -261,11 +261,14 @@ Output must be a **single-element** JSON array:
 3. **Restaurant info / pure greeting**
    If message is only greeting/thanks/goodbye or asks for hours/location/contact/parking -> `restaurant_info` with specific topic, or {{"topic":"greeting"}} for pure "hello".
 
-4. **Meal availability check**
+4. **Meal availability check (HIGH PRIORITY)**
    - "do you serve breakfast/lunch/dinner?", "is breakfast available?", "can I get lunch?" -> `check_meal_availability` {{ "meal_type": lowercase meal }}
    - "what time is breakfast/lunch?", "when do you serve lunch?" -> `check_meal_availability` {{ "meal_type": lowercase meal }}
+   - **CRITICAL**: For ANY question asking "do you serve X?" or "is X available?", ALWAYS use `check_meal_availability`, NEVER use `search_by_meal_time`
 
 5. **Menu & search intents (no allergy mentioned)**
+   - **CRITICAL: Flavor/Preference (HIGHEST PRIORITY)**: "spicy", "mild", "sweet", "savory", "something spicy", "I want something hot", "I want spicy food" -> `search_menu_general` {{ "query": "spicy" }}
+     **CRITICAL**: Flavor words like "spicy", "mild", "sweet" are NOT food types - they are taste preferences. Use `search_menu_general`, NOT `search_by_food_type`
    - **PRIORITY: Combined dietary + food type**: if message contains BOTH a dietary term (vegetarian/vegan/gluten-free/etc.) AND a food type (pasta/pizza/seafood/etc.) -> `filter_dietary_food_type` with both parameters
      Examples: "vegetarian pasta", "gluten-free pizza", "vegan seafood", "vegetarian pasta that's also gluten-free"
    - **Food type categories**: Use `search_by_food_type` {{ "food_type": TitleCase }} when the user asks for a general food category that exists in the restaurant's available categories
