@@ -210,17 +210,21 @@ class WorkingVisaFlowOrchestrator:
                     profile_delta["nationality_iso2"] = code
                     break
         
-        # Extract purpose
-        if any(word in message_lower for word in ["tourist", "tourism", "vacation", "holiday"]):
+        # Extract purpose (enhanced detection)
+        if any(word in message_lower for word in ["tourist", "tourism", "vacation", "holiday", "sightseeing", "leisure"]):
             profile_delta["purpose"] = "tourism"
-        elif any(word in message_lower for word in ["business", "work", "job", "employment"]):
+        elif any(word in message_lower for word in ["business", "meeting", "conference", "work"]):
             profile_delta["purpose"] = "business"
-        elif any(word in message_lower for word in ["study", "student", "education"]):
+        elif any(word in message_lower for word in ["study", "student", "education", "university", "school"]):
             profile_delta["purpose"] = "education"
         elif any(word in message_lower for word in ["retire", "retirement"]):
             profile_delta["purpose"] = "retirement"
-        elif any(word in message_lower for word in ["invest", "investment"]):
+        elif any(word in message_lower for word in ["invest", "investment", "investor"]):
             profile_delta["purpose"] = "investment"
+        elif any(word in message_lower for word in ["family", "visit family", "relatives"]):
+            profile_delta["purpose"] = "family_visit"
+        elif any(word in message_lower for word in ["job", "employment", "working"]):
+            profile_delta["purpose"] = "work"
         
         # Extract intended stay duration
         import re
@@ -605,14 +609,24 @@ class WorkingVisaFlowOrchestrator:
         else:
             answer = ""
         
-        # Guide user through remaining steps
+        # Guide user through remaining steps - collect multiple items when possible
         if missing_info:
             if "nationality" in missing_info:
                 answer += "**What's your nationality?** This helps me determine which visas you're eligible for."
-            elif "purpose" in missing_info:
-                answer += "**What's the purpose of your visit to Indonesia?**\n• Tourism/vacation\n• Business meetings\n• Work/employment\n• Investment\n• Family visit\n• Study\n• Other"
-            elif "duration" in missing_info:
-                answer += "**How long do you plan to stay in Indonesia?** (e.g., '2 weeks', '3 months', '1 year')"
+            elif len(missing_info) == 2:
+                # Ask for both remaining pieces of information
+                if "purpose" in missing_info and "duration" in missing_info:
+                    answer += "**What's the purpose of your visit and how long will you stay?**\n\n**Purpose options:**\n• Tourism/vacation\n• Business meetings\n• Work/employment\n• Investment\n• Family visit\n• Study\n• Other\n\n**Duration:** Please specify (e.g., '2 weeks', '3 months', '1 year')"
+                elif "purpose" in missing_info:
+                    answer += "**What's the purpose of your visit to Indonesia?**\n• Tourism/vacation\n• Business meetings\n• Work/employment\n• Investment\n• Family visit\n• Study\n• Other"
+                elif "duration" in missing_info:
+                    answer += "**How long do you plan to stay in Indonesia?** (e.g., '2 weeks', '3 months', '1 year')"
+            elif len(missing_info) == 1:
+                # Ask for the single remaining piece
+                if "purpose" in missing_info:
+                    answer += "**What's the purpose of your visit to Indonesia?**\n• Tourism/vacation\n• Business meetings\n• Work/employment\n• Investment\n• Family visit\n• Study\n• Other"
+                elif "duration" in missing_info:
+                    answer += "**How long do you plan to stay in Indonesia?** (e.g., '2 weeks', '3 months', '1 year')"
         else:
             # We have all the info - provide recommendations
             answer += "Great! I have all the information I need. Let me recommend the best visa options for you:\n\n"
