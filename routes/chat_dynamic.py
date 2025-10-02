@@ -88,9 +88,11 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         if business_type == 'visa_agency':
             logger.info(f"✅ VISA AGENCY DETECTED! Using AI-powered visa chat service")
             try:
+                logger.info(f"🔧 DEBUG: Importing ai_powered_visa_chat_service...")
                 from services.visa_chat_service_ai_powered import ai_powered_visa_chat_service
                 selected_service = ai_powered_visa_chat_service
                 logger.info(f"✅ SUCCESS: Selected AI-powered visa chat service for {req.restaurant_id}")
+                logger.info(f"🎯 DEBUG: selected_service = {selected_service}")
             except ImportError as e:
                 logger.error(f"❌ IMPORT ERROR: AI visa chat service not available: {e}, falling back to default")
                 selected_service = chat_services.get('default', chat_services.get('fallback'))
@@ -168,7 +170,11 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         
         # Get AI response using selected service with fallback
         try:
+            logger.info(f"🚀 DEBUG: About to call selected_service: {selected_service}")
+            logger.info(f"📞 DEBUG: Calling service with req.restaurant_id={req.restaurant_id}, req.message='{req.message[:50]}...'")
             response = selected_service(req, db)
+            logger.info(f"✅ DEBUG: Service call completed, response type: {type(response)}")
+            logger.info(f"📄 DEBUG: Response answer: '{response.answer[:100]}...'")
             
             # Log which service was used
             logger.info(f"Response generated using {rag_mode} mode")

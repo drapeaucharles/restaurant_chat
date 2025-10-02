@@ -599,11 +599,14 @@ RESPONSE GUIDELINES:
 def ai_powered_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     """Main AI-powered visa chat service entry point"""
     
-    logger.info(f"AI VISA CHAT - Business: {req.restaurant_id}, Message: '{req.message}'")
+    logger.info(f"🚀 AI-POWERED VISA SERVICE CALLED! Business: {req.restaurant_id}, Message: '{req.message}'")
+    logger.info(f"🔍 DEBUG: ai_powered_visa_chat_service function entry point reached")
     
     try:
+        logger.info(f"🔧 DEBUG: Initializing VisaAIService for {req.restaurant_id}")
         # Initialize AI service
         visa_ai = VisaAIService(db, req.restaurant_id)
+        logger.info(f"✅ DEBUG: VisaAIService initialized successfully")
         
         # Get chat history
         chat_history = []
@@ -636,11 +639,13 @@ def ai_powered_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
                 logger.error(f"Rollback failed: {rollback_error}")
         
         # Generate AI response
+        logger.info(f"🤖 DEBUG: Calling generate_ai_response for message: '{req.message[:50]}...'")
         answer = visa_ai.generate_ai_response(
             message=req.message,
             client_id=req.client_id,
             chat_history=chat_history
         )
+        logger.info(f"✅ DEBUG: AI response generated: '{answer[:100]}...'")
         
         # Save conversation to database
         try:
