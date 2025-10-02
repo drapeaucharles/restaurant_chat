@@ -13,12 +13,11 @@ import uuid
 
 def get_or_create_client(db: Session, client_id: uuid.UUID, restaurant_id: str):
     """Get or create a client"""
-    client = db.query(models.Client).filter_by(
-        id=client_id,
-        restaurant_id=restaurant_id
-    ).first()
+    # First check if client exists globally (client IDs are unique across all restaurants)
+    client = db.query(models.Client).filter_by(id=client_id).first()
     
     if not client:
+        # Client doesn't exist at all, create new one
         client = models.Client(
             id=client_id,
             restaurant_id=restaurant_id
@@ -26,6 +25,13 @@ def get_or_create_client(db: Session, client_id: uuid.UUID, restaurant_id: str):
         db.add(client)
         db.commit()
         db.refresh(client)
+    else:
+        # Client exists but might be for different restaurant
+        # Update the restaurant_id to current one (clients can chat with multiple restaurants)
+        if client.restaurant_id != restaurant_id:
+            client.restaurant_id = restaurant_id
+            db.commit()
+            db.refresh(client)
     
     return client
 
