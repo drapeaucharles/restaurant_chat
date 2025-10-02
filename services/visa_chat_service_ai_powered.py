@@ -584,32 +584,53 @@ RESPONSE GUIDELINES:
             
             logger.info(f"🤖 Generating AI response for: '{message[:50]}...'")
             
-            # Try MIA first
-            ai_response = get_mia_response_fast(visa_prompt, ai_params)
+            # Use DIRECT SYNCHRONOUS MIA call (same as working restaurant service)
+            import requests
+            import os
             
-            if ai_response and len(ai_response.strip()) > 10 and not ai_response.startswith("I apologize"):
-                logger.info(f"✅ MIA AI response successful: {ai_response[:100]}...")
-                return ai_response.strip()
-            else:
-                logger.warning(f"⚠️ MIA AI response failed: '{ai_response}', trying direct API")
-                # Try direct API as backup
-                ai_response = get_mia_response_direct(visa_prompt, ai_params)
-                if ai_response and len(ai_response.strip()) > 10 and not ai_response.startswith("I apologize"):
-                    logger.info(f"✅ Direct MIA response successful: {ai_response[:100]}...")
-                    return ai_response.strip()
+            MIA_BACKEND_URL = os.getenv("MIA_BACKEND_URL", "https://mia-backend-production.up.railway.app")
+            
+            logger.info(f"🔄 Making direct synchronous MIA call...")
+            response = requests.post(
+                f"{MIA_BACKEND_URL}/chat",
+                json={
+                    "message": visa_prompt,
+                    "max_tokens": ai_params["max_tokens"],
+                    "temperature": ai_params["temperature"]
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                response_data = response.json()
+                ai_response = response_data.get("response", "")
+                
+                # Handle None case (when MIA returns {"response": null})
+                if ai_response is None:
+                    logger.warning("MIA returned null response")
+                    ai_response = ""
+                
+                ai_response = ai_response.strip()
+                
+                if ai_response and len(ai_response) > 10 and not ai_response.startswith("I apologize"):
+                    logger.info(f"✅ Direct synchronous MIA response successful: {ai_response[:100]}...")
+                    return ai_response
                 else:
-                    logger.warning(f"⚠️ All MIA methods failed, trying OpenAI fallback")
-                    # Try OpenAI as final fallback
-                    try:
-                        logger.info(f"🔄 Attempting OpenAI fallback due to MIA timeout...")
-                        openai_response = self._get_openai_response(visa_prompt, ai_params)
-                        if openai_response and len(openai_response.strip()) > 10:
-                            logger.info(f"✅ OpenAI fallback successful: {openai_response[:100]}...")
-                            return openai_response.strip()
-                        else:
-                            logger.warning(f"⚠️ OpenAI returned empty response: '{openai_response}'")
-                    except Exception as openai_error:
-                        logger.error(f"❌ OpenAI fallback failed: {openai_error}")
+                    logger.warning(f"⚠️ MIA returned poor response: '{ai_response}', trying OpenAI fallback")
+            else:
+                logger.warning(f"⚠️ MIA request failed with status {response.status_code}, trying OpenAI fallback")
+            
+            # OpenAI fallback if MIA fails
+            try:
+                logger.info(f"🔄 Attempting OpenAI fallback...")
+                openai_response = self._get_openai_response(visa_prompt, ai_params)
+                if openai_response and len(openai_response.strip()) > 10:
+                    logger.info(f"✅ OpenAI fallback successful: {openai_response[:100]}...")
+                    return openai_response.strip()
+                else:
+                    logger.warning(f"⚠️ OpenAI returned empty response: '{openai_response}'")
+            except Exception as openai_error:
+                logger.error(f"❌ OpenAI fallback failed: {openai_error}")
         except Exception as e:
             logger.error(f"❌ AI response error: {e}")
         
