@@ -36,13 +36,7 @@ def auto_deploy_gsi():
         try:
             with engine.connect() as conn:
                 with conn.begin():
-                    # Add type column to existing restaurants table
-                    conn.execute(text("""
-                        ALTER TABLE restaurants 
-                        ADD COLUMN IF NOT EXISTS type VARCHAR(64) DEFAULT 'restaurant'
-                    """))
-                    
-                    # Create businesses table
+                    # Skip restaurants table (it's a view) - create businesses table directly
                     conn.execute(text("""
                         CREATE TABLE IF NOT EXISTS businesses (
                             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -57,63 +51,79 @@ def auto_deploy_gsi():
                         )
                     """))
                     
-                    # Create policy_packs table
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS policy_packs (
-                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                            business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-                            jurisdiction VARCHAR(16) NOT NULL,
-                            version VARCHAR(32) NOT NULL,
-                            data_json JSONB NOT NULL,
-                            created_at TIMESTAMPTZ DEFAULT now(),
-                            UNIQUE (business_id, jurisdiction, version)
-                        )
-                    """))
-                    
-                    # Create catalogs table
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS catalogs (
-                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                            business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-                            created_at TIMESTAMPTZ DEFAULT now()
-                        )
-                    """))
+                    log("✅ Businesses table created")
             
-            log("✅ Migrations completed")
+            log("✅ Core migrations completed")
         except Exception as e:
-            log(f"⚠️ Migration warning: {e}")
+            log(f"⚠️ Migration error: {e}")
+            # If businesses table creation fails, use existing restaurants table
+            log("📋 Falling back to restaurants table for GSI creation")
         
         session = SessionLocal()
         
         try:
             
-            # Check if GSI exists
-            result = session.execute(text("""
-                SELECT COUNT(*) FROM businesses WHERE business_id = 'gsi_bali_agency'
-            """))
+            # Try to check if GSI exists in businesses table
+            try:
+                result = session.execute(text("""
+                    SELECT COUNT(*) FROM businesses WHERE business_id = 'gsi_bali_agency'
+                """))
+                
+                if result.scalar() > 0:
+                    log("✅ GSI Bali Agency already exists in businesses table")
+                    return True
+                
+                # Create GSI in businesses table
+                log("🏢 Creating GSI Bali Agency in businesses table...")
+                session.execute(text("""
+                    INSERT INTO businesses (business_id, type, name, password, role, data)
+                    VALUES (
+                        'gsi_bali_agency',
+                        'visa_agency', 
+                        'GSI Bali Agency',
+                        'gsi2025',
+                        'owner',
+                        '{"description": "Professional visa services in Bali", "location": {"address": "Seminyak, Bali"}, "contact": {"email": "info@gsibali.com"}}'
+                    )
+                """))
+                
+                session.commit()
+                log("✅ GSI Bali Agency created successfully in businesses table!")
+                
+            except Exception as e:
+                log(f"⚠️ Businesses table approach failed: {e}")
+                log("📋 Trying fallback approach using restaurants table...")
+                
+                # Fallback: Check if GSI exists in restaurants table
+                try:
+                    result = session.execute(text("""
+                        SELECT COUNT(*) FROM restaurants WHERE restaurant_id = 'gsi_bali_agency'
+                    """))
+                    
+                    if result.scalar() > 0:
+                        log("✅ GSI Bali Agency already exists in restaurants table")
+                        return True
+                    
+                    # Create GSI in restaurants table as fallback
+                    session.execute(text("""
+                        INSERT INTO restaurants (restaurant_id, password, role, data, business_type)
+                        VALUES (
+                            'gsi_bali_agency',
+                            'gsi2025',
+                            'owner',
+                            '{"name": "GSI Bali Agency", "description": "Professional visa services in Bali", "type": "visa_agency"}',
+                            'visa_agency'
+                        )
+                    """))
+                    
+                    session.commit()
+                    log("✅ GSI Bali Agency created successfully in restaurants table!")
+                    
+                except Exception as e2:
+                    log(f"❌ Fallback also failed: {e2}")
+                    return False
             
-            if result.scalar() > 0:
-                log("✅ GSI Bali Agency already exists")
-                return True
-            
-            # Create GSI
-            log("🏢 Creating GSI Bali Agency...")
-            session.execute(text("""
-                INSERT INTO businesses (business_id, type, name, password, role, data)
-                VALUES (
-                    'gsi_bali_agency',
-                    'visa_agency', 
-                    'GSI Bali Agency',
-                    'gsi2025',
-                    'owner',
-                    '{"description": "Professional visa services in Bali", "location": {"address": "Seminyak, Bali"}, "contact": {"email": "info@gsibali.com"}}'
-                )
-            """))
-            
-            session.commit()
-            log("✅ GSI Bali Agency created successfully!")
             log("🎉 GSI is now live and ready for visa inquiries!")
-            
             return True
             
         except Exception as e:
