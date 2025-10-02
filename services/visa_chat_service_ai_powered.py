@@ -320,7 +320,7 @@ IMPORTANT RULES:
                     break
             
             # Extract purpose
-            if any(word in message_lower for word in ["tourism", "tourist", "vacation", "holiday", "sightseeing"]):
+            if any(word in message_lower for word in ["tourism", "tourist", "vacation", "holiday", "sightseeing", "beach", "beaches", "surf", "surfing", "diving", "snorkeling", "relax", "relaxing", "explore", "exploring", "culture", "temples", "enjoy"]):
                 extracted["purpose"] = "tourism"
             elif any(word in message_lower for word in ["business", "work", "meetings", "conference"]):
                 extracted["purpose"] = "business"
@@ -368,8 +368,12 @@ IMPORTANT RULES:
         # Use conversational logic as primary (not fallback)
         message_lower = message.lower()
         
+        # Filter out automatic frontend messages
+        if "i'm your ai assistant" in message_lower or "ask me about our menu" in message_lower:
+            return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
+        
         # Greetings
-        if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon"]):
+        if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon", "how are you"]):
             return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
         
         # Fun/excitement responses
@@ -389,7 +393,7 @@ IMPORTANT RULES:
         elif any(word in message_lower for word in ["business", "work", "meetings", "conference"]):
             return "Business in Indonesia - how exciting! For business purposes, you'll want our Business Visit Visa (B211B). Where are you from? That helps me give you the exact requirements and processing time."
         
-        elif any(word in message_lower for word in ["tourism", "vacation", "holiday", "travel", "visit"]):
+        elif any(word in message_lower for word in ["tourism", "vacation", "holiday", "travel", "visit", "beach", "beaches", "surf", "surfing", "diving", "snorkeling", "relax", "relaxing", "sightseeing", "explore", "exploring", "culture", "temples", "bali", "jakarta", "enjoy"]):
             return "Indonesia for vacation - what a fantastic choice! Our Tourist Visa (B211A) is perfect for sightseeing and relaxation. Where are you traveling from and how long are you planning to stay?"
         
         # Duration mentions
