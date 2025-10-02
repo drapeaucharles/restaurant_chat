@@ -69,7 +69,7 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         # First try businesses table (new universal model)
         from sqlalchemy import text
         business_query = text("""
-            SELECT business_type, rag_mode 
+            SELECT type, rag_mode 
             FROM businesses 
             WHERE business_id = :business_id
         """)
