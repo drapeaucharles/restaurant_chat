@@ -10,16 +10,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 # Import AI infrastructure from restaurant system
-# Disable AI calls that are timing out - use pattern-based approach only
-def get_mia_response_direct(prompt, params=None):
-    """Disabled AI response - returns empty to trigger fallback"""
-    logger.info("AI response disabled due to timeouts - using pattern fallback")
-    return ""
-
-def get_mia_response_fast(prompt, params=None):
-    """Disabled AI response - returns empty to trigger fallback"""
-    logger.info("AI response disabled due to timeouts - using pattern fallback")
-    return ""
+from services.mia_direct_api import get_mia_response_direct
+from services.mia_fast_polling import get_mia_response_fast
 
 from schemas.chat import ChatRequest, ChatResponse
 import models
