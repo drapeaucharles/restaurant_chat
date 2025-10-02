@@ -99,3 +99,6 @@ def get_chat_provider_info():
 MIA_MAX_TOKENS = int(os.getenv("MIA_MAX_TOKENS", "150"))
 MIA_TIMEOUT = int(os.getenv("MIA_TIMEOUT", "30"))
 MIA_RETRY_ATTEMPTS = int(os.getenv("MIA_RETRY_ATTEMPTS", "2"))
+
+# Feature Flags
+MIA_VISA_ENABLED = os.getenv("MIA_VISA_ENABLED", "false").lower() == "true"

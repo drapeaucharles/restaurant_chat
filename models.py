@@ -67,4 +67,15 @@ except ImportError:
     class CustomerProfile:
         pass
 
+# Import Visa models (feature-flagged)
+try:
+    from models.visa_models import (
+        Business, PolicyPack, Catalog, VisaProduct, 
+        VisaRequirement, VisaEligibility, VisaLead, 
+        VisaApplication, RestaurantExtension
+    )
+except ImportError:
+    # Visa models not available - this is fine for restaurant-only deployments
+    pass
+
 

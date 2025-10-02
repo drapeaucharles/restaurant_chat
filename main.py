@@ -19,6 +19,13 @@ from contextlib import asynccontextmanager
 from database import engine
 import models
 from routes import auth, restaurant, chat_dynamic, clients, chats, whatsapp, speech, smartlamp, restaurant_categories, version, embeddings, migration, db_management, embeddings_admin, diagnostic, businesses
+# Visa routes (feature-flagged)
+from config import MIA_VISA_ENABLED
+if MIA_VISA_ENABLED:
+    try:
+        from routes import visa
+    except ImportError:
+        print("⚠️ Visa routes not available - missing dependencies")
 # TODO: Fix businesses_secure authentication
 # from routes import businesses_secure
 
@@ -297,6 +304,41 @@ app.include_router(diagnostic.router)  # Comprehensive diagnostic endpoint
 app.include_router(businesses.router)  # Business discovery endpoints
 # TODO: Fix businesses_secure authentication
 # app.include_router(businesses_secure.router)  # Secure business management with permissions
+
+# Visa routes (feature-flagged)
+if MIA_VISA_ENABLED:
+    try:
+        app.include_router(visa.router)  # Visa agency endpoints
+        print("✅ Visa agency routes enabled")
+        
+        # Auto-deploy GSI Bali Agency on Railway restart
+        try:
+            from auto_deploy_gsi import auto_deploy_gsi
+            import threading
+            
+            def run_auto_deploy():
+                """Run GSI auto-deploy in background thread"""
+                try:
+                    success = auto_deploy_gsi()
+                    if success:
+                        print("🎉 GSI Bali Agency auto-deploy completed!")
+                    else:
+                        print("⚠️ GSI auto-deploy skipped or failed")
+                except Exception as e:
+                    print(f"⚠️ GSI auto-deploy error: {e}")
+            
+            # Start GSI auto-deploy in background thread
+            deploy_thread = threading.Thread(target=run_auto_deploy, daemon=True)
+            deploy_thread.start()
+            print("🚀 GSI Bali Agency auto-deploy initiated...")
+            
+        except ImportError:
+            print("⚠️ GSI auto-deploy not available")
+        except Exception as e:
+            print(f"⚠️ GSI auto-deploy error: {e}")
+            
+    except NameError:
+        print("⚠️ Visa routes not loaded - feature disabled or missing dependencies")
 
 # Admin management endpoints
 from routes import admin_management
