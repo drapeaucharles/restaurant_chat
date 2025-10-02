@@ -442,7 +442,11 @@ RESPONSE GUIDELINES:
 - Provide practical next steps
 - Mention relevant requirements or documents
 - Ask clarifying questions when information is incomplete
-- Show enthusiasm for helping them achieve their Indonesia goals"""
+- Show enthusiasm for helping them achieve their Indonesia goals
+- If they ask about non-visa topics, politely redirect to visa consultation
+- Always stay in character as Maya, the visa expert
+- Adapt your tone to match their communication style
+- Be helpful and encouraging, never dismissive"""
         
         # Add comprehensive profile context
         if profile:
@@ -526,8 +530,8 @@ RESPONSE GUIDELINES:
             
             # AI parameters for intelligent responses
             ai_params = {
-                "max_tokens": 200,
-                "temperature": 0.8  # Higher creativity for natural conversation
+                "max_tokens": 250,  # More tokens for detailed responses
+                "temperature": 0.9  # High creativity for natural, engaging conversation
             }
             
             logger.info(f"🤖 Generating AI response for: '{message[:50]}...'")
@@ -546,9 +550,9 @@ RESPONSE GUIDELINES:
         except Exception as e:
             logger.error(f"❌ AI response error: {e}")
         
-        # MINIMAL FALLBACK - Only for complete AI failure
-        logger.warning("🔄 AI completely failed, using minimal fallback")
-        return "Hi! I'm Maya from GSI Bali Agency. I'm here to help you with Indonesia visa consultation. Could you tell me about your travel plans so I can provide the best guidance?"
+        # MINIMAL FALLBACK - Only for complete AI failure (should rarely happen)
+        logger.error("🔄 CRITICAL: AI completely failed, using emergency fallback")
+        return "I'm Maya from GSI Bali Agency. I'm experiencing some technical difficulties right now, but I'm here to help with your Indonesia visa needs. Could you please tell me about your travel plans?"
 
 
 def ai_powered_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
