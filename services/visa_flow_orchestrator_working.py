@@ -573,13 +573,17 @@ class WorkingVisaFlowOrchestrator:
             days = profile_delta['intended_stay_days']
             acknowledged.append(f"stay duration ({days} days)")
         
-        # Get current profile to see what we already have
+        # Get current profile and merge with new delta to get complete picture
         current_profile = self._get_user_profile(client_id) or {}
         
-        # Check what information we still need (considering both current profile and new delta)
-        has_nationality = "nationality_iso2" in current_profile or "nationality_iso2" in profile_delta
-        has_purpose = "purpose" in current_profile or "purpose" in profile_delta  
-        has_duration = "intended_stay_days" in current_profile or "intended_stay_days" in profile_delta
+        # Create merged profile (current + new delta)
+        merged_profile = current_profile.copy()
+        merged_profile.update(profile_delta)
+        
+        # Check what information we still need based on merged profile
+        has_nationality = "nationality_iso2" in merged_profile
+        has_purpose = "purpose" in merged_profile  
+        has_duration = "intended_stay_days" in merged_profile
         
         missing_info = []
         if not has_nationality:
