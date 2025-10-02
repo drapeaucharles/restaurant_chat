@@ -297,116 +297,127 @@ IMPORTANT RULES:
         return prompt
     
     def extract_profile_updates(self, message: str, current_profile: Dict) -> Dict[str, Any]:
-        """Extract profile information using pattern matching (no AI to avoid timeouts)"""
+        """Extract profile information using AI understanding"""
         
         try:
-            message_lower = message.lower()
-            extracted = {}
+            # Use AI to extract profile information intelligently
+            extraction_prompt = f"""Extract visa profile information from this message. Return ONLY a JSON object.
+
+CURRENT PROFILE: {json.dumps(current_profile)}
+MESSAGE: "{message}"
+
+Extract any new information:
+- nationality_iso2: 2-letter country code (US, CA, AU, GB, DE, FR, JP, etc.)
+- purpose: tourism, business, education, work, investment, family_visit
+- intended_stay_days: convert duration to days (1 week = 7, 1 month = 30, 1 year = 365)
+
+Examples:
+"I want to enjoy beach" -> {{"purpose": "tourism"}}
+"I am American for business" -> {{"nationality_iso2": "US", "purpose": "business"}}
+"3 weeks vacation" -> {{"purpose": "tourism", "intended_stay_days": 21}}
+"Hello" -> {{}}
+
+Return only JSON:"""
+
+            response = get_mia_response_fast(extraction_prompt, {
+                "temperature": 0.1,
+                "max_tokens": 150
+            })
             
-            # Extract nationality using pattern matching
-            countries = {
-                "american": "US", "usa": "US", "america": "US", "united states": "US",
-                "canadian": "CA", "canada": "CA",
-                "australian": "AU", "australia": "AU", "aussie": "AU",
-                "british": "GB", "uk": "GB", "britain": "GB", "england": "GB",
-                "german": "DE", "germany": "DE",
-                "french": "FR", "france": "FR",
-                "japanese": "JP", "japan": "JP"
-            }
+            # Parse JSON response
+            response = response.strip()
+            if response.startswith('```json'):
+                response = response.replace('```json', '').replace('```', '').strip()
             
-            for country_name, code in countries.items():
-                if country_name in message_lower:
-                    extracted["nationality_iso2"] = code
-                    break
-            
-            # Extract purpose
-            if any(word in message_lower for word in ["tourism", "tourist", "vacation", "holiday", "sightseeing", "beach", "beaches", "surf", "surfing", "diving", "snorkeling", "relax", "relaxing", "explore", "exploring", "culture", "temples", "enjoy"]):
-                extracted["purpose"] = "tourism"
-            elif any(word in message_lower for word in ["business", "work", "meetings", "conference"]):
-                extracted["purpose"] = "business"
-            elif any(word in message_lower for word in ["study", "student", "education", "university"]):
-                extracted["purpose"] = "education"
-            
-            # Extract duration
-            import re
-            duration_patterns = [
-                (r"(\d+)\s*weeks?", lambda x: int(x) * 7),
-                (r"(\d+)\s*months?", lambda x: int(x) * 30),
-                (r"(\d+)\s*days?", lambda x: int(x)),
-                (r"(\d+)\s*years?", lambda x: int(x) * 365)
-            ]
-            
-            for pattern, converter in duration_patterns:
-                match = re.search(pattern, message_lower)
-                if match:
-                    extracted["intended_stay_days"] = converter(match.group(1))
-                    break
-            
-            logger.info(f"Pattern extracted profile data: {extracted}")
+            extracted = json.loads(response) if response else {}
+            logger.info(f"AI extracted profile data: {extracted}")
             return extracted
             
         except Exception as e:
-            logger.error(f"Error extracting profile with patterns: {e}")
-            return {}
+            logger.error(f"Error in AI profile extraction: {e}")
+            
+            # Minimal fallback for critical patterns only
+            message_lower = message.lower()
+            extracted = {}
+            
+            # Basic nationality detection
+            if "american" in message_lower or "usa" in message_lower:
+                extracted["nationality_iso2"] = "US"
+            elif "canadian" in message_lower or "canada" in message_lower:
+                extracted["nationality_iso2"] = "CA"
+            elif "australian" in message_lower or "australia" in message_lower:
+                extracted["nationality_iso2"] = "AU"
+            
+            # Basic duration extraction
+            import re
+            if re.search(r"(\d+)\s*weeks?", message_lower):
+                match = re.search(r"(\d+)\s*weeks?", message_lower)
+                extracted["intended_stay_days"] = int(match.group(1)) * 7
+            elif re.search(r"(\d+)\s*months?", message_lower):
+                match = re.search(r"(\d+)\s*months?", message_lower)
+                extracted["intended_stay_days"] = int(match.group(1)) * 30
+            
+            return extracted
     
     def generate_ai_response(self, message: str, client_id: str, chat_history: List[Dict]) -> str:
-        """Generate conversational response (using fallback logic as primary)"""
+        """Generate intelligent conversational response using AI understanding"""
         
         # Get current profile
         current_profile = self._get_user_profile(client_id)
         
-        # Extract any new profile information from message
-        profile_updates = self.extract_profile_updates(message, current_profile)
-        
-        # Update profile if new information found
-        if profile_updates:
-            updated_profile = current_profile.copy()
-            updated_profile.update(profile_updates)
-            self._save_user_profile(client_id, updated_profile)
-            current_profile = updated_profile
-        
-        # Use conversational logic as primary (not fallback)
-        message_lower = message.lower()
-        
-        # Filter out automatic frontend messages
-        if "i'm your ai assistant" in message_lower or "ask me about our menu" in message_lower:
-            return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
-        
-        # Greetings
-        if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon", "how are you"]):
-            return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
-        
-        # Fun/excitement responses
-        elif any(word in message_lower for word in ["fun", "exciting", "adventure", "amazing"]):
-            return "That's the spirit! Indonesia is absolutely amazing for fun adventures! Are you thinking beaches, culture, food, or maybe a bit of everything? And where are you traveling from?"
-        
-        # Finding right visa
-        elif any(phrase in message_lower for phrase in ["good fit", "right visa", "best option", "find", "recommend"]):
-            return "Perfect! I'd love to help you find the ideal visa for your Indonesia adventure! To recommend the best option, could you tell me: Where are you from and what's bringing you to Indonesia?"
-        
-        # Nationality mentions
-        elif any(country in message_lower for country in ["american", "canadian", "australian", "british", "german", "french", "japanese"]):
-            nationality = "American" if "american" in message_lower else "Canadian" if "canadian" in message_lower else "your"
-            return f"Awesome! {nationality} travelers love Indonesia! What's bringing you there - vacation, business, or something else? And how long are you planning to stay?"
-        
-        # Business/tourism mentions
-        elif any(word in message_lower for word in ["business", "work", "meetings", "conference"]):
-            return "Business in Indonesia - how exciting! For business purposes, you'll want our Business Visit Visa (B211B). Where are you from? That helps me give you the exact requirements and processing time."
-        
-        elif any(word in message_lower for word in ["tourism", "vacation", "holiday", "travel", "visit", "beach", "beaches", "surf", "surfing", "diving", "snorkeling", "relax", "relaxing", "sightseeing", "explore", "exploring", "culture", "temples", "bali", "jakarta", "enjoy"]):
-            return "Indonesia for vacation - what a fantastic choice! Our Tourist Visa (B211A) is perfect for sightseeing and relaxation. Where are you traveling from and how long are you planning to stay?"
-        
-        # Duration mentions
-        elif any(word in message_lower for word in ["weeks", "months", "days"]):
-            return "Great! Knowing your travel duration helps me recommend the perfect visa. Could you also tell me where you're from and what's the main purpose of your visit?"
-        
-        # Visa-related questions
-        elif any(word in message_lower for word in ["visa", "permit", "requirements", "documents"]):
-            return "I'd be happy to help you with Indonesia visa requirements! To give you the most accurate information, could you tell me: Where are you from and what's bringing you to Indonesia?"
-        
-        # Default conversational response
-        else:
-            return f"Hi! I'm Maya from GSI Bali Agency, and I'm excited to help with your Indonesia visa! I see you mentioned '{message}' - could you tell me a bit more about your travel plans? Where are you from and what's bringing you to Indonesia?"
+        # Use AI to understand intent and generate appropriate response
+        try:
+            # Build intelligent prompt for intent classification and response generation
+            intent_prompt = f"""You are Maya, a friendly visa consultant at GSI Bali Agency. Analyze this message and respond naturally.
+
+CURRENT CLIENT PROFILE: {json.dumps(current_profile) if current_profile else "New client - no info yet"}
+
+CLIENT MESSAGE: "{message}"
+
+TASK: Understand the intent and respond as Maya would. Consider these scenarios:
+
+1. GREETINGS/AUTOMATIC MESSAGES: Warm welcome asking about Indonesia plans
+2. TOURISM INTENT (any vacation/leisure activity): Recommend Tourist Visa B211A, ask nationality/duration  
+3. BUSINESS INTENT (work/meetings): Recommend Business Visa B211B, ask nationality/duration
+4. NATIONALITY MENTIONED: Enthusiastic response, ask purpose/duration
+5. DURATION MENTIONED: Acknowledge, ask missing info (nationality/purpose)
+6. VISA QUESTIONS: Helpful response, ask nationality/purpose for accurate info
+7. OTHER: Natural response incorporating their message, ask nationality/purpose
+
+RESPOND AS MAYA: Friendly, enthusiastic, professional. Always end with a relevant question.
+
+Maya's Response:"""
+
+            # Generate AI response
+            response = get_mia_response_direct(intent_prompt, {
+                "temperature": 0.7,
+                "max_tokens": 300,
+                "top_p": 0.9
+            })
+            
+            # Extract profile updates using AI understanding
+            profile_updates = self.extract_profile_updates(message, current_profile)
+            
+            # Update profile if new information found
+            if profile_updates:
+                updated_profile = current_profile.copy()
+                updated_profile.update(profile_updates)
+                self._save_user_profile(client_id, updated_profile)
+            
+            return response.strip()
+            
+        except Exception as e:
+            logger.error(f"Error in AI response generation: {e}")
+            
+            # Simple fallback for critical cases only
+            message_lower = message.lower()
+            
+            if "i'm your ai assistant" in message_lower or "ask me about our menu" in message_lower:
+                return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
+            elif any(word in message_lower for word in ["hello", "hi", "hey", "how are you"]):
+                return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
+            else:
+                return f"Hi! I'm Maya from GSI Bali Agency, and I'm excited to help with your Indonesia visa! I see you mentioned '{message}' - could you tell me a bit more about your travel plans? Where are you from and what's bringing you to Indonesia?"
 
 
 def ai_powered_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
