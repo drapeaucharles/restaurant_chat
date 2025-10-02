@@ -49,11 +49,13 @@ class WorkingVisaFlowOrchestrator:
                 ORDER BY vp.product_code
             """)
             
+            logger.info(f"Getting visa products for business_id: {self.business_id}")
             results = self.db.execute(query, {"business_id": self.business_id}).fetchall()
+            logger.info(f"Found {len(results)} visa products")
             
             products = []
             for row in results:
-                products.append({
+                product = {
                     "product_code": row[0],
                     "name": row[1],
                     "category": row[2],
@@ -64,12 +66,17 @@ class WorkingVisaFlowOrchestrator:
                     "notes": row[7],
                     "sponsor_needed": row[8],
                     "convertible": row[9]
-                })
+                }
+                products.append(product)
+                logger.info(f"Added product: {product['product_code']} - {product['name']}")
             
+            logger.info(f"Returning {len(products)} products")
             return products
             
         except Exception as e:
             logger.error(f"Error getting visa products: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return []
     
     def process_message(self, message: str, client_id: str, chat_history: List[Dict] = None) -> Dict[str, Any]:
@@ -297,7 +304,10 @@ class WorkingVisaFlowOrchestrator:
         """
         Flow 4: Recommender - Suggest best visa options
         """
+        logger.info(f"Recommender flow: Found {len(self.visa_products)} visa products")
+        
         if not self.visa_products:
+            logger.warning("No visa products found, returning generic response")
             return {
                 "answer": "I can help you with visa services for Indonesia. Let me get you more information about available options.",
                 "flow_used": "recommender",
