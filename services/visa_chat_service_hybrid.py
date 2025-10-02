@@ -297,20 +297,28 @@ def hybrid_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     Main entry point for hybrid visa chat service
     """
     try:
+        logger.info(f"🚀 HYBRID SERVICE ENTRY: Processing message '{req.message[:50]}...' for {req.restaurant_id}")
+        
         # Get chat history for context
         from services.visa_chat_service_full_flows import get_chat_history_sql, save_chat_message_sql
         
+        logger.info(f"🔍 DEBUG: Getting chat history for client {req.client_id}")
         chat_history = get_chat_history_sql(db, req.client_id, req.restaurant_id)
+        logger.info(f"✅ DEBUG: Got {len(chat_history)} chat history messages")
         
         # Initialize hybrid service
+        logger.info(f"🔍 DEBUG: Initializing HybridVisaService for {req.restaurant_id}")
         hybrid_service = HybridVisaService(db, req.restaurant_id)
+        logger.info(f"✅ DEBUG: HybridVisaService initialized successfully")
         
         # Process message through hybrid system
+        logger.info(f"🔍 DEBUG: Processing message through hybrid system")
         result = hybrid_service.process_message(
             message=req.message,
             client_id=req.client_id,
             chat_history=chat_history
         )
+        logger.info(f"✅ DEBUG: Hybrid processing completed, answer: '{result['answer'][:50]}...'")
         
         # Save conversation to database
         save_chat_message_sql(db, req.client_id, req.restaurant_id, req.message, "client")

@@ -40,10 +40,16 @@ def full_flows_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         chat_history = get_chat_history_sql(db, req.client_id, req.restaurant_id)
         
         # Use hybrid visa chat service (orchestrator + AI)
+        logger.info(f"🔍 DEBUG: About to import hybrid_visa_chat_service")
         from services.visa_chat_service_hybrid import hybrid_visa_chat_service
+        logger.info(f"✅ DEBUG: Successfully imported hybrid_visa_chat_service")
         
         logger.info(f"🎯 Using hybrid visa service (orchestrator + AI) for {req.restaurant_id}")
-        return hybrid_visa_chat_service(req, db)
+        logger.info(f"🔍 DEBUG: Calling hybrid_visa_chat_service with message: '{req.message[:50]}...'")
+        
+        result = hybrid_visa_chat_service(req, db)
+        logger.info(f"✅ DEBUG: Hybrid service returned: '{result.answer[:50]}...'")
+        return result
         
     except Exception as e:
         logger.error(f"Error in full flows visa chat service: {str(e)}")
