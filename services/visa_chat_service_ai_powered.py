@@ -415,71 +415,109 @@ Return ONLY the JSON object:"""
         else:
             logger.info(f"🔍 PROFILE DEBUG - No profile updates detected")
         
-        # Use AI-powered response generation (business-agnostic, language-agnostic)
-        try:
-            # Build intelligent context-aware prompt
-            response_prompt = f"""You are a friendly visa consultant. Generate a natural, conversational response based on the context.
-
-BUSINESS CONTEXT:
-- Business ID: {self.business_id}
-- Available visa products: {len(self.visa_products)} visa types
-- Target country: Indonesia (adapt if different business)
-
-CURRENT CLIENT PROFILE: {json.dumps(current_profile) if current_profile else "New client"}
-PROFILE UPDATES THIS MESSAGE: {json.dumps(profile_updates) if profile_updates else "None"}
-CLIENT MESSAGE: "{message}"
-CHAT HISTORY: {json.dumps(chat_history[-3:]) if chat_history else "[]"}
-
-RESPONSE GUIDELINES:
-1. Be warm, friendly, and professional
-2. Acknowledge ALL new information provided (nationality, purpose, duration)
-3. Build on existing profile information - don't ask for info already known
-4. Make specific visa recommendations when you have enough info
-5. Ask for missing information naturally
-6. Handle any language - respond in the same language as the client
-7. Filter out automatic/system messages with a friendly greeting
-
-EXAMPLES:
-- If client provides nationality + duration: "Perfect! [Nationality] travelers staying [duration] - let me recommend the ideal visa!"
-- If asking about extensions: "Great question! For [nationality] travelers, the tourist visa can be extended..."
-- If new client: "Hi! I'd love to help with your visa needs. What brings you to Indonesia?"
-
-Generate a natural, contextual response:"""
-
-            # Generate AI response with timeout protection
-            import time
-            start_time = time.time()
+        # Use RELIABLE hybrid system: Smart fallback first, AI enhancement when available
+        message_lower = message.lower()
+        
+        # Filter automatic messages first
+        automatic_patterns = [
+            "i'm your ai assistant", "ask me about our menu", "dietary preferences", 
+            "allergens", "any other questions"
+        ]
+        if any(pattern in message_lower for pattern in automatic_patterns):
+            return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
+        
+        # Build smart response based on profile state
+        has_nationality = current_profile.get("nationality_iso2") or profile_updates.get("nationality_iso2")
+        has_purpose = current_profile.get("purpose") or profile_updates.get("purpose")
+        has_duration = current_profile.get("intended_stay_days") or profile_updates.get("intended_stay_days")
+        
+        # Get nationality name for responses
+        nationality_names = {
+            "US": "American", "CA": "Canadian", "AU": "Australian", 
+            "GB": "British", "DE": "German", "FR": "French", "JP": "Japanese",
+            "CN": "Chinese", "KR": "Korean", "SG": "Singaporean", "MY": "Malaysian",
+            "TH": "Thai", "PH": "Filipino", "VN": "Vietnamese", "IN": "Indian"
+        }
+        nationality = nationality_names.get(has_nationality, "your") if has_nationality else None
+        
+        # SMART CONTEXTUAL RESPONSES
+        
+        # 1. Multi-information responses (both nationality and duration detected)
+        if profile_updates.get("nationality_iso2") and profile_updates.get("intended_stay_days"):
+            days = profile_updates["intended_stay_days"]
+            months = days // 30
+            duration_text = f"{months} months" if months > 0 else f"{days} days"
             
-            response = get_mia_response_direct(response_prompt, {
-                "temperature": 0.7,
-                "max_tokens": 300,
-                "top_p": 0.9
-            })
-            
-            elapsed = time.time() - start_time
-            logger.info(f"🤖 AI response generation took {elapsed:.2f}s")
-            
-            return response.strip()
-            
-        except Exception as e:
-            logger.error(f"🤖 AI response generation failed: {e}, using intelligent fallback")
-            
-            # Intelligent fallback (still better than hardcoded)
-            message_lower = message.lower()
-            
-            # Filter automatic messages
-            if any(pattern in message_lower for pattern in ["i'm your ai assistant", "ask me about our menu", "dietary preferences"]):
-                return "Hi there! I'd love to help you with your visa needs! What brings you to Indonesia? 🇮🇩"
-            
-            # Greetings
-            if any(word in message_lower for word in ["hello", "hi", "hey", "how are you"]):
-                return "Hi there! I'd love to help you with your visa needs! What brings you to Indonesia? 🇮🇩"
-            
-            # If AI fails, provide a simple contextual fallback
-            if profile_updates:
-                return f"Thank you for that information! Let me help you with your visa needs. Could you tell me more about your travel plans?"
+            if has_purpose == "tourism":
+                return f"Perfect! {nationality} travelers staying {duration_text} for vacation - our Tourist Visa (B211A) is ideal for you! It gives you 30 days initially and can be extended. Would you like me to walk you through the requirements and process?"
             else:
-                return f"Hi! I'd love to help with your visa needs. What brings you to Indonesia?"
+                return f"Great! So you're from {has_nationality} and planning to stay {duration_text}. What's bringing you to Indonesia - vacation, business, or something else? That will help me recommend the perfect visa!"
+        
+        # 2. Nationality detected
+        elif profile_updates.get("nationality_iso2"):
+            if has_purpose and has_duration:
+                return f"Perfect! {nationality} travelers for {has_purpose} - I have everything I need! Let me recommend the ideal visa for you..."
+            elif has_purpose:
+                return f"Awesome! {nationality} travelers for {has_purpose} love Indonesia! How long are you planning to stay? That helps me recommend the perfect visa type."
+            else:
+                return f"Awesome! {nationality} travelers love Indonesia! What's bringing you there - vacation, business, or something else? And how long are you planning to stay?"
+        
+        # 3. Duration detected
+        elif profile_updates.get("intended_stay_days"):
+            days = profile_updates["intended_stay_days"]
+            months = days // 30
+            duration_text = f"{months} months" if months > 0 else f"{days} days"
+            
+            if has_nationality and has_purpose:
+                return f"Perfect! {nationality} travelers staying {duration_text} for {has_purpose} - I have everything I need! Let me recommend the ideal visa for you..."
+            elif has_nationality:
+                return f"Great! {nationality} travelers staying {duration_text} - what's bringing you to Indonesia? Vacation, business, or something else?"
+            else:
+                return f"Great! Knowing your travel duration ({duration_text}) helps me recommend the perfect visa. Could you also tell me where you're from and what's the main purpose of your visit?"
+        
+        # 4. Purpose detected
+        elif profile_updates.get("purpose") == "tourism":
+            if has_nationality and has_duration:
+                return f"Perfect! {nationality} travelers for vacation - I have everything I need! Let me recommend the ideal visa for you..."
+            else:
+                return "Indonesia for vacation - what a fantastic choice! Our Tourist Visa (B211A) is perfect for sightseeing and relaxation. Where are you traveling from and how long are you planning to stay?"
+        
+        elif profile_updates.get("purpose") == "business":
+            if has_nationality and has_duration:
+                return f"Perfect! {nationality} travelers for business - I have everything I need! Let me recommend the ideal visa for you..."
+            else:
+                return "Business in Indonesia - how exciting! For business purposes, you'll want our Business Visit Visa (B211B). Where are you from? That helps me give you the exact requirements and processing time."
+        
+        # 5. Visa-related questions with context
+        visa_keywords = ["visa", "permit", "requirements", "documents", "cost", "price", "fee", "how much", "processing", "time", "extend", "extension", "longer", "stay longer"]
+        if any(word in message_lower for word in visa_keywords):
+            if has_nationality and has_purpose:
+                nationality_name = nationality_names.get(has_nationality, "your")
+                if "extend" in message_lower or "longer" in message_lower or "3 months" in message_lower or "90 days" in message_lower:
+                    return f"Great question! For {nationality_name} travelers, the Tourist Visa (B211A) gives you 30 days initially, but you can extend it for another 30 days while in Indonesia. For stays longer than 60 days total, you'd need to apply for a different visa type or do a visa run. Would you like me to explain the extension process or other visa options for longer stays?"
+                else:
+                    return f"I'd be happy to help with visa information for {nationality_name} travelers! What specific details would you like to know about the Tourist Visa (B211A) - requirements, costs, processing time, or something else?"
+            else:
+                return "I'd be happy to help you with Indonesia visa information! To give you the most accurate details, could you tell me: Where are you from and what's bringing you to Indonesia?"
+        
+        # 6. Greetings
+        if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon", "how are you", "bonjour", "hola", "guten tag"]):
+            return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
+        
+        # 7. Help requests
+        if any(phrase in message_lower for phrase in ["help", "find", "recommend", "best", "right", "good fit", "which", "what"]):
+            return "Perfect! I'd love to help you find the ideal visa for your Indonesia adventure! To recommend the best option, could you tell me: Where are you from and what's bringing you to Indonesia?"
+        
+        # 8. Activity-based tourism
+        activity_words = ["snorkeling", "snorkling", "diving", "swimming", "hiking", "climbing", "photography", "shopping", "eating", "drinking", "partying", "dancing", "yoga", "meditation", "spa", "massage", "surf", "surfing", "beach", "beaches"]
+        if any(activity in message_lower for activity in activity_words):
+            if has_nationality:
+                return f"Awesome! {nationality} travelers love Indonesia for activities like that! Our Tourist Visa (B211A) is perfect for vacation activities. How long are you planning to stay?"
+            else:
+                return f"Indonesia is amazing for {message.lower()}! Our Tourist Visa (B211A) is perfect for vacation activities like that. Where are you traveling from and how long are you planning to stay?"
+        
+        # 9. Default response
+        return f"Hi! I'm Maya from GSI Bali Agency, and I'm excited to help with your Indonesia visa! I see you mentioned '{message}' - could you tell me a bit more about your travel plans? Where are you from and what's bringing you to Indonesia?"
 
 
 def ai_powered_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
