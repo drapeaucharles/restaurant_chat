@@ -79,24 +79,24 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             business_type, rag_mode = business_result
             logger.info(f"Business {req.restaurant_id} is type '{business_type}' with rag_mode '{rag_mode}'")
             
-            # Check if this is a visa agency - use specialized visa chat service
-            if business_type == 'visa_agency':
-                logger.info(f"Visa agency detected, using full flows visa chat service")
-                try:
-                    from services.visa_chat_service_full_flows import full_flows_visa_chat_service
-                    selected_service = full_flows_visa_chat_service
-                    logger.info(f"Selected full flows visa chat service for {req.restaurant_id}")
-                except ImportError as e:
-                    logger.warning(f"Visa chat service not available: {e}, falling back to default")
-                    selected_service = chat_services.get('default', chat_services.get('fallback'))
+        # Check if this is a visa agency - use AI-powered visa chat service
+        if business_type == 'visa_agency':
+            logger.info(f"Visa agency detected, using AI-powered visa chat service")
+            try:
+                from services.visa_chat_service_ai_powered import ai_powered_visa_chat_service
+                selected_service = ai_powered_visa_chat_service
+                logger.info(f"Selected AI-powered visa chat service for {req.restaurant_id}")
+            except ImportError as e:
+                logger.warning(f"AI visa chat service not available: {e}, falling back to default")
+                selected_service = chat_services.get('default', chat_services.get('fallback'))
+        elif business_result:
+            # Regular business - use rag_mode
+            if rag_mode in chat_services:
+                selected_service = chat_services[rag_mode]
+                logger.info(f"Selected service: {rag_mode}")
             else:
-                # Regular business - use rag_mode
-                if rag_mode in chat_services:
-                    selected_service = chat_services[rag_mode]
-                    logger.info(f"Selected service: {rag_mode}")
-                else:
-                    logger.warning(f"RAG mode '{rag_mode}' not available, falling back to default")
-                    selected_service = chat_services.get('default', chat_services.get('fallback'))
+                logger.warning(f"RAG mode '{rag_mode}' not available, falling back to default")
+                selected_service = chat_services.get('default', chat_services.get('fallback'))
         else:
             # Fallback to restaurant model for backward compatibility
             restaurant = db.query(models.Restaurant).filter(
