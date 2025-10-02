@@ -593,7 +593,7 @@ RESPONSE GUIDELINES:
         
         # MINIMAL FALLBACK - Only for complete AI failure (should rarely happen)
         logger.error("🔄 CRITICAL: AI completely failed, using emergency fallback")
-        return "I'm Maya from GSI Bali Agency. I'm experiencing some technical difficulties right now, but I'm here to help with your Indonesia visa needs. Could you please tell me about your travel plans?"
+        return "🤖 AI-POWERED SERVICE ACTIVE: I'm Maya from GSI Bali Agency using our new AI system! I'm experiencing some technical difficulties right now, but I'm here to help with your Indonesia visa needs. Could you please tell me about your travel plans? [AI-FALLBACK-MARKER]"
 
 
 def ai_powered_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
