@@ -33,44 +33,57 @@ def auto_deploy_gsi():
         
         # First, run migrations to ensure tables exist
         log("🔧 Running visa migrations...")
+        migration_success = False
         try:
             with engine.connect() as conn:
                 with conn.begin():
-                    # Skip restaurants table (it's a view) - create businesses table directly
-                    conn.execute(text("""
-                        CREATE TABLE IF NOT EXISTS businesses (
-                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                            business_id VARCHAR UNIQUE NOT NULL,
-                            type VARCHAR(64) NOT NULL DEFAULT 'restaurant',
-                            name VARCHAR NOT NULL,
-                            password VARCHAR NOT NULL,
-                            role VARCHAR DEFAULT 'owner',
-                            data JSONB DEFAULT '{}',
-                            created_at TIMESTAMPTZ DEFAULT now(),
-                            updated_at TIMESTAMPTZ DEFAULT now()
-                        )
+                    # Check if businesses table exists and has type column
+                    result = conn.execute(text("""
+                        SELECT column_name FROM information_schema.columns 
+                        WHERE table_name = 'businesses' AND column_name = 'type'
                     """))
+                    has_type_column = result.fetchone() is not None
                     
-                    log("✅ Businesses table created")
+                    if not has_type_column:
+                        # Drop and recreate businesses table with proper structure
+                        conn.execute(text("DROP TABLE IF EXISTS businesses CASCADE"))
+                        conn.execute(text("""
+                            CREATE TABLE businesses (
+                                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                business_id VARCHAR UNIQUE NOT NULL,
+                                type VARCHAR(64) NOT NULL DEFAULT 'restaurant',
+                                name VARCHAR NOT NULL,
+                                password VARCHAR NOT NULL,
+                                role VARCHAR DEFAULT 'owner',
+                                data JSONB DEFAULT '{}',
+                                created_at TIMESTAMPTZ DEFAULT now(),
+                                updated_at TIMESTAMPTZ DEFAULT now()
+                            )
+                        """))
+                        log("✅ Businesses table created with type column")
+                    else:
+                        log("✅ Businesses table already has type column")
+                    
+                    migration_success = True
             
             log("✅ Core migrations completed")
         except Exception as e:
             log(f"⚠️ Migration error: {e}")
-            # If businesses table creation fails, use existing restaurants table
-            log("📋 Falling back to restaurants table for GSI creation")
+            migration_success = False
         
-        session = SessionLocal()
-        
-        try:
-            
-            # Try to check if GSI exists in businesses table
+        # Try businesses table first if migration was successful
+        if migration_success:
             try:
+                session = SessionLocal()
+                
+                # Check if GSI exists in businesses table
                 result = session.execute(text("""
                     SELECT COUNT(*) FROM businesses WHERE business_id = 'gsi_bali_agency'
                 """))
                 
                 if result.scalar() > 0:
                     log("✅ GSI Bali Agency already exists in businesses table")
+                    session.close()
                     return True
                 
                 # Create GSI in businesses table
@@ -88,50 +101,59 @@ def auto_deploy_gsi():
                 """))
                 
                 session.commit()
+                session.close()
                 log("✅ GSI Bali Agency created successfully in businesses table!")
+                log("🎉 GSI is now live and ready for visa inquiries!")
+                return True
                 
             except Exception as e:
                 log(f"⚠️ Businesses table approach failed: {e}")
-                log("📋 Trying fallback approach using restaurants table...")
-                
-                # Fallback: Check if GSI exists in restaurants table
                 try:
-                    result = session.execute(text("""
-                        SELECT COUNT(*) FROM restaurants WHERE restaurant_id = 'gsi_bali_agency'
-                    """))
-                    
-                    if result.scalar() > 0:
-                        log("✅ GSI Bali Agency already exists in restaurants table")
-                        return True
-                    
-                    # Create GSI in restaurants table as fallback
-                    session.execute(text("""
-                        INSERT INTO restaurants (restaurant_id, password, role, data, business_type)
-                        VALUES (
-                            'gsi_bali_agency',
-                            'gsi2025',
-                            'owner',
-                            '{"name": "GSI Bali Agency", "description": "Professional visa services in Bali", "type": "visa_agency"}',
-                            'visa_agency'
-                        )
-                    """))
-                    
-                    session.commit()
-                    log("✅ GSI Bali Agency created successfully in restaurants table!")
-                    
-                except Exception as e2:
-                    log(f"❌ Fallback also failed: {e2}")
-                    return False
+                    session.rollback()
+                    session.close()
+                except:
+                    pass
+        
+        # Fallback to restaurants table
+        log("📋 Using fallback approach with restaurants table...")
+        try:
+            session = SessionLocal()
             
+            # Check if GSI exists in restaurants table
+            result = session.execute(text("""
+                SELECT COUNT(*) FROM restaurants WHERE restaurant_id = 'gsi_bali_agency'
+            """))
+            
+            if result.scalar() > 0:
+                log("✅ GSI Bali Agency already exists in restaurants table")
+                session.close()
+                return True
+            
+            # Create GSI in restaurants table as fallback
+            session.execute(text("""
+                INSERT INTO restaurants (restaurant_id, password, role, data)
+                VALUES (
+                    'gsi_bali_agency',
+                    'gsi2025',
+                    'owner',
+                    '{"name": "GSI Bali Agency", "description": "Professional visa services in Bali", "type": "visa_agency"}'
+                )
+            """))
+            
+            session.commit()
+            session.close()
+            log("✅ GSI Bali Agency created successfully in restaurants table!")
             log("🎉 GSI is now live and ready for visa inquiries!")
             return True
             
         except Exception as e:
-            log(f"❌ Error: {e}")
-            session.rollback()
+            log(f"❌ Fallback also failed: {e}")
+            try:
+                session.rollback()
+                session.close()
+            except:
+                pass
             return False
-        finally:
-            session.close()
             
     except ImportError:
         log("⚠️ Database modules not available (normal in local env)")
