@@ -83,26 +83,20 @@ class VisaAIService:
             return []
     
     def _load_policy_pack(self) -> Dict:
-        """Load policy pack (rules and requirements)"""
+        """Load policy pack (rules and requirements) - temporarily disabled due to schema issues"""
         try:
-            query = text("""
-                SELECT pp.data_json_from_pdf
-                FROM policy_packs pp
-                JOIN catalogs c ON pp.catalog_id = c.id
-                JOIN businesses b ON c.business_id = b.id
-                WHERE b.business_id = :business_id
-                LIMIT 1
-            """)
-            
-            result = self.db.execute(query, {"business_id": self.business_id}).fetchone()
-            
-            if result and result[0]:
-                return json.loads(result[0])
-            else:
-                return {}
+            # TODO: Fix policy_packs schema - catalog_id column missing
+            # For now, return empty policy pack to avoid transaction errors
+            logger.info("Policy pack loading temporarily disabled due to schema issues")
+            return {}
                 
         except Exception as e:
             logger.error(f"Error loading policy pack: {e}")
+            try:
+                self.db.rollback()
+                logger.info("Rolled back failed policy pack transaction")
+            except Exception as rollback_error:
+                logger.error(f"Policy pack rollback failed: {rollback_error}")
             return {}
     
     def _get_user_profile(self, client_id: str) -> Dict[str, Any]:
@@ -132,6 +126,11 @@ class VisaAIService:
                 
         except Exception as e:
             logger.error(f"Error getting user profile: {e}")
+            try:
+                self.db.rollback()
+                logger.info("Rolled back failed profile transaction")
+            except Exception as rollback_error:
+                logger.error(f"Profile rollback failed: {rollback_error}")
             return {}
     
     def _save_user_profile(self, client_id: str, profile_data: Dict[str, Any]) -> bool:
@@ -288,47 +287,56 @@ IMPORTANT RULES:
         return prompt
     
     def extract_profile_updates(self, message: str, current_profile: Dict) -> Dict[str, Any]:
-        """Use AI to extract profile information from user message"""
-        
-        extraction_prompt = f"""Extract visa-related profile information from this client message.
-
-CURRENT PROFILE: {json.dumps(current_profile)}
-
-CLIENT MESSAGE: "{message}"
-
-Extract any new information about:
-- nationality_iso2 (2-letter country code like US, CA, AU, etc.)
-- purpose (tourism, business, education, investment, family_visit, work, retirement)
-- intended_stay_days (convert weeks/months/years to days)
-
-Return ONLY a JSON object with extracted fields. If no new information, return empty object {{}}.
-
-Examples:
-"I am American" -> {{"nationality_iso2": "US"}}
-"I'm from Canada for business" -> {{"nationality_iso2": "CA", "purpose": "business"}}
-"Tourism for 3 weeks" -> {{"purpose": "tourism", "intended_stay_days": 21}}
-"Hello" -> {{}}
-
-JSON:"""
+        """Extract profile information using pattern matching (no AI to avoid timeouts)"""
         
         try:
-            # Use fast AI for extraction
-            response = get_mia_response_fast(extraction_prompt, {
-                "temperature": 0.1,
-                "max_tokens": 200
-            })
+            message_lower = message.lower()
+            extracted = {}
             
-            # Parse JSON response
-            response = response.strip()
-            if response.startswith('```json'):
-                response = response.replace('```json', '').replace('```', '').strip()
+            # Extract nationality using pattern matching
+            countries = {
+                "american": "US", "usa": "US", "america": "US", "united states": "US",
+                "canadian": "CA", "canada": "CA",
+                "australian": "AU", "australia": "AU", "aussie": "AU",
+                "british": "GB", "uk": "GB", "britain": "GB", "england": "GB",
+                "german": "DE", "germany": "DE",
+                "french": "FR", "france": "FR",
+                "japanese": "JP", "japan": "JP"
+            }
             
-            extracted = json.loads(response)
-            logger.info(f"AI extracted profile data: {extracted}")
+            for country_name, code in countries.items():
+                if country_name in message_lower:
+                    extracted["nationality_iso2"] = code
+                    break
+            
+            # Extract purpose
+            if any(word in message_lower for word in ["tourism", "tourist", "vacation", "holiday", "sightseeing"]):
+                extracted["purpose"] = "tourism"
+            elif any(word in message_lower for word in ["business", "work", "meetings", "conference"]):
+                extracted["purpose"] = "business"
+            elif any(word in message_lower for word in ["study", "student", "education", "university"]):
+                extracted["purpose"] = "education"
+            
+            # Extract duration
+            import re
+            duration_patterns = [
+                (r"(\d+)\s*weeks?", lambda x: int(x) * 7),
+                (r"(\d+)\s*months?", lambda x: int(x) * 30),
+                (r"(\d+)\s*days?", lambda x: int(x)),
+                (r"(\d+)\s*years?", lambda x: int(x) * 365)
+            ]
+            
+            for pattern, converter in duration_patterns:
+                match = re.search(pattern, message_lower)
+                if match:
+                    extracted["intended_stay_days"] = converter(match.group(1))
+                    break
+            
+            logger.info(f"Pattern extracted profile data: {extracted}")
             return extracted
             
         except Exception as e:
-            logger.error(f"Error extracting profile with AI: {e}")
+            logger.error(f"Error extracting profile with patterns: {e}")
             return {}
     
     def generate_ai_response(self, message: str, client_id: str, chat_history: List[Dict]) -> str:
@@ -420,6 +428,11 @@ def ai_powered_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
                 })
         except Exception as e:
             logger.warning(f"Could not load chat history: {e}")
+            try:
+                db.rollback()
+                logger.info("Rolled back failed chat history transaction")
+            except Exception as rollback_error:
+                logger.error(f"Rollback failed: {rollback_error}")
         
         # Generate AI response
         answer = visa_ai.generate_ai_response(
