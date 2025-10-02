@@ -297,165 +297,109 @@ IMPORTANT RULES:
         return prompt
     
     def extract_profile_updates(self, message: str, current_profile: Dict) -> Dict[str, Any]:
-        """Extract profile information using AI semantic understanding (language-agnostic)"""
+        """Extract profile information using reliable pattern matching"""
         
-        try:
-            # Use AI to understand profile information in ANY language
-            extraction_prompt = f"""You are an intelligent profile extraction system. Extract visa-related information from this message in ANY language.
-
-CURRENT PROFILE: {json.dumps(current_profile) if current_profile else "{}"}
-MESSAGE: "{message}"
-
-Extract any new information and return ONLY a JSON object:
-
-{{
-  "nationality_iso2": "2-letter country code if mentioned (US, CA, AU, GB, DE, FR, JP, CN, KR, SG, MY, TH, PH, VN, IN, etc.)",
-  "purpose": "tourism/business/education/work/investment/family_visit if clear from context",
-  "intended_stay_days": "convert any duration to days (1 week=7, 1 month=30, 1 year=365)"
-}}
-
-SEMANTIC UNDERSTANDING RULES:
-- Detect nationality from ANY language: "Canadian", "français", "deutsch", "日本人", "中国人", etc.
-- Understand tourism intent: vacation, holiday, fun, beach, diving, sightseeing, adventure, culture, food, photography, relaxation, etc.
-- Understand business intent: work, meetings, conference, clients, company, project, deal, etc.
-- Understand education intent: study, university, research, course, learning, etc.
-- Parse duration in any format: "2 months", "deux mois", "zwei Monate", "2ヶ月", etc.
-
-EXAMPLES:
-"I'm Canadian and want to have fun" → {{"nationality_iso2": "CA", "purpose": "tourism"}}
-"Je suis français pour affaires" → {{"nationality_iso2": "FR", "purpose": "business"}}
-"Ich bin deutsch für 3 Monate" → {{"nationality_iso2": "DE", "intended_stay_days": 90}}
-"I want to do snorkeling" → {{"purpose": "tourism"}}
-"Business meetings" → {{"purpose": "business"}}
-"Hello" → {{}}
-
-Return ONLY the JSON object:"""
-
-            # Try AI extraction with timeout protection
-            import time
-            start_time = time.time()
-            
-            response = get_mia_response_fast(extraction_prompt, {
-                "temperature": 0.1,
-                "max_tokens": 200
-            })
-            
-            elapsed = time.time() - start_time
-            logger.info(f"🤖 AI extraction took {elapsed:.2f}s")
-            
-            # Parse AI response
-            response = response.strip()
-            if response.startswith('```json'):
-                response = response.replace('```json', '').replace('```', '').strip()
-            elif response.startswith('```'):
-                response = response.replace('```', '').strip()
-            
-            extracted = json.loads(response) if response else {}
-            logger.info(f"🤖 AI extracted profile data: {extracted}")
-            return extracted
-            
-        except Exception as e:
-            logger.error(f"🤖 AI extraction failed: {e}, using minimal fallback")
-            
-            # Minimal fallback for critical cases only
-            message_lower = message.lower()
-            extracted = {}
-            
-            # Enhanced nationality detection
-            nationality_patterns = {
-                # North America
-                "american": "US", "usa": "US", "america": "US", "united states": "US", "us": "US",
-                "canadian": "CA", "canada": "CA",
-                # Europe  
-                "british": "GB", "uk": "GB", "britain": "GB", "england": "GB", "english": "GB",
-                "german": "DE", "germany": "DE", "deutsch": "DE",
-                "french": "FR", "france": "FR", "français": "FR",
-                "italian": "IT", "italy": "IT",
-                "spanish": "ES", "spain": "ES",
-                "dutch": "NL", "netherlands": "NL", "holland": "NL",
-                # Asia Pacific
-                "australian": "AU", "australia": "AU", "aussie": "AU",
-                "japanese": "JP", "japan": "JP",
-                "chinese": "CN", "china": "CN",
-                "korean": "KR", "korea": "KR", "south korea": "KR",
-                "singaporean": "SG", "singapore": "SG",
-                "malaysian": "MY", "malaysia": "MY",
-                "thai": "TH", "thailand": "TH",
-                "filipino": "PH", "philippines": "PH",
-                "vietnamese": "VN", "vietnam": "VN",
-                "indian": "IN", "india": "IN"
-            }
-            
-            for pattern, code in nationality_patterns.items():
-                if pattern in message_lower:
-                    extracted["nationality_iso2"] = code
-                    logger.info(f"🔍 NATIONALITY DETECTED: '{pattern}' → {code}")
-                    break
-            
-            # Enhanced purpose detection using semantic categories
-            tourism_indicators = [
-                # Direct tourism words
-                "tourism", "tourist", "vacation", "holiday", "leisure", "sightseeing",
-                # Activities that indicate tourism
-                "beach", "beaches", "surf", "surfing", "diving", "snorkeling", "swimming",
-                "sunbathing", "coconut", "tropical", "paradise", "island", "resort",
-                "relax", "relaxing", "chill", "unwind", "escape", "getaway",
-                "explore", "exploring", "adventure", "discover", "experience",
-                "culture", "cultural", "temples", "heritage", "traditional",
-                "food", "cuisine", "culinary", "taste", "eat", "restaurant",
-                "photography", "photos", "scenic", "beautiful", "nature",
-                "fun", "enjoy", "enjoying", "pleasure", "entertainment"
-            ]
-            
-            business_indicators = [
-                "business", "work", "working", "job", "employment", "career",
-                "meeting", "meetings", "conference", "seminar", "workshop",
-                "client", "clients", "customer", "customers", "partner", "partners",
-                "company", "corporate", "office", "headquarters", "branch",
-                "project", "deal", "contract", "negotiation", "presentation"
-            ]
-            
-            if any(indicator in message_lower for indicator in tourism_indicators):
-                extracted["purpose"] = "tourism"
-                matched_indicators = [ind for ind in tourism_indicators if ind in message_lower]
-                logger.info(f"🔍 TOURISM PURPOSE DETECTED: {matched_indicators}")
-            elif any(indicator in message_lower for indicator in business_indicators):
-                extracted["purpose"] = "business"
-                matched_indicators = [ind for ind in business_indicators if ind in message_lower]
-                logger.info(f"🔍 BUSINESS PURPOSE DETECTED: {matched_indicators}")
-            
-            # Enhanced duration extraction with intelligent parsing
-            import re
-            duration_patterns = [
-                (r"(\d+)\s*days?", lambda x: int(x)),
-                (r"(\d+)\s*weeks?", lambda x: int(x) * 7),
-                (r"(\d+)\s*months?", lambda x: int(x) * 30),
-                (r"(\d+)\s*years?", lambda x: int(x) * 365),
-                # Handle written numbers
-                (r"one\s+week", lambda x: 7),
-                (r"two\s+weeks", lambda x: 14),
-                (r"three\s+weeks", lambda x: 21),
-                (r"one\s+month", lambda x: 30),
-                (r"two\s+months", lambda x: 60),
-                (r"three\s+months", lambda x: 90),
-                (r"six\s+months", lambda x: 180),
-                (r"one\s+year", lambda x: 365)
-            ]
-            
-            for pattern, converter in duration_patterns:
-                match = re.search(pattern, message_lower)
-                if match:
-                    if callable(converter):
-                        if pattern.startswith(r"(\d+)"):
-                            extracted["intended_stay_days"] = converter(match.group(1))
-                            logger.info(f"🔍 DURATION DETECTED: '{match.group(0)}' → {extracted['intended_stay_days']} days")
-                        else:
-                            extracted["intended_stay_days"] = converter(None)
-                            logger.info(f"🔍 DURATION DETECTED: '{match.group(0)}' → {extracted['intended_stay_days']} days")
-                    break
-            
-            logger.info(f"📝 Fallback extracted: {extracted}")
-            return extracted
+        # Use pattern matching as primary method (AI disabled due to timeouts)
+        logger.info("Using enhanced pattern matching for profile extraction")
+        
+        message_lower = message.lower()
+        extracted = {}
+        
+        # Enhanced nationality detection
+        nationality_patterns = {
+            # North America
+            "american": "US", "usa": "US", "america": "US", "united states": "US", "us": "US",
+            "canadian": "CA", "canada": "CA",
+            # Europe  
+            "british": "GB", "uk": "GB", "britain": "GB", "england": "GB", "english": "GB",
+            "german": "DE", "germany": "DE", "deutsch": "DE",
+            "french": "FR", "france": "FR", "français": "FR",
+            "italian": "IT", "italy": "IT",
+            "spanish": "ES", "spain": "ES",
+            "dutch": "NL", "netherlands": "NL", "holland": "NL",
+            # Asia Pacific
+            "australian": "AU", "australia": "AU", "aussie": "AU",
+            "japanese": "JP", "japan": "JP",
+            "chinese": "CN", "china": "CN",
+            "korean": "KR", "korea": "KR", "south korea": "KR",
+            "singaporean": "SG", "singapore": "SG",
+            "malaysian": "MY", "malaysia": "MY",
+            "thai": "TH", "thailand": "TH",
+            "filipino": "PH", "philippines": "PH",
+            "vietnamese": "VN", "vietnam": "VN",
+            "indian": "IN", "india": "IN"
+        }
+        
+        for pattern, code in nationality_patterns.items():
+            if pattern in message_lower:
+                extracted["nationality_iso2"] = code
+                logger.info(f"🔍 NATIONALITY DETECTED: '{pattern}' → {code}")
+                break
+        
+        # Enhanced purpose detection using semantic categories
+        tourism_indicators = [
+            # Direct tourism words
+            "tourism", "tourist", "vacation", "holiday", "leisure", "sightseeing",
+            # Activities that indicate tourism
+            "beach", "beaches", "surf", "surfing", "diving", "snorkeling", "swimming",
+            "sunbathing", "coconut", "tropical", "paradise", "island", "resort",
+            "relax", "relaxing", "chill", "unwind", "escape", "getaway",
+            "explore", "exploring", "adventure", "discover", "experience",
+            "culture", "cultural", "temples", "heritage", "traditional",
+            "food", "cuisine", "culinary", "taste", "eat", "restaurant",
+            "photography", "photos", "scenic", "beautiful", "nature",
+            "fun", "enjoy", "enjoying", "pleasure", "entertainment"
+        ]
+        
+        business_indicators = [
+            "business", "work", "working", "job", "employment", "career",
+            "meeting", "meetings", "conference", "seminar", "workshop",
+            "client", "clients", "customer", "customers", "partner", "partners",
+            "company", "corporate", "office", "headquarters", "branch",
+            "project", "deal", "contract", "negotiation", "presentation"
+        ]
+        
+        if any(indicator in message_lower for indicator in tourism_indicators):
+            extracted["purpose"] = "tourism"
+            matched_indicators = [ind for ind in tourism_indicators if ind in message_lower]
+            logger.info(f"🔍 TOURISM PURPOSE DETECTED: {matched_indicators}")
+        elif any(indicator in message_lower for indicator in business_indicators):
+            extracted["purpose"] = "business"
+            matched_indicators = [ind for ind in business_indicators if ind in message_lower]
+            logger.info(f"🔍 BUSINESS PURPOSE DETECTED: {matched_indicators}")
+        
+        # Enhanced duration extraction with intelligent parsing
+        import re
+        duration_patterns = [
+            (r"(\d+)\s*days?", lambda x: int(x)),
+            (r"(\d+)\s*weeks?", lambda x: int(x) * 7),
+            (r"(\d+)\s*months?", lambda x: int(x) * 30),
+            (r"(\d+)\s*years?", lambda x: int(x) * 365),
+            # Handle written numbers
+            (r"one\s+week", lambda x: 7),
+            (r"two\s+weeks", lambda x: 14),
+            (r"three\s+weeks", lambda x: 21),
+            (r"one\s+month", lambda x: 30),
+            (r"two\s+months", lambda x: 60),
+            (r"three\s+months", lambda x: 90),
+            (r"six\s+months", lambda x: 180),
+            (r"one\s+year", lambda x: 365)
+        ]
+        
+        for pattern, converter in duration_patterns:
+            match = re.search(pattern, message_lower)
+            if match:
+                if callable(converter):
+                    if pattern.startswith(r"(\d+)"):
+                        extracted["intended_stay_days"] = converter(match.group(1))
+                        logger.info(f"🔍 DURATION DETECTED: '{match.group(0)}' → {extracted['intended_stay_days']} days")
+                    else:
+                        extracted["intended_stay_days"] = converter(None)
+                        logger.info(f"🔍 DURATION DETECTED: '{match.group(0)}' → {extracted['intended_stay_days']} days")
+                break
+        
+        logger.info(f"📝 Pattern extracted: {extracted}")
+        return extracted
     
     def generate_ai_response(self, message: str, client_id: str, chat_history: List[Dict]) -> str:
         """Generate intelligent conversational response using AI understanding"""
