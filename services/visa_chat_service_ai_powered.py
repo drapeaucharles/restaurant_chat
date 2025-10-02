@@ -10,8 +10,17 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 # Import AI infrastructure from restaurant system
-from services.mia_direct_api_v2 import get_mia_response_direct
-from services.mia_fast_polling import get_mia_response_fast
+try:
+    from services.mia_direct_api_v2 import get_mia_response_direct
+except ImportError:
+    from services.mia_direct_api import get_mia_response_direct
+
+try:
+    from services.mia_fast_polling import get_mia_response_fast
+except ImportError:
+    # Fallback to direct API if fast polling not available
+    get_mia_response_fast = get_mia_response_direct
+
 from schemas.chat import ChatRequest, ChatResponse
 import models
 
