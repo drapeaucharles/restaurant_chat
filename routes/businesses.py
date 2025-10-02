@@ -45,7 +45,7 @@ def list_businesses(
         params["business_type"] = business_type
         
     if search:
-        query += " AND (data->>'name' ILIKE :search OR data->>'description' ILIKE :search)"
+        query += " AND (name ILIKE :search OR (data->>'description') ILIKE :search)"
         params["search"] = f"%{search}%"
         
     # Count total
@@ -93,6 +93,29 @@ def get_business_types(db: Session = Depends(get_db)):
             for row in results
         ]
     }
+
+@router.get("/debug")
+def debug_businesses(db: Session = Depends(get_db)):
+    """Debug endpoint to check businesses table"""
+    try:
+        query = text("SELECT business_id, name, type, business_type FROM businesses LIMIT 5")
+        results = db.execute(query).fetchall()
+        
+        return {
+            "status": "success",
+            "count": len(results),
+            "businesses": [
+                {
+                    "business_id": row[0],
+                    "name": row[1], 
+                    "type": row[2],
+                    "business_type": row[3]
+                }
+                for row in results
+            ]
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @router.get("/{business_id}")
 def get_business_details(business_id: str, db: Session = Depends(get_db)):
