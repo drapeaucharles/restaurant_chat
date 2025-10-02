@@ -125,8 +125,8 @@ class HybridVisaService:
                 f"{MIA_BACKEND_URL}/chat",
                 json={
                     "message": prompt,
-                    "max_tokens": 150,  # Shorter responses
-                    "temperature": 0.8
+                    "max_tokens": 80,  # Much shorter responses
+                    "temperature": 0.7
                 },
                 timeout=30
             )
@@ -215,12 +215,13 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
         
         prompt += """
 
-KEEP RESPONSES:
-- VERY SHORT (1-2 sentences max, 3 sentences only if absolutely necessary)
+CRITICAL RESPONSE RULES:
+- MAXIMUM 2 SENTENCES ONLY - NO EXCEPTIONS
+- NO LISTS OR NUMBERED POINTS
+- ONE MAIN MESSAGE PER RESPONSE
 - CONTEXTUAL (reference their specific situation visiting INDONESIA)
 - PROGRESSIVE (build on what you already know, don't repeat)
-- NATURAL (conversational, not robotic)
-- FOCUSED (one main point per response)
+- NATURAL but CONCISE
 
 Generate a helpful response as Maya:"""
         
