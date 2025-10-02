@@ -120,7 +120,17 @@ class VisaAIService:
             }).fetchone()
             
             if profile_result and profile_result[0]:
-                return json.loads(profile_result[0])
+                profile_data = profile_result[0]
+                logger.debug(f"Profile data type: {type(profile_data)}, value: {profile_data}")
+                
+                # Handle both string and dict cases
+                if isinstance(profile_data, str):
+                    return json.loads(profile_data)
+                elif isinstance(profile_data, dict):
+                    return profile_data
+                else:
+                    logger.warning(f"Unexpected profile data type: {type(profile_data)}")
+                    return {}
             else:
                 return {}
                 
