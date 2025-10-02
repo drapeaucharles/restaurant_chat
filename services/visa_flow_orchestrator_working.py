@@ -105,6 +105,8 @@ class WorkingVisaFlowOrchestrator:
             }
         """
         try:
+            # Ensure client_id is a string (might come as UUID object)
+            client_id = str(client_id)
             chat_history = chat_history or []
             
             # Step 1: Router - Classify intent and extract profile data
@@ -114,7 +116,9 @@ class WorkingVisaFlowOrchestrator:
             
             # Step 2: Profiler - Update customer profile if needed
             if profile_delta:
+                logger.info(f"VISA_FLOW DEBUG - Updating profile for client {client_id} with delta: {profile_delta}")
                 profiler_result = self._flow_profiler(client_id, profile_delta)
+                logger.info(f"VISA_FLOW DEBUG - Profile update result: {profiler_result}")
             else:
                 profiler_result = {"profile_updated": False}
             
@@ -575,10 +579,12 @@ class WorkingVisaFlowOrchestrator:
         
         # Get current profile and merge with new delta to get complete picture
         current_profile = self._get_user_profile(client_id) or {}
+        logger.info(f"VISA_FLOW DEBUG - Retrieved profile for client {client_id}: {current_profile}")
         
         # Create merged profile (current + new delta)
         merged_profile = current_profile.copy()
         merged_profile.update(profile_delta)
+        logger.info(f"VISA_FLOW DEBUG - Merged profile: {merged_profile}")
         
         # Check what information we still need based on merged profile
         has_nationality = "nationality_iso2" in merged_profile
