@@ -452,26 +452,66 @@ IMPORTANT RULES:
         if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon", "how are you"]):
             return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
         
-        # Check if we detected tourism purpose
-        if profile_updates.get("purpose") == "tourism":
-            return "Indonesia for vacation - what a fantastic choice! Our Tourist Visa (B211A) is perfect for sightseeing and relaxation. Where are you traveling from and how long are you planning to stay?"
+        # Smart response based on what information we have (current + newly detected)
+        has_nationality = current_profile.get("nationality_iso2") or profile_updates.get("nationality_iso2")
+        has_purpose = current_profile.get("purpose") or profile_updates.get("purpose")
+        has_duration = current_profile.get("intended_stay_days") or profile_updates.get("intended_stay_days")
         
-        # Check if we detected business purpose  
-        if profile_updates.get("purpose") == "business":
-            return "Business in Indonesia - how exciting! For business purposes, you'll want our Business Visit Visa (B211B). Where are you from? That helps me give you the exact requirements and processing time."
+        # Get nationality name for responses
+        nationality_names = {
+            "US": "American", "CA": "Canadian", "AU": "Australian", 
+            "GB": "British", "DE": "German", "FR": "French", "JP": "Japanese"
+        }
+        nationality = nationality_names.get(has_nationality, "your") if has_nationality else None
         
-        # Check if we detected nationality
-        if profile_updates.get("nationality_iso2"):
-            nationality_names = {
-                "US": "American", "CA": "Canadian", "AU": "Australian", 
-                "GB": "British", "DE": "German", "FR": "French", "JP": "Japanese"
-            }
-            nationality = nationality_names.get(profile_updates["nationality_iso2"], "your")
-            return f"Awesome! {nationality} travelers love Indonesia! What's bringing you there - vacation, business, or something else? And how long are you planning to stay?"
+        # Multi-information responses (when we detect multiple things)
+        if profile_updates.get("nationality_iso2") and profile_updates.get("intended_stay_days"):
+            # Both nationality and duration detected in this message
+            days = profile_updates["intended_stay_days"]
+            months = days // 30
+            duration_text = f"{months} months" if months > 0 else f"{days} days"
+            
+            if has_purpose == "tourism":
+                return f"Perfect! {nationality} travelers staying {duration_text} for vacation - our Tourist Visa (B211A) is ideal for you! It gives you 30 days initially and can be extended. Would you like me to walk you through the requirements and process?"
+            else:
+                return f"Great! So you're from {has_nationality} and planning to stay {duration_text}. What's bringing you to Indonesia - vacation, business, or something else? That will help me recommend the perfect visa!"
         
-        # Check if we detected duration
-        if profile_updates.get("intended_stay_days"):
-            return "Great! Knowing your travel duration helps me recommend the perfect visa. Could you also tell me where you're from and what's the main purpose of your visit?"
+        # Single information responses
+        elif profile_updates.get("nationality_iso2"):
+            if has_purpose and has_duration:
+                # We have everything - make recommendation
+                return f"Perfect! {nationality} travelers for {has_purpose} - I have everything I need! Let me recommend the ideal visa for you..."
+            elif has_purpose:
+                return f"Awesome! {nationality} travelers for {has_purpose} love Indonesia! How long are you planning to stay? That helps me recommend the perfect visa type."
+            else:
+                return f"Awesome! {nationality} travelers love Indonesia! What's bringing you there - vacation, business, or something else? And how long are you planning to stay?"
+        
+        elif profile_updates.get("intended_stay_days"):
+            days = profile_updates["intended_stay_days"]
+            months = days // 30
+            duration_text = f"{months} months" if months > 0 else f"{days} days"
+            
+            if has_nationality and has_purpose:
+                # We have everything - make recommendation
+                return f"Perfect! {nationality} travelers staying {duration_text} for {has_purpose} - I have everything I need! Let me recommend the ideal visa for you..."
+            elif has_nationality:
+                return f"Great! {nationality} travelers staying {duration_text} - what's bringing you to Indonesia? Vacation, business, or something else?"
+            else:
+                return f"Great! Knowing your travel duration ({duration_text}) helps me recommend the perfect visa. Could you also tell me where you're from and what's the main purpose of your visit?"
+        
+        elif profile_updates.get("purpose") == "tourism":
+            if has_nationality and has_duration:
+                # We have everything - make recommendation
+                return f"Perfect! {nationality} travelers for vacation - I have everything I need! Let me recommend the ideal visa for you..."
+            else:
+                return "Indonesia for vacation - what a fantastic choice! Our Tourist Visa (B211A) is perfect for sightseeing and relaxation. Where are you traveling from and how long are you planning to stay?"
+        
+        elif profile_updates.get("purpose") == "business":
+            if has_nationality and has_duration:
+                # We have everything - make recommendation
+                return f"Perfect! {nationality} travelers for business - I have everything I need! Let me recommend the ideal visa for you..."
+            else:
+                return "Business in Indonesia - how exciting! For business purposes, you'll want our Business Visit Visa (B211B). Where are you from? That helps me give you the exact requirements and processing time."
         
         # Visa-related questions
         if any(word in message_lower for word in ["visa", "permit", "requirements", "documents", "cost", "price", "fee", "how much", "processing", "time"]):
