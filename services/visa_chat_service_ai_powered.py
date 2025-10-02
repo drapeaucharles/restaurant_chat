@@ -444,8 +444,15 @@ IMPORTANT RULES:
         # Use intelligent semantic response generation (avoiding AI timeouts)
         message_lower = message.lower()
         
-        # Filter automatic messages
-        if "i'm your ai assistant" in message_lower or "ask me about our menu" in message_lower:
+        # Filter automatic messages (more comprehensive)
+        automatic_patterns = [
+            "i'm your ai assistant",
+            "ask me about our menu",
+            "dietary preferences",
+            "allergens",
+            "any other questions"
+        ]
+        if any(pattern in message_lower for pattern in automatic_patterns):
             return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
         
         # Greetings
@@ -513,13 +520,30 @@ IMPORTANT RULES:
             else:
                 return "Business in Indonesia - how exciting! For business purposes, you'll want our Business Visit Visa (B211B). Where are you from? That helps me give you the exact requirements and processing time."
         
-        # Visa-related questions
-        if any(word in message_lower for word in ["visa", "permit", "requirements", "documents", "cost", "price", "fee", "how much", "processing", "time"]):
-            return "I'd be happy to help you with Indonesia visa information! To give you the most accurate details, could you tell me: Where are you from and what's bringing you to Indonesia?"
+        # Visa-related questions with context awareness
+        visa_keywords = ["visa", "permit", "requirements", "documents", "cost", "price", "fee", "how much", "processing", "time", "extend", "extension", "longer", "stay longer"]
+        if any(word in message_lower for word in visa_keywords):
+            if has_nationality and has_purpose:
+                # We have context - provide specific answer
+                nationality_name = nationality_names.get(has_nationality, "your")
+                if "extend" in message_lower or "longer" in message_lower or "3 months" in message_lower or "90 days" in message_lower:
+                    return f"Great question! For {nationality_name} travelers, the Tourist Visa (B211A) gives you 30 days initially, but you can extend it for another 30 days while in Indonesia. For stays longer than 60 days total, you'd need to apply for a different visa type or do a visa run. Would you like me to explain the extension process or other visa options for longer stays?"
+                else:
+                    return f"I'd be happy to help with visa information for {nationality_name} travelers! What specific details would you like to know about the Tourist Visa (B211A) - requirements, costs, processing time, or something else?"
+            else:
+                return "I'd be happy to help you with Indonesia visa information! To give you the most accurate details, could you tell me: Where are you from and what's bringing you to Indonesia?"
         
         # Help/recommendation requests
         if any(phrase in message_lower for phrase in ["help", "find", "recommend", "best", "right", "good fit", "which", "what"]):
             return "Perfect! I'd love to help you find the ideal visa for your Indonesia adventure! To recommend the best option, could you tell me: Where are you from and what's bringing you to Indonesia?"
+        
+        # Activity-based tourism detection (fallback for activities not in main list)
+        activity_words = ["snorkeling", "snorkling", "diving", "swimming", "hiking", "climbing", "photography", "shopping", "eating", "drinking", "partying", "dancing", "yoga", "meditation", "spa", "massage"]
+        if any(activity in message_lower for activity in activity_words):
+            if has_nationality:
+                return f"Awesome! {nationality} travelers love Indonesia for activities like that! Our Tourist Visa (B211A) is perfect for vacation activities. How long are you planning to stay?"
+            else:
+                return f"Indonesia is amazing for {message.lower()}! Our Tourist Visa (B211A) is perfect for vacation activities like that. Where are you traveling from and how long are you planning to stay?"
         
         # Default response incorporating their message
         return f"Hi! I'm Maya from GSI Bali Agency, and I'm excited to help with your Indonesia visa! I see you mentioned '{message}' - could you tell me a bit more about your travel plans? Where are you from and what's bringing you to Indonesia?"
