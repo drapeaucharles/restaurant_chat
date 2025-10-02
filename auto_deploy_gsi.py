@@ -152,22 +152,36 @@ def auto_deploy_gsi():
                         SELECT COUNT(*) FROM restaurants WHERE role = 'owner'
                     """)).scalar()
                     
-                    if restaurant_count == 0:
-                        # Restore sample restaurants
+                    # Check if bella_vista_restaurant exists (the one frontend expects)
+                    bella_exists = session.execute(text("""
+                        SELECT COUNT(*) FROM restaurants WHERE restaurant_id = 'bella_vista_restaurant'
+                    """)).scalar() > 0
+                    
+                    if restaurant_count == 0 or not bella_exists:
+                        # Delete old incorrect restaurant IDs and create proper ones
+                        session.execute(text("""
+                            DELETE FROM restaurants WHERE restaurant_id IN (
+                                'bella_vista', 'ocean_breeze', 'spice_garden', 'mountain_lodge', 'cafe_paris'
+                            )
+                        """))
+                        
+                        # Restore sample restaurants with proper IDs that match frontend expectations
                         session.execute(text("""
                             INSERT INTO restaurants (restaurant_id, password, role, data, restaurant_category, rag_mode)
                             VALUES 
-                            ('bella_vista', 'bella2024', 'owner', '{"name": "Bella Vista Restaurant", "description": "Fine dining Italian restaurant"}', 'italian', 'dynamic'),
-                            ('ocean_breeze', 'ocean2024', 'owner', '{"name": "Ocean Breeze Cafe", "description": "Seaside cafe with fresh seafood"}', 'seafood', 'dynamic'),
-                            ('spice_garden', 'spice2024', 'owner', '{"name": "Spice Garden", "description": "Authentic Asian cuisine"}', 'asian', 'dynamic'),
-                            ('mountain_lodge', 'lodge2024', 'owner', '{"name": "Mountain Lodge Restaurant", "description": "Rustic dining with mountain views"}', 'american', 'dynamic'),
-                            ('cafe_paris', 'paris2024', 'owner', '{"name": "Cafe Paris", "description": "French bistro and patisserie"}', 'french', 'dynamic'),
-                            ('test_restaurant', 'test123', 'owner', '{"name": "Test Restaurant", "description": "Test restaurant for development"}', 'test', 'dynamic')
+                            ('bella_vista_restaurant', 'bella2024', 'owner', '{"name": "Bella Vista Restaurant", "description": "Fine dining Italian restaurant"}', 'italian', 'dynamic'),
+                            ('ocean_breeze_cafe', 'ocean2024', 'owner', '{"name": "Ocean Breeze Cafe", "description": "Seaside cafe with fresh seafood"}', 'seafood', 'dynamic'),
+                            ('spice_garden_restaurant', 'spice2024', 'owner', '{"name": "Spice Garden", "description": "Authentic Asian cuisine"}', 'asian', 'dynamic'),
+                            ('mountain_lodge_restaurant', 'lodge2024', 'owner', '{"name": "Mountain Lodge Restaurant", "description": "Rustic dining with mountain views"}', 'american', 'dynamic'),
+                            ('cafe_paris_bistro', 'paris2024', 'owner', '{"name": "Cafe Paris", "description": "French bistro and patisserie"}', 'french', 'dynamic'),
+                            ('test_restaurant', 'test123', 'owner', '{"name": "Test Restaurant", "description": "Test restaurant for development"}', 'test', 'dynamic'),
+                            ('demo_restaurant', 'demo2024', 'owner', '{"name": "Demo Restaurant", "description": "Demo restaurant for testing"}', 'demo', 'dynamic')
+                            ON CONFLICT (restaurant_id) DO NOTHING
                         """))
                         session.commit()
-                        log("✅ Sample restaurants restored to restaurants table")
+                        log("✅ Sample restaurants restored with correct IDs for frontend compatibility")
                     else:
-                        log(f"✅ Found {restaurant_count} existing restaurants, skipping restore")
+                        log(f"✅ Found {restaurant_count} existing restaurants including bella_vista_restaurant")
                     
                 except Exception as admin_error:
                     log(f"⚠️ Restaurant restoration warning: {admin_error}")
