@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from models.visa_models import Catalog, VisaProduct, VisaRequirement, VisaEligibility
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -42,33 +42,42 @@ def get_products(db: Session, business_id: str) -> Dict[str, Any]:
         }
     """
     try:
-        # Get catalog for business
-        catalog = db.query(Catalog).filter(
-            Catalog.business_id == business_id
-        ).first()
+        # Use raw SQL to avoid ORM import issues
+        query = text("""
+            SELECT 
+                vp.product_code,
+                vp.name,
+                vp.category,
+                vp.entry_type,
+                vp.first_stay_days,
+                vp.extendable_to_days,
+                vp.convertible,
+                vp.sponsor_needed,
+                vp.gov_fee_idr,
+                vp.processing_sla_days,
+                vp.notes
+            FROM visa_products vp
+            JOIN catalogs c ON vp.catalog_id = c.id
+            WHERE c.business_id = :business_id
+            ORDER BY vp.product_code
+        """)
         
-        if not catalog:
-            return {"products": []}
-        
-        # Get all products in catalog
-        products = db.query(VisaProduct).filter(
-            VisaProduct.catalog_id == catalog.id
-        ).order_by(VisaProduct.product_code).all()
+        results = db.execute(query, {"business_id": business_id}).fetchall()
         
         product_list = []
-        for product in products:
+        for row in results:
             product_list.append({
-                "product_code": product.product_code,
-                "name": product.name,
-                "category": product.category,
-                "entry_type": product.entry_type,
-                "first_stay_days": product.first_stay_days,
-                "extendable_to_days": product.extendable_to_days,
-                "convertible": product.convertible,
-                "sponsor_needed": product.sponsor_needed,
-                "gov_fee_idr": product.gov_fee_idr,
-                "processing_sla_days": product.processing_sla_days,
-                "notes": product.notes
+                "product_code": row[0],
+                "name": row[1],
+                "category": row[2],
+                "entry_type": row[3],
+                "first_stay_days": row[4],
+                "extendable_to_days": row[5],
+                "convertible": row[6],
+                "sponsor_needed": row[7],
+                "gov_fee_idr": row[8],
+                "processing_sla_days": row[9],
+                "notes": row[10]
             })
         
         return {"products": product_list}
