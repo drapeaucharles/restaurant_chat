@@ -145,7 +145,8 @@ def get_visa_products_simple(db: Session, business_id: str) -> list:
                 vp.notes
             FROM visa_products vp
             JOIN catalogs c ON vp.catalog_id = c.id
-            WHERE c.business_id = :business_id
+            JOIN businesses b ON c.business_id = b.id
+            WHERE b.business_id = :business_id
             ORDER BY vp.product_code
         """)
         
