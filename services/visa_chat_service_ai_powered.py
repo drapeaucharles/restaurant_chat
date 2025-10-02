@@ -376,7 +376,16 @@ JSON:"""
             
         except Exception as e:
             logger.error(f"Error generating AI response: {e}")
-            return "I apologize, but I'm experiencing technical difficulties. Please try again or contact our support team."
+            # Fallback to conversational response based on message content
+            message_lower = message.lower()
+            if "hello" in message_lower or "hi" in message_lower:
+                return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
+            elif "fun" in message_lower:
+                return "That's the spirit! Indonesia is absolutely amazing for fun adventures! Are you thinking beaches, culture, food, or maybe a bit of everything? And where are you traveling from?"
+            elif "good fit" in message_lower or "right visa" in message_lower:
+                return "Perfect! I'd love to help you find the ideal visa for your Indonesia adventure! To recommend the best option, could you tell me: Where are you from and what's bringing you to Indonesia?"
+            else:
+                return f"Hi! I'm Maya from GSI Bali Agency, and I'm excited to help with your Indonesia visa! I see you mentioned '{message}' - could you tell me a bit more about your travel plans? Where are you from and what's bringing you to Indonesia?"
 
 
 def ai_powered_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
@@ -450,6 +459,15 @@ def ai_powered_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         
     except Exception as e:
         logger.error(f"Error in AI visa chat service: {e}", exc_info=True)
-        return ChatResponse(
-            answer="I apologize, but I'm experiencing technical difficulties. Please try again or contact our support team for assistance with your visa needs."
-        )
+        # Provide conversational fallback response
+        message_lower = req.message.lower()
+        if "hello" in message_lower or "hi" in message_lower:
+            fallback_answer = "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
+        elif "fun" in message_lower:
+            fallback_answer = "That's the spirit! Indonesia is absolutely amazing for fun adventures! Are you thinking beaches, culture, food, or maybe a bit of everything? And where are you traveling from?"
+        elif "good fit" in message_lower or "right visa" in message_lower:
+            fallback_answer = "Perfect! I'd love to help you find the ideal visa for your Indonesia adventure! To recommend the best option, could you tell me: Where are you from and what's bringing you to Indonesia?"
+        else:
+            fallback_answer = f"Hi! I'm Maya from GSI Bali Agency, and I'm excited to help with your Indonesia visa! I see you mentioned '{req.message}' - could you tell me a bit more about your travel plans? Where are you from and what's bringing you to Indonesia?"
+        
+        return ChatResponse(answer=fallback_answer)

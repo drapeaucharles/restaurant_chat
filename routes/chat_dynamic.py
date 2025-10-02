@@ -85,9 +85,9 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         if business_type == 'visa_agency':
             logger.info(f"✅ VISA AGENCY DETECTED! Using AI-powered visa chat service")
             try:
-                from services.visa_chat_service_simple_test import simple_test_visa_chat_service
-                selected_service = simple_test_visa_chat_service
-                logger.info(f"✅ SUCCESS: Selected SIMPLE TEST visa chat service for {req.restaurant_id}")
+                from services.visa_chat_service_ai_powered import ai_powered_visa_chat_service
+                selected_service = ai_powered_visa_chat_service
+                logger.info(f"✅ SUCCESS: Selected AI-powered visa chat service for {req.restaurant_id}")
             except ImportError as e:
                 logger.error(f"❌ IMPORT ERROR: AI visa chat service not available: {e}, falling back to default")
                 selected_service = chat_services.get('default', chat_services.get('fallback'))
