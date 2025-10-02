@@ -361,27 +361,98 @@ Return ONLY the JSON object:"""
             message_lower = message.lower()
             extracted = {}
             
-            # Basic nationality detection (English only as fallback)
-            basic_nationalities = {
-                "american": "US", "canadian": "CA", "australian": "AU", 
-                "british": "GB", "german": "DE", "french": "FR", "japanese": "JP"
+            # Enhanced nationality detection
+            nationality_patterns = {
+                # North America
+                "american": "US", "usa": "US", "america": "US", "united states": "US", "us": "US",
+                "canadian": "CA", "canada": "CA",
+                # Europe  
+                "british": "GB", "uk": "GB", "britain": "GB", "england": "GB", "english": "GB",
+                "german": "DE", "germany": "DE", "deutsch": "DE",
+                "french": "FR", "france": "FR", "français": "FR",
+                "italian": "IT", "italy": "IT",
+                "spanish": "ES", "spain": "ES",
+                "dutch": "NL", "netherlands": "NL", "holland": "NL",
+                # Asia Pacific
+                "australian": "AU", "australia": "AU", "aussie": "AU",
+                "japanese": "JP", "japan": "JP",
+                "chinese": "CN", "china": "CN",
+                "korean": "KR", "korea": "KR", "south korea": "KR",
+                "singaporean": "SG", "singapore": "SG",
+                "malaysian": "MY", "malaysia": "MY",
+                "thai": "TH", "thailand": "TH",
+                "filipino": "PH", "philippines": "PH",
+                "vietnamese": "VN", "vietnam": "VN",
+                "indian": "IN", "india": "IN"
             }
-            for nat, code in basic_nationalities.items():
-                if nat in message_lower:
+            
+            for pattern, code in nationality_patterns.items():
+                if pattern in message_lower:
                     extracted["nationality_iso2"] = code
+                    logger.info(f"🔍 NATIONALITY DETECTED: '{pattern}' → {code}")
                     break
             
-            # Basic purpose detection
-            if any(word in message_lower for word in ["fun", "vacation", "holiday", "beach", "diving"]):
-                extracted["purpose"] = "tourism"
-            elif any(word in message_lower for word in ["business", "work", "meeting"]):
-                extracted["purpose"] = "business"
+            # Enhanced purpose detection using semantic categories
+            tourism_indicators = [
+                # Direct tourism words
+                "tourism", "tourist", "vacation", "holiday", "leisure", "sightseeing",
+                # Activities that indicate tourism
+                "beach", "beaches", "surf", "surfing", "diving", "snorkeling", "swimming",
+                "sunbathing", "coconut", "tropical", "paradise", "island", "resort",
+                "relax", "relaxing", "chill", "unwind", "escape", "getaway",
+                "explore", "exploring", "adventure", "discover", "experience",
+                "culture", "cultural", "temples", "heritage", "traditional",
+                "food", "cuisine", "culinary", "taste", "eat", "restaurant",
+                "photography", "photos", "scenic", "beautiful", "nature",
+                "fun", "enjoy", "enjoying", "pleasure", "entertainment"
+            ]
             
-            # Basic duration extraction
+            business_indicators = [
+                "business", "work", "working", "job", "employment", "career",
+                "meeting", "meetings", "conference", "seminar", "workshop",
+                "client", "clients", "customer", "customers", "partner", "partners",
+                "company", "corporate", "office", "headquarters", "branch",
+                "project", "deal", "contract", "negotiation", "presentation"
+            ]
+            
+            if any(indicator in message_lower for indicator in tourism_indicators):
+                extracted["purpose"] = "tourism"
+                matched_indicators = [ind for ind in tourism_indicators if ind in message_lower]
+                logger.info(f"🔍 TOURISM PURPOSE DETECTED: {matched_indicators}")
+            elif any(indicator in message_lower for indicator in business_indicators):
+                extracted["purpose"] = "business"
+                matched_indicators = [ind for ind in business_indicators if ind in message_lower]
+                logger.info(f"🔍 BUSINESS PURPOSE DETECTED: {matched_indicators}")
+            
+            # Enhanced duration extraction with intelligent parsing
             import re
-            if re.search(r"(\d+)\s*months?", message_lower):
-                match = re.search(r"(\d+)\s*months?", message_lower)
-                extracted["intended_stay_days"] = int(match.group(1)) * 30
+            duration_patterns = [
+                (r"(\d+)\s*days?", lambda x: int(x)),
+                (r"(\d+)\s*weeks?", lambda x: int(x) * 7),
+                (r"(\d+)\s*months?", lambda x: int(x) * 30),
+                (r"(\d+)\s*years?", lambda x: int(x) * 365),
+                # Handle written numbers
+                (r"one\s+week", lambda x: 7),
+                (r"two\s+weeks", lambda x: 14),
+                (r"three\s+weeks", lambda x: 21),
+                (r"one\s+month", lambda x: 30),
+                (r"two\s+months", lambda x: 60),
+                (r"three\s+months", lambda x: 90),
+                (r"six\s+months", lambda x: 180),
+                (r"one\s+year", lambda x: 365)
+            ]
+            
+            for pattern, converter in duration_patterns:
+                match = re.search(pattern, message_lower)
+                if match:
+                    if callable(converter):
+                        if pattern.startswith(r"(\d+)"):
+                            extracted["intended_stay_days"] = converter(match.group(1))
+                            logger.info(f"🔍 DURATION DETECTED: '{match.group(0)}' → {extracted['intended_stay_days']} days")
+                        else:
+                            extracted["intended_stay_days"] = converter(None)
+                            logger.info(f"🔍 DURATION DETECTED: '{match.group(0)}' → {extracted['intended_stay_days']} days")
+                    break
             
             logger.info(f"📝 Fallback extracted: {extracted}")
             return extracted
