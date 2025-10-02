@@ -541,12 +541,12 @@ AVAILABLE VISA TYPES:
             else:
                 return "Business in Indonesia - how exciting! For business purposes, you'll want our Business Visit Visa (B211B). Where are you from? That helps me give you the exact requirements and processing time."
         
-        # 5. Visa-related questions with context
-        visa_keywords = ["visa", "permit", "requirements", "documents", "cost", "price", "fee", "how much", "processing", "time", "extend", "extension", "longer", "stay longer"]
-        if any(word in message_lower for word in visa_keywords):
+        # 5. Simple visa questions (only basic visa words, not complex sentences)
+        simple_visa_patterns = ["visa", "permit", "kitas", "what visa", "which visa", "visa cost", "visa price"]
+        if any(pattern in message_lower for pattern in simple_visa_patterns) and len(message.split()) <= 6:
             if has_nationality and has_purpose:
                 nationality_name = nationality_names.get(has_nationality, "your")
-                if "extend" in message_lower or "longer" in message_lower or "3 months" in message_lower or "90 days" in message_lower:
+                if "extend" in message_lower or "longer" in message_lower:
                     return f"Great question! For {nationality_name} travelers, the Tourist Visa (B211A) gives you 30 days initially, but you can extend it for another 30 days while in Indonesia. For stays longer than 60 days total, you'd need to apply for a different visa type or do a visa run. Would you like me to explain the extension process or other visa options for longer stays?"
                 else:
                     return f"I'd be happy to help with visa information for {nationality_name} travelers! What specific details would you like to know about the Tourist Visa (B211A) - requirements, costs, processing time, or something else?"
@@ -557,8 +557,9 @@ AVAILABLE VISA TYPES:
         if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon", "how are you", "bonjour", "hola", "guten tag"]):
             return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
         
-        # 7. Help requests
-        if any(phrase in message_lower for phrase in ["help", "find", "recommend", "best", "right", "good fit", "which", "what"]):
+        # 7. Simple help requests (only basic help words, not complex sentences)
+        simple_help_patterns = ["help", "help me", "can you help", "i need help"]
+        if any(pattern in message_lower for pattern in simple_help_patterns) and len(message.split()) <= 5:
             return "Perfect! I'd love to help you find the ideal visa for your Indonesia adventure! To recommend the best option, could you tell me: Where are you from and what's bringing you to Indonesia?"
         
         # 8. Activity-based tourism
