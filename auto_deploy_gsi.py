@@ -31,33 +31,61 @@ def auto_deploy_gsi():
             conn.execute(text("SELECT 1"))
         log("✅ Database connected")
         
+        # First, run migrations to ensure tables exist
+        log("🔧 Running visa migrations...")
+        try:
+            with engine.connect() as conn:
+                with conn.begin():
+                    # Add type column to existing restaurants table
+                    conn.execute(text("""
+                        ALTER TABLE restaurants 
+                        ADD COLUMN IF NOT EXISTS type VARCHAR(64) DEFAULT 'restaurant'
+                    """))
+                    
+                    # Create businesses table
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS businesses (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            business_id VARCHAR UNIQUE NOT NULL,
+                            type VARCHAR(64) NOT NULL DEFAULT 'restaurant',
+                            name VARCHAR NOT NULL,
+                            password VARCHAR NOT NULL,
+                            role VARCHAR DEFAULT 'owner',
+                            data JSONB DEFAULT '{}',
+                            created_at TIMESTAMPTZ DEFAULT now(),
+                            updated_at TIMESTAMPTZ DEFAULT now()
+                        )
+                    """))
+                    
+                    # Create policy_packs table
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS policy_packs (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+                            jurisdiction VARCHAR(16) NOT NULL,
+                            version VARCHAR(32) NOT NULL,
+                            data_json JSONB NOT NULL,
+                            created_at TIMESTAMPTZ DEFAULT now(),
+                            UNIQUE (business_id, jurisdiction, version)
+                        )
+                    """))
+                    
+                    # Create catalogs table
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS catalogs (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+                            created_at TIMESTAMPTZ DEFAULT now()
+                        )
+                    """))
+            
+            log("✅ Migrations completed")
+        except Exception as e:
+            log(f"⚠️ Migration warning: {e}")
+        
         session = SessionLocal()
         
         try:
-            # Check if GSI exists
-            result = session.execute(text("""
-                SELECT COUNT(*) FROM information_schema.tables 
-                WHERE table_name = 'businesses'
-            """))
-            
-            if result.scalar() == 0:
-                log("⚠️ Businesses table not found - running migrations first")
-                # Run basic migration
-                with engine.connect() as conn:
-                    with conn.begin():
-                        conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS businesses (
-                                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                                business_id VARCHAR UNIQUE NOT NULL,
-                                type VARCHAR DEFAULT 'restaurant',
-                                name VARCHAR NOT NULL,
-                                password VARCHAR NOT NULL,
-                                role VARCHAR DEFAULT 'owner',
-                                data JSONB DEFAULT '{}',
-                                created_at TIMESTAMPTZ DEFAULT now()
-                            )
-                        """))
-                log("✅ Basic migration completed")
             
             # Check if GSI exists
             result = session.execute(text("""
