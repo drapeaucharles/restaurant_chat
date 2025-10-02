@@ -393,6 +393,52 @@ IMPORTANT RULES:
         logger.info(f"📝 Pattern extracted: {extracted}")
         return extracted
     
+    def _build_visa_ai_prompt(self, message: str, profile: Dict, chat_history: List[Dict] = None) -> str:
+        """Build AI prompt for visa consultation"""
+        
+        # Base system prompt
+        prompt = """You are Maya, a professional visa consultant at GSI Bali Agency specializing in Indonesia visas. You are knowledgeable, helpful, and provide accurate visa information.
+
+CONTEXT:
+- You help people get the right Indonesia visa for their needs
+- You ask clarifying questions to understand their situation
+- You provide specific visa recommendations with requirements
+- You are warm, professional, and encouraging
+
+AVAILABLE VISA TYPES:
+- Tourist Visa (B211A): 30 days, extendable to 60 days total
+- Business Visa (B211B): For business meetings, conferences
+- KITAS Work Visa: For employment in Indonesia
+- KITAS Investment Visa: For business owners/investors
+- KITAS Retirement Visa: For retirees 55+
+- KITAS Spouse Visa: For spouses of Indonesian citizens
+
+"""
+        
+        # Add profile context if available
+        if profile:
+            prompt += "\nCUSTOMER PROFILE:\n"
+            if profile.get("nationality_iso2"):
+                prompt += f"- Nationality: {profile['nationality_iso2']}\n"
+            if profile.get("purpose"):
+                prompt += f"- Purpose: {profile['purpose']}\n"
+            if profile.get("intended_stay_days"):
+                days = profile["intended_stay_days"]
+                months = days // 30
+                duration = f"{months} months" if months > 0 else f"{days} days"
+                prompt += f"- Duration: {duration}\n"
+        
+        # Add recent chat history for context
+        if chat_history:
+            prompt += "\nRECENT CONVERSATION:\n"
+            for msg in chat_history[-3:]:  # Last 3 messages
+                sender = "Customer" if msg["sender_type"] == "user" else "Maya"
+                prompt += f"{sender}: {msg['message']}\n"
+        
+        prompt += f"\nCustomer: {message}\nMaya:"
+        
+        return prompt
+    
     def generate_ai_response(self, message: str, client_id: str, chat_history: List[Dict]) -> str:
         """Generate intelligent conversational response using AI understanding"""
         
@@ -523,7 +569,29 @@ IMPORTANT RULES:
             else:
                 return f"Indonesia is amazing for {message.lower()}! Our Tourist Visa (B211A) is perfect for vacation activities like that. Where are you traveling from and how long are you planning to stay?"
         
-        # 9. Default response
+        # 9. Try AI-powered response for complex queries
+        try:
+            # Build AI prompt for visa consultation
+            visa_prompt = self._build_visa_ai_prompt(message, current_profile, chat_history)
+            
+            # Try AI response first
+            ai_params = {
+                "max_tokens": 150,
+                "temperature": 0.7
+            }
+            
+            logger.info(f"Attempting AI response for complex visa query")
+            ai_response = get_mia_response_fast(visa_prompt, ai_params)
+            
+            if ai_response and len(ai_response.strip()) > 10 and not ai_response.startswith("I apologize"):
+                logger.info(f"AI response successful: {ai_response[:100]}...")
+                return ai_response.strip()
+            else:
+                logger.info(f"AI response failed or too short, using fallback")
+        except Exception as e:
+            logger.error(f"AI response error: {e}")
+        
+        # 10. Default fallback response
         return f"Hi! I'm Maya from GSI Bali Agency, and I'm excited to help with your Indonesia visa! I see you mentioned '{message}' - could you tell me a bit more about your travel plans? Where are you from and what's bringing you to Indonesia?"
 
 
