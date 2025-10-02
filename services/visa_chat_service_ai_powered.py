@@ -497,30 +497,49 @@ RESPONSE GUIDELINES:
     def _get_openai_response(self, prompt: str, params: Dict) -> str:
         """Get response from OpenAI as fallback when MIA fails"""
         try:
-            import openai
             import os
             
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
-                logger.warning("No OpenAI API key available")
+                logger.warning("❌ No OpenAI API key available in environment")
                 return ""
             
-            openai.api_key = api_key
+            logger.info(f"🔑 OpenAI API key found, attempting request...")
             
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=params.get("max_tokens", 250),
-                temperature=params.get("temperature", 0.9)
-            )
-            
-            return response.choices[0].message.content.strip()
+            # Try new OpenAI client first
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key)
+                
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=params.get("max_tokens", 250),
+                    temperature=params.get("temperature", 0.9)
+                )
+                
+                return response.choices[0].message.content.strip()
+                
+            except ImportError:
+                # Fallback to old OpenAI API
+                logger.info("🔄 Using legacy OpenAI API...")
+                import openai
+                openai.api_key = api_key
+                
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=params.get("max_tokens", 250),
+                    temperature=params.get("temperature", 0.9)
+                )
+                
+                return response.choices[0].message.content.strip()
             
         except ImportError:
-            logger.warning("OpenAI library not available")
+            logger.warning("❌ OpenAI library not available")
             return ""
         except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
+            logger.error(f"❌ OpenAI API error: {e}")
             return ""
     
     def generate_ai_response(self, message: str, client_id: str, chat_history: List[Dict]) -> str:
@@ -582,10 +601,13 @@ RESPONSE GUIDELINES:
                     logger.warning(f"⚠️ All MIA methods failed, trying OpenAI fallback")
                     # Try OpenAI as final fallback
                     try:
+                        logger.info(f"🔄 Attempting OpenAI fallback due to MIA timeout...")
                         openai_response = self._get_openai_response(visa_prompt, ai_params)
                         if openai_response and len(openai_response.strip()) > 10:
                             logger.info(f"✅ OpenAI fallback successful: {openai_response[:100]}...")
                             return openai_response.strip()
+                        else:
+                            logger.warning(f"⚠️ OpenAI returned empty response: '{openai_response}'")
                     except Exception as openai_error:
                         logger.error(f"❌ OpenAI fallback failed: {openai_error}")
         except Exception as e:
