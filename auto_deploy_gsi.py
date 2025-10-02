@@ -137,18 +137,40 @@ def auto_deploy_gsi():
                     """)).scalar() > 0
                     
                     if not admin_exists:
-                        # Create admin users in restaurants table
+                        # Create admin users
                         session.execute(text("""
-                            INSERT INTO restaurants (restaurant_id, password, role, data)
+                            INSERT INTO restaurants (restaurant_id, password, role, data, restaurant_category, rag_mode)
                             VALUES 
-                            ('admin', 'admin123', 'admin', '{"name": "Admin User"}'),
-                            ('admin@admin.com', 'admin123', 'admin', '{"name": "Admin Email"}')
+                            ('admin', 'admin123', 'admin', '{"name": "Admin User"}', 'admin', 'dynamic'),
+                            ('admin@admin.com', 'admin123', 'admin', '{"name": "Admin Email"}', 'admin', 'dynamic')
                         """))
                         session.commit()
                         log("✅ Admin users created in restaurants table")
                     
+                    # Check if we need to restore sample restaurants
+                    restaurant_count = session.execute(text("""
+                        SELECT COUNT(*) FROM restaurants WHERE role = 'owner'
+                    """)).scalar()
+                    
+                    if restaurant_count == 0:
+                        # Restore sample restaurants
+                        session.execute(text("""
+                            INSERT INTO restaurants (restaurant_id, password, role, data, restaurant_category, rag_mode)
+                            VALUES 
+                            ('bella_vista', 'bella2024', 'owner', '{"name": "Bella Vista Restaurant", "description": "Fine dining Italian restaurant"}', 'italian', 'dynamic'),
+                            ('ocean_breeze', 'ocean2024', 'owner', '{"name": "Ocean Breeze Cafe", "description": "Seaside cafe with fresh seafood"}', 'seafood', 'dynamic'),
+                            ('spice_garden', 'spice2024', 'owner', '{"name": "Spice Garden", "description": "Authentic Asian cuisine"}', 'asian', 'dynamic'),
+                            ('mountain_lodge', 'lodge2024', 'owner', '{"name": "Mountain Lodge Restaurant", "description": "Rustic dining with mountain views"}', 'american', 'dynamic'),
+                            ('cafe_paris', 'paris2024', 'owner', '{"name": "Cafe Paris", "description": "French bistro and patisserie"}', 'french', 'dynamic'),
+                            ('test_restaurant', 'test123', 'owner', '{"name": "Test Restaurant", "description": "Test restaurant for development"}', 'test', 'dynamic')
+                        """))
+                        session.commit()
+                        log("✅ Sample restaurants restored to restaurants table")
+                    else:
+                        log(f"✅ Found {restaurant_count} existing restaurants, skipping restore")
+                    
                 except Exception as admin_error:
-                    log(f"⚠️ Admin user creation warning: {admin_error}")
+                    log(f"⚠️ Restaurant restoration warning: {admin_error}")
                 
                 session.close()
                 log("✅ GSI Bali Agency created successfully in businesses table!")
