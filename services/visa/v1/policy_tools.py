@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
-from models.visa_models import PolicyPack, Business
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
-from models.visa_models import VisaLead
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -35,38 +35,72 @@ def upsert_partial_profile(db: Session, client_id: str, business_id: str, patch:
         }
     """
     try:
-        # Find or create visa lead
-        lead = db.query(VisaLead).filter(
-            VisaLead.business_id == business_id,
-            VisaLead.id == client_id  # Using lead ID as client ID for now
-        ).first()
+        # Use raw SQL to avoid ORM import issues
+        # First, get business UUID from business_id string
+        business_uuid_query = text("""
+            SELECT id FROM businesses WHERE business_id = :business_id
+        """)
+        business_result = db.execute(business_uuid_query, {"business_id": business_id}).fetchone()
         
-        if not lead:
+        if not business_result:
+            raise ValueError(f"Business not found: {business_id}")
+        
+        business_uuid = business_result[0]
+        
+        # Check if lead exists
+        lead_query = text("""
+            SELECT id, profile_json, updated_at 
+            FROM visa_leads 
+            WHERE business_id = :business_uuid AND id = :client_id
+        """)
+        lead_result = db.execute(lead_query, {
+            "business_uuid": business_uuid, 
+            "client_id": client_id
+        }).fetchone()
+        
+        current_time = datetime.utcnow()
+        
+        if not lead_result:
             # Create new lead
-            lead = VisaLead(
-                id=client_id,
-                business_id=business_id,
-                profile_json=patch,
-                status='new'
-            )
-            db.add(lead)
+            insert_query = text("""
+                INSERT INTO visa_leads (id, business_id, profile_json, status, created_at, updated_at)
+                VALUES (:client_id, :business_uuid, :profile_json, 'new', :current_time, :current_time)
+            """)
+            db.execute(insert_query, {
+                "client_id": client_id,
+                "business_uuid": business_uuid,
+                "profile_json": json.dumps(patch),
+                "current_time": current_time
+            })
+            final_profile = patch
         else:
             # Merge patch into existing profile
-            current_profile = lead.profile_json or {}
+            current_profile = json.loads(lead_result[1]) if lead_result[1] else {}
             current_profile.update(patch)
-            lead.profile_json = current_profile
-            lead.updated_at = datetime.utcnow()
+            final_profile = current_profile
+            
+            update_query = text("""
+                UPDATE visa_leads 
+                SET profile_json = :profile_json, updated_at = :current_time
+                WHERE id = :client_id AND business_id = :business_uuid
+            """)
+            db.execute(update_query, {
+                "profile_json": json.dumps(final_profile),
+                "current_time": current_time,
+                "client_id": client_id,
+                "business_uuid": business_uuid
+            })
         
         db.commit()
         
         # Calculate completeness
-        completeness = calculate_profile_completeness(lead.profile_json)
+        completeness = calculate_profile_completeness(final_profile)
         
         return {
-            "client_id": str(lead.id),
-            "profile": lead.profile_json,
+            "client_id": client_id,
+            "profile": final_profile,
             "completeness": completeness,
-            "updated_at": lead.updated_at.isoformat()
+            "updated_at": current_time.isoformat()
         }
         
     except Exception as e:
