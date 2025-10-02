@@ -84,10 +84,10 @@ def get_chat_history_sql(db: Session, client_id: str, restaurant_id: str, limit:
     """Get recent chat history using raw SQL"""
     try:
         query = text("""
-            SELECT sender_type, message, created_at
+            SELECT sender_type, message, timestamp
             FROM chat_messages 
             WHERE client_id = :client_id AND restaurant_id = :restaurant_id
-            ORDER BY created_at DESC 
+            ORDER BY timestamp DESC 
             LIMIT :limit
         """)
         
@@ -113,7 +113,7 @@ def get_chat_history_sql(db: Session, client_id: str, restaurant_id: str, limit:
 
 
 def save_chat_message_sql(db: Session, client_id: str, restaurant_id: str, message: str, sender_type: str):
-    """Save chat message using ORM (this should work)"""
+    """Save chat message using ORM with proper error handling"""
     try:
         import models
         
@@ -128,3 +128,8 @@ def save_chat_message_sql(db: Session, client_id: str, restaurant_id: str, messa
         
     except Exception as e:
         logger.error(f"Error saving chat message: {e}")
+        try:
+            db.rollback()
+            logger.info("Chat message transaction rolled back")
+        except Exception as rollback_error:
+            logger.error(f"Chat message rollback failed: {rollback_error}")

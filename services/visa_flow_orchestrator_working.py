@@ -50,28 +50,41 @@ class WorkingVisaFlowOrchestrator:
             """)
             
             logger.info(f"Getting visa products for business_id: {self.business_id}")
-            results = self.db.execute(query, {"business_id": self.business_id}).fetchall()
-            logger.info(f"Found {len(results)} visa products")
             
-            products = []
-            for row in results:
-                product = {
-                    "product_code": row[0],
-                    "name": row[1],
-                    "category": row[2],
-                    "first_stay_days": row[3],
-                    "extendable_to_days": row[4],
-                    "gov_fee_idr": row[5],
-                    "processing_sla_days": row[6],
-                    "notes": row[7],
-                    "sponsor_needed": row[8],
-                    "convertible": row[9]
-                }
-                products.append(product)
-                logger.info(f"Added product: {product['product_code']} - {product['name']}")
-            
-            logger.info(f"Returning {len(products)} products")
-            return products
+            # Use a separate transaction to avoid contaminating the main session
+            try:
+                results = self.db.execute(query, {"business_id": self.business_id}).fetchall()
+                logger.info(f"Found {len(results)} visa products")
+                
+                products = []
+                for row in results:
+                    product = {
+                        "product_code": row[0],
+                        "name": row[1],
+                        "category": row[2],
+                        "first_stay_days": row[3],
+                        "extendable_to_days": row[4],
+                        "gov_fee_idr": row[5],
+                        "processing_sla_days": row[6],
+                        "notes": row[7],
+                        "sponsor_needed": row[8],
+                        "convertible": row[9]
+                    }
+                    products.append(product)
+                    logger.info(f"Added product: {product['product_code']} - {product['name']}")
+                
+                logger.info(f"Returning {len(products)} products")
+                return products
+                
+            except Exception as db_error:
+                logger.error(f"Database query failed: {db_error}")
+                # Rollback the transaction to clean state
+                try:
+                    self.db.rollback()
+                    logger.info("Transaction rolled back successfully")
+                except Exception as rollback_error:
+                    logger.error(f"Rollback failed: {rollback_error}")
+                return []
             
         except Exception as e:
             logger.error(f"Error getting visa products: {e}")
