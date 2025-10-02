@@ -37,6 +37,13 @@ def auto_deploy_gsi():
         try:
             with engine.connect() as conn:
                 with conn.begin():
+                    # Check if restaurants table exists
+                    result = conn.execute(text("""
+                        SELECT table_name FROM information_schema.tables 
+                        WHERE table_name = 'restaurants'
+                    """))
+                    restaurants_exists = result.fetchone() is not None
+                    
                     # Check if businesses table exists and has type column
                     result = conn.execute(text("""
                         SELECT column_name FROM information_schema.columns 
@@ -44,8 +51,28 @@ def auto_deploy_gsi():
                     """))
                     has_type_column = result.fetchone() is not None
                     
+                    # Create restaurants table if it doesn't exist (for backward compatibility)
+                    if not restaurants_exists:
+                        conn.execute(text("""
+                            CREATE TABLE restaurants (
+                                restaurant_id VARCHAR PRIMARY KEY,
+                                password VARCHAR NOT NULL,
+                                role VARCHAR DEFAULT 'owner',
+                                data JSONB DEFAULT '{}',
+                                whatsapp_number VARCHAR,
+                                whatsapp_session_id VARCHAR,
+                                restaurant_category VARCHAR,
+                                rag_mode VARCHAR DEFAULT 'dynamic',
+                                business_type VARCHAR DEFAULT 'restaurant',
+                                created_at TIMESTAMPTZ DEFAULT now(),
+                                updated_at TIMESTAMPTZ DEFAULT now()
+                            )
+                        """))
+                        log("✅ Restaurants table created for backward compatibility")
+                    
+                    # Create or update businesses table
                     if not has_type_column:
-                        # Drop and recreate businesses table with proper structure
+                        # Create businesses table without dropping restaurants
                         conn.execute(text("DROP TABLE IF EXISTS businesses CASCADE"))
                         conn.execute(text("""
                             CREATE TABLE businesses (
@@ -101,6 +128,28 @@ def auto_deploy_gsi():
                 """))
                 
                 session.commit()
+                
+                # Also ensure admin users exist in restaurants table for backward compatibility
+                try:
+                    # Check if admin users exist in restaurants table
+                    admin_exists = session.execute(text("""
+                        SELECT COUNT(*) FROM restaurants WHERE restaurant_id = 'admin'
+                    """)).scalar() > 0
+                    
+                    if not admin_exists:
+                        # Create admin users in restaurants table
+                        session.execute(text("""
+                            INSERT INTO restaurants (restaurant_id, password, role, data)
+                            VALUES 
+                            ('admin', 'admin123', 'admin', '{"name": "Admin User"}'),
+                            ('admin@admin.com', 'admin123', 'admin', '{"name": "Admin Email"}')
+                        """))
+                        session.commit()
+                        log("✅ Admin users created in restaurants table")
+                    
+                except Exception as admin_error:
+                    log(f"⚠️ Admin user creation warning: {admin_error}")
+                
                 session.close()
                 log("✅ GSI Bali Agency created successfully in businesses table!")
                 log("🎉 GSI is now live and ready for visa inquiries!")
