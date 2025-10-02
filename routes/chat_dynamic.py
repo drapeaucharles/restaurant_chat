@@ -78,6 +78,25 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         if business_result:
             business_type, rag_mode = business_result
             logger.info(f"Business {req.restaurant_id} is type '{business_type}' with rag_mode '{rag_mode}'")
+            
+            # Check if this is a visa agency - use specialized visa chat service
+            if business_type == 'visa_agency':
+                logger.info(f"Visa agency detected, using visa chat service")
+                try:
+                    from services.visa_chat_service import visa_chat_service
+                    selected_service = visa_chat_service
+                    logger.info(f"Selected visa chat service for {req.restaurant_id}")
+                except ImportError as e:
+                    logger.warning(f"Visa chat service not available: {e}, falling back to default")
+                    selected_service = chat_services.get('default', chat_services.get('fallback'))
+            else:
+                # Regular business - use rag_mode
+                if rag_mode in chat_services:
+                    selected_service = chat_services[rag_mode]
+                    logger.info(f"Selected service: {rag_mode}")
+                else:
+                    logger.warning(f"RAG mode '{rag_mode}' not available, falling back to default")
+                    selected_service = chat_services.get('default', chat_services.get('fallback'))
         else:
             # Fallback to restaurant model for backward compatibility
             restaurant = db.query(models.Restaurant).filter(
@@ -88,20 +107,32 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
                 raise HTTPException(status_code=404, detail="Restaurant/Business not found")
             
             rag_mode = getattr(restaurant, 'rag_mode', 'internal_tools_v5')
-        
-        # If restaurant doesn't have rag_mode set, use default
-        if not rag_mode:
-            rag_mode = os.getenv("DEFAULT_RAG_MODE", "internal_tools_v5")
-        
-        logger.info(f"Restaurant {req.restaurant_id} using RAG mode: {rag_mode}")
-        
-        # Select appropriate service
-        if rag_mode in chat_services:
-            selected_service = chat_services[rag_mode]
-            logger.info(f"Selected service: {rag_mode}")
-        else:
-            logger.warning(f"RAG mode '{rag_mode}' not available, falling back to default")
-            selected_service = chat_services.get('default', chat_services.get('fallback'))
+            business_type = getattr(restaurant, 'business_type', 'restaurant')
+            
+            # If restaurant doesn't have rag_mode set, use default
+            if not rag_mode:
+                rag_mode = os.getenv("DEFAULT_RAG_MODE", "internal_tools_v5")
+            
+            logger.info(f"Restaurant {req.restaurant_id} using RAG mode: {rag_mode}")
+            
+            # Check if this is a visa agency in restaurants table
+            if business_type == 'visa_agency':
+                logger.info(f"Visa agency detected in restaurants table, using visa chat service")
+                try:
+                    from services.visa_chat_service import visa_chat_service
+                    selected_service = visa_chat_service
+                    logger.info(f"Selected visa chat service for {req.restaurant_id}")
+                except ImportError as e:
+                    logger.warning(f"Visa chat service not available: {e}, falling back to default")
+                    selected_service = chat_services.get('default', chat_services.get('fallback'))
+            else:
+                # Regular restaurant - use rag_mode
+                if rag_mode in chat_services:
+                    selected_service = chat_services[rag_mode]
+                    logger.info(f"Selected service: {rag_mode}")
+                else:
+                    logger.warning(f"RAG mode '{rag_mode}' not available, falling back to default")
+                    selected_service = chat_services.get('default', chat_services.get('fallback'))
         
         # Get or create client FIRST (before creating message)
         get_or_create_client(db, req.client_id, req.restaurant_id)
