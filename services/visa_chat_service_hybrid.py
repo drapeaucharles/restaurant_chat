@@ -136,10 +136,15 @@ class HybridVisaService:
                 ai_response = response_data.get("response", "")
                 
                 if ai_response and len(ai_response.strip()) > 10:
-                    logger.info(f"✅ AI response successful for {intent}")
+                    logger.info(f"✅ AI response successful for {intent}: '{ai_response[:50]}...'")
                     return ai_response.strip()
+                else:
+                    logger.warning(f"⚠️ AI response too short or empty: '{ai_response}' - using fallback")
+            else:
+                logger.warning(f"⚠️ MIA request failed with status {response.status_code} - using fallback")
             
             # Fallback to contextual template if AI fails
+            logger.info(f"🔄 Using contextual fallback for {intent}")
             return self._get_contextual_fallback(intent, profile, profile_delta)
             
         except Exception as e:
@@ -236,31 +241,30 @@ Generate a helpful response as Maya:"""
         duration = profile.get("intended_stay_days", 0)
         
         if intent == "greeting":
-            return "Hi! I'm Maya from GSI Bali Agency. I'd love to help with your Indonesia visa! What brings you to Indonesia and where are you from?"
+            return "Hi! I'm Maya from GSI Bali Agency. What brings you to Indonesia and where are you from?"
         
         elif intent == "provide_profile_data":
             if profile_delta.get("nationality_iso2") and profile_delta.get("purpose"):
                 return f"Perfect! {nationality} travelers for {purpose} - I can definitely help with that. How long are you planning to stay?"
             elif nationality and purpose and duration:
-                days_text = f"{duration} days" if duration < 30 else f"{duration//30} months"
-                return f"Excellent! For {nationality} travelers visiting for {purpose} for {days_text}, I recommend the Tourist Visa (B211A). Would you like to know the requirements?"
+                return f"Perfect! For {nationality} travelers, I recommend the Tourist Visa (B211A). Would you like to know the requirements?"
             else:
-                return "Thanks for that information! To give you the best visa recommendation, could you tell me your nationality and travel purpose?"
+                return "Thanks! Could you tell me your nationality and travel purpose?"
         
         elif intent == "ask_recommendation":
             if nationality and purpose:
-                return f"For {nationality} travelers visiting for {purpose}, I recommend the Tourist Visa (B211A). It's perfect for your needs! Would you like to know the requirements or costs?"
+                return f"For {nationality} travelers, I recommend the Tourist Visa (B211A). Would you like to know the requirements?"
             else:
-                return "I'd love to recommend the perfect visa! Could you tell me your nationality and what's bringing you to Indonesia?"
+                return "I'd love to help! Could you tell me your nationality and travel purpose?"
         
         elif intent == "ask_requirements":
-            return "For the Tourist Visa (B211A), you'll need: valid passport (6+ months), return ticket, and proof of accommodation. Would you like help with the application process?"
+            return "You'll need: valid passport (6+ months), return ticket, and proof of accommodation. Ready to apply?"
         
         elif intent == "ask_price":
-            return "The Tourist Visa (B211A) costs $35 USD plus our service fee. This includes the visa and our full support. Ready to get started?"
+            return "The Tourist Visa costs $35 USD plus service fee. Ready to get started?"
         
         else:
-            return "I'm here to help with your Indonesia visa needs! What specific information would you like to know?"
+            return "I'm here to help with your Indonesia visa! What would you like to know?"
     
     def _get_next_actions(self, intent: str, profile: Dict) -> List[str]:
         """
