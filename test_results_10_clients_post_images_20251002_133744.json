@@ -1,0 +1,1177 @@
+{
+  "test_info": {
+    "timestamp": "20251002_133744",
+    "test_type": "10_client_post_image_restoration",
+    "api_url": "https://restaurantchat-production.up.railway.app/chat",
+    "restaurant_id": "bella_vista_restaurant",
+    "total_clients": 10,
+    "total_messages": 30,
+    "total_time_minutes": 3.4000404437383014
+  },
+  "summary": {
+    "successful_responses": 30,
+    "failed_responses": 0,
+    "success_rate": 100.0,
+    "avg_response_time": 4.566032552719117,
+    "max_response_time": 14.176354885101318,
+    "issues_found": 1,
+    "unique_issues": 1
+  },
+  "detailed_results": [
+    {
+      "client_id": "a16ba949-d549-409b-ba95-ed5454b979a6",
+      "client_num": 1,
+      "messages": [
+        {
+          "message": "Show me vegetarian pasta",
+          "response": "Sure thing! We have Penne Arrabbiata for $24.99 and Gnocchi Gorgonzola for $24.99. Both are vegetarian and gluten-free. Let me know if you want to try either of them!\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_f...",
+          "response_time": 4.287349224090576,
+          "tools_used": [
+            "filter_dietary_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "filter_dietary_food_type",
+                "parameters": {
+                  "diet": [
+                    "Vegetarian"
+                  ],
+                  "food_type": "Pasta"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "filter_dietary_food_type",
+                "items_found": 4,
+                "found": 4
+              }
+            ],
+            "context_type": "allergen_query",
+            "customer_allergies": [],
+            "response_time": "3.60s"
+          }
+        },
+        {
+          "message": "What's the price of Penne Arrabbiata?",
+          "response": "The Penne Arrabbiata is $24.99. Perfect for a spicy kick!\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n    {\n      \"tool\": \"get_dish_details\",\n      \"parameters\": {\n        \"dis...",
+          "response_time": 3.668677806854248,
+          "tools_used": [
+            "get_dish_details"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "get_dish_details",
+                "parameters": {
+                  "dish_name": "Penne Arrabbiata"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "get_dish_details",
+                "items_found": 1,
+                "found": 1
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "2.85s"
+          }
+        },
+        {
+          "message": "Is it spicy?",
+          "response": "Penne Arrabbiata is indeed spicy. It costs $24.99. Would you like to try it?\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n    {\n      \"tool\": \"search_menu_general\",\n      \"param...",
+          "response_time": 3.8336498737335205,
+          "tools_used": [
+            "search_menu_general"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_general",
+                "parameters": {
+                  "scope": "menu",
+                  "message_context": "Is it spicy?"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_general",
+                "items_found": 20,
+                "found": 20
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.19s"
+          }
+        }
+      ],
+      "total_messages": 3,
+      "successful_responses": 3,
+      "failed_responses": 0,
+      "response_times": [
+        4.287349224090576,
+        3.668677806854248,
+        3.8336498737335205
+      ],
+      "tools_used": [
+        "filter_dietary_food_type",
+        "get_dish_details",
+        "search_menu_general"
+      ],
+      "issues_found": [],
+      "avg_response_time": 3.9298923015594482,
+      "max_response_time": 4.287349224090576
+    },
+    {
+      "client_id": "ccfd71f8-7538-445d-83d1-0f0452827d09",
+      "client_num": 2,
+      "messages": [
+        {
+          "message": "Show me your appetizers",
+          "response": "Sure thing! We've got some great appetizers here. The Bruschetta Trio is $15.99, Stuffed Mushrooms for $13.99, Shrimp Cocktail at $19.99, Spinach Artichoke Dip for $12.99, Beef Carpaccio at $18.99, Me...",
+          "response_time": 4.810729503631592,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Appetizers"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 10,
+                "found": 10
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "4.16s"
+          }
+        },
+        {
+          "message": "Do you have pictures of the food?",
+          "response": "Sure thing! We've got some great options here. The Caesar Salad is $11.99, the Greek Salad is $13.99, the Roasted Beet Salad is $13.99, and the Quinoa Power Bowl is also $13.99. Would you like to see ...",
+          "response_time": 3.9023635387420654,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Salads"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 4,
+                "found": 4
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.48s"
+          }
+        },
+        {
+          "message": "What's in the Bruschetta Trio?",
+          "response": "Sure! The Bruschetta Trio comes with three delicious varieties: classic tomato, mushroom & goat cheese, and olive tapenade. It\u2019s $15.99 and includes all those tasty options.\n\n[DEBUG INFO]\n{\n  \"flow\": ...",
+          "response_time": 3.594752073287964,
+          "tools_used": [
+            "get_dish_details"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "get_dish_details",
+                "parameters": {
+                  "dish_name": "Bruschetta Trio"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "get_dish_details",
+                "items_found": 1,
+                "found": 1
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.16s"
+          }
+        }
+      ],
+      "total_messages": 3,
+      "successful_responses": 3,
+      "failed_responses": 0,
+      "response_times": [
+        4.810729503631592,
+        3.9023635387420654,
+        3.594752073287964
+      ],
+      "tools_used": [
+        "search_by_food_type",
+        "search_by_food_type",
+        "get_dish_details"
+      ],
+      "issues_found": [],
+      "avg_response_time": 4.102615038553874,
+      "max_response_time": 4.810729503631592
+    },
+    {
+      "client_id": "bf8571a3-f9a4-4402-8bd1-234d86bad2cf",
+      "client_num": 3,
+      "messages": [
+        {
+          "message": "Do you have any fish?",
+          "response": "Sure, we do have fish options. How about some Grilled Salmon for $19.99 or Sea Bass for the same price?\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n    {\n      \"tool\": \"search_...",
+          "response_time": 8.764913320541382,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Seafood"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 6,
+                "found": 6
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "8.11s"
+          }
+        },
+        {
+          "message": "Show me seafood options",
+          "response": "Sure thing! We've got Grilled Salmon for $19.99, Sea Bass at the same price, and Seared Scallops also for $19.99. And if you're looking for something more adventurous, our Mixed Seafood Grill is a gre...",
+          "response_time": 4.094709157943726,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Seafood"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 6,
+                "found": 6
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.36s"
+          }
+        },
+        {
+          "message": "What about lobster dishes?",
+          "response": "Sure! We've got some great options like Grilled Salmon and Sea Bass for $19.99 each. And if you're feeling adventurous, our Lobster Thermidor is also $19.99. Let me know if you need more details!\n\n[DE...",
+          "response_time": 3.875873565673828,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Seafood"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 6,
+                "found": 6
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.22s"
+          }
+        }
+      ],
+      "total_messages": 3,
+      "successful_responses": 3,
+      "failed_responses": 0,
+      "response_times": [
+        8.764913320541382,
+        4.094709157943726,
+        3.875873565673828
+      ],
+      "tools_used": [
+        "search_by_food_type",
+        "search_by_food_type",
+        "search_by_food_type"
+      ],
+      "issues_found": [],
+      "avg_response_time": 5.5784986813863116,
+      "max_response_time": 8.764913320541382
+    },
+    {
+      "client_id": "6a542619-d696-44f2-854a-52f9a7d83827",
+      "client_num": 4,
+      "messages": [
+        {
+          "message": "I'm allergic to nuts, what's safe?",
+          "response": "Got it! We've got some great options for you. The Caprese Salad is a fresh choice at $8.95, and the Grilled Vegetable Skewers come in at $10.50. Both are nut-free and should be safe for your allergy. ...",
+          "response_time": 3.9377596378326416,
+          "tools_used": [
+            "update_allergy_add"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "update_allergy_add",
+                "parameters": {
+                  "allergies": [
+                    "nuts"
+                  ]
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "update_allergy_add",
+                "items_found": "N/A",
+                "found": null
+              }
+            ],
+            "context_type": "allergen_query",
+            "customer_allergies": [
+              "nuts"
+            ],
+            "response_time": "3.26s"
+          }
+        },
+        {
+          "message": "Show me gluten-free options",
+          "response": "Got it! Here are some gluten-free options that are safe for you:\n\n- Grilled chicken Caesar salad (GF)\n- Mushroom risotto (GF)\n- Roasted vegetable pasta (GF)\n\nI'd recommend checking the \"Contains\" and ...",
+          "response_time": 3.9916815757751465,
+          "tools_used": [
+            "filter_dietary"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "filter_dietary",
+                "parameters": {
+                  "diet": [
+                    "Gluten-Free"
+                  ]
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": null,
+                "items_found": "N/A",
+                "found": null
+              }
+            ],
+            "context_type": "allergen_safety",
+            "customer_allergies": [
+              "nuts"
+            ],
+            "response_time": "3.33s"
+          }
+        },
+        {
+          "message": "Any vegan desserts?",
+          "response": "Got it! We don't have any vegan dessert options on our menu, but let me know if you'd like to explore other options that are both nut-free and gluten-free.\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"ph...",
+          "response_time": 3.7210099697113037,
+          "tools_used": [
+            "filter_dietary_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "filter_dietary_food_type",
+                "parameters": {
+                  "diet": [
+                    "Vegan"
+                  ],
+                  "food_type": "Desserts"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "filter_dietary_food_type",
+                "items_found": 0,
+                "found": 0
+              }
+            ],
+            "context_type": "allergen_safety",
+            "customer_allergies": [
+              "nuts"
+            ],
+            "response_time": "3.06s"
+          }
+        }
+      ],
+      "total_messages": 3,
+      "successful_responses": 3,
+      "failed_responses": 0,
+      "response_times": [
+        3.9377596378326416,
+        3.9916815757751465,
+        3.7210099697113037
+      ],
+      "tools_used": [
+        "update_allergy_add",
+        "filter_dietary",
+        "filter_dietary_food_type"
+      ],
+      "issues_found": [],
+      "avg_response_time": 3.8834837277730307,
+      "max_response_time": 3.9916815757751465
+    },
+    {
+      "client_id": "267945d4-4aad-4e49-b7a5-776f207ee927",
+      "client_num": 5,
+      "messages": [
+        {
+          "message": "What are your most popular dishes?",
+          "response": "Our most popular dishes include the Seafood Linguine at $32.99 and the Lobster Ravioli at $24.99. Both are fantastic!\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n    {\n      \"t...",
+          "response_time": 4.1350343227386475,
+          "tools_used": [
+            "search_menu_general"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_general",
+                "parameters": {
+                  "scope": "popular",
+                  "message_context": "What are your most popular dishes?"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_general",
+                "items_found": 10,
+                "found": 10
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.49s"
+          }
+        },
+        {
+          "message": "What do you recommend?",
+          "response": "For a light start, I\u2019d highly recommend the Stuffed Mushrooms at $13.99\u2014they\u2019re hearty and delicious! Or if you\u2019re looking for something heartier, the Lobster Ravioli at $24.99 is a real standout. Enj...",
+          "response_time": 5.287338733673096,
+          "tools_used": [
+            "search_menu_general"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_general",
+                "parameters": {
+                  "scope": "recommendations",
+                  "message_context": "What do you recommend?"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_general",
+                "items_found": 10,
+                "found": 10
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "4.61s"
+          }
+        },
+        {
+          "message": "Show me your signature dishes",
+          "response": "Sure! Our signature dishes include the Oysters Rockefeller at $19.99 and the Lobster Ravioli at $24.99. Both are crowd favorites!\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n  ...",
+          "response_time": 3.841850519180298,
+          "tools_used": [
+            "search_menu_general"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_general",
+                "parameters": {
+                  "scope": "menu",
+                  "message_context": "Show me your signature dishes"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_general",
+                "items_found": 20,
+                "found": 20
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.15s"
+          }
+        }
+      ],
+      "total_messages": 3,
+      "successful_responses": 3,
+      "failed_responses": 0,
+      "response_times": [
+        4.1350343227386475,
+        5.287338733673096,
+        3.841850519180298
+      ],
+      "tools_used": [
+        "search_menu_general",
+        "search_menu_general",
+        "search_menu_general"
+      ],
+      "issues_found": [],
+      "avg_response_time": 4.421407858530681,
+      "max_response_time": 5.287338733673096
+    },
+    {
+      "client_id": "daf0d074-0a8c-4589-a030-d71df2aaefbd",
+      "client_num": 6,
+      "messages": [
+        {
+          "message": "What's your cheapest dish?",
+          "response": "The French Onion Soup is our cheapest dish at $8.99. Perfect for a warm start to your meal!\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n    {\n      \"tool\": \"search_menu_general...",
+          "response_time": 14.176354885101318,
+          "tools_used": [
+            "search_menu_general"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_general",
+                "parameters": {
+                  "scope": "menu",
+                  "message_context": "What's your cheapest dish?"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_general",
+                "items_found": 20,
+                "found": 20
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "13.50s"
+          }
+        },
+        {
+          "message": "Show me dishes under $20",
+          "response": "Got it! We have a few options under $20. The Bruschetta Trio is $15.99, the Spinach Artichoke Dip is $12.99, and the French Onion Soup is just $8.99. Enjoy!\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"p...",
+          "response_time": 4.167371511459351,
+          "tools_used": [
+            "search_menu_general"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_general",
+                "parameters": {
+                  "scope": "menu",
+                  "message_context": "Show me dishes under $20"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_general",
+                "items_found": 20,
+                "found": 20
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.35s"
+          }
+        },
+        {
+          "message": "What's the most expensive item?",
+          "response": "Got it! The most expensive item on our menu is the Lobster Ravioli at $24.99. It\u2019s divine and worth every penny!\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n    {\n      \"tool\":...",
+          "response_time": 3.7212510108947754,
+          "tools_used": [
+            "search_menu_general"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_general",
+                "parameters": {
+                  "scope": "menu",
+                  "message_context": "What's the most expensive item?"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_general",
+                "items_found": 20,
+                "found": 20
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.29s"
+          }
+        }
+      ],
+      "total_messages": 3,
+      "successful_responses": 3,
+      "failed_responses": 0,
+      "response_times": [
+        14.176354885101318,
+        4.167371511459351,
+        3.7212510108947754
+      ],
+      "tools_used": [
+        "search_menu_general",
+        "search_menu_general",
+        "search_menu_general"
+      ],
+      "issues_found": [],
+      "avg_response_time": 7.3549924691518145,
+      "max_response_time": 14.176354885101318
+    },
+    {
+      "client_id": "113e85e7-fea3-47a0-87d6-f25ce2a154c2",
+      "client_num": 7,
+      "messages": [
+        {
+          "message": "Do you have truffle dishes?",
+          "response": "Gotcha! We do have Truffle Arancini for $18.99 if you're interested. They\u2019re packed with Arborio rice, truffle oil, and parmesan cheese, all breaded up and fried to perfection.\n\n[DEBUG INFO]\n{\n  \"flow...",
+          "response_time": 4.135452032089233,
+          "tools_used": [
+            "search_menu_by_ingredient"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_by_ingredient",
+                "parameters": {
+                  "ingredient": "Truffle"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_by_ingredient",
+                "items_found": 1,
+                "found": 1
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.12s"
+          }
+        },
+        {
+          "message": "Show me mushroom options",
+          "response": "Sure! We have Bruschetta Trio for $15.99, which includes mushrooms among other ingredients like tomatoes, garlic, and basil.\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n    {\n ...",
+          "response_time": 3.3727595806121826,
+          "tools_used": [
+            "search_menu_by_ingredient"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_by_ingredient",
+                "parameters": {
+                  "ingredient": "Mushroom"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_by_ingredient",
+                "items_found": 1,
+                "found": 1
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "2.93s"
+          }
+        },
+        {
+          "message": "What about pasta with cream sauce?",
+          "response": "Got it! How about some Creamy Mushroom Pasta then? It\u2019s delicious and smooth, with a rich mushroom sauce. We have two options here: Penne Arrabbiata at $24.99 and Gnocchi Gorgonzola at $24.99. Both ar...",
+          "response_time": 4.334431409835815,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Pasta"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 6,
+                "found": 6
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.49s"
+          }
+        }
+      ],
+      "total_messages": 3,
+      "successful_responses": 3,
+      "failed_responses": 0,
+      "response_times": [
+        4.135452032089233,
+        3.3727595806121826,
+        4.334431409835815
+      ],
+      "tools_used": [
+        "search_menu_by_ingredient",
+        "search_menu_by_ingredient",
+        "search_by_food_type"
+      ],
+      "issues_found": [],
+      "avg_response_time": 3.947547674179077,
+      "max_response_time": 4.334431409835815
+    },
+    {
+      "client_id": "dc5799bd-e92c-47a4-94c0-f88d433de612",
+      "client_num": 8,
+      "messages": [
+        {
+          "message": "Show me desserts",
+          "response": "Sure thing! We've got Tiramisu for $8.95, Chocolate Lava Cake at $10.99, Cr\u00e8me Br\u00fbl\u00e9e for $9.99, New York Cheesecake also for $9.99, and Gelato Trio for $9.99. Which one catches your eye?\n\n[DEBUG INFO...",
+          "response_time": 4.001800775527954,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Desserts"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 5,
+                "found": 5
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.34s"
+          }
+        },
+        {
+          "message": "Do you have tiramisu?",
+          "response": "Sure! We've got tiramisu for $8.95, chocolate lava cake at $10.99, cr\u00e8me br\u00fbl\u00e9e for $9.99, New York cheesecake also at $9.99, and gelato trio for $9.99. Which one catches your eye?\n\n[DEBUG INFO]\n{\n  \"...",
+          "response_time": 3.8687846660614014,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Desserts"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 5,
+                "found": 5
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.46s"
+          }
+        },
+        {
+          "message": "What's your best dessert?",
+          "response": "We do not have tiramisu on our menu. Would you like me to suggest some alternatives?\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n    {\n      \"tool\": \"search_by_food_type\",\n    ...",
+          "response_time": 3.7305498123168945,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Dessert"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 0,
+                "found": 0
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.08s"
+          }
+        }
+      ],
+      "total_messages": 3,
+      "successful_responses": 3,
+      "failed_responses": 0,
+      "response_times": [
+        4.001800775527954,
+        3.8687846660614014,
+        3.7305498123168945
+      ],
+      "tools_used": [
+        "search_by_food_type",
+        "search_by_food_type",
+        "search_by_food_type"
+      ],
+      "issues_found": [],
+      "avg_response_time": 3.8670450846354165,
+      "max_response_time": 4.001800775527954
+    },
+    {
+      "client_id": "13d9675e-751e-4572-bfe7-8be5d143dd47",
+      "client_num": 9,
+      "messages": [
+        {
+          "message": "Show me vegetarian pasta that's also gluten-free",
+          "response": "Got it! For you, I'd recommend the Penne Arrabbiata at $24.99 or the Gnocchi Gorgonzola at the same price. Both are gluten-free and vegetarian. Enjoy your meal!\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n...",
+          "response_time": 4.042898416519165,
+          "tools_used": [
+            "filter_dietary_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "filter_dietary_food_type",
+                "parameters": {
+                  "diet": [
+                    "Vegetarian",
+                    "Gluten-Free"
+                  ],
+                  "food_type": "Pasta"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "filter_dietary_food_type",
+                "items_found": 4,
+                "found": 4
+              }
+            ],
+            "context_type": "allergen_query",
+            "customer_allergies": [],
+            "response_time": "3.38s"
+          }
+        },
+        {
+          "message": "I'm vegan, show me main dishes",
+          "response": "We do not have any vegan options on our menu. Would you like me to suggest some alternatives?\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n    {\n      \"tool\": \"filter_dietary_fo...",
+          "response_time": 3.905573606491089,
+          "tools_used": [
+            "filter_dietary_food_type"
+          ],
+          "issues": [
+            "Items not found when they should exist"
+          ],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "filter_dietary_food_type",
+                "parameters": {
+                  "diet": [
+                    "Vegan"
+                  ],
+                  "food_type": "Main"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "filter_dietary_food_type",
+                "items_found": 0,
+                "found": 0
+              }
+            ],
+            "context_type": "allergen_query",
+            "customer_allergies": [],
+            "response_time": "3.25s"
+          }
+        },
+        {
+          "message": "Any dairy-free options?",
+          "response": "We do not have any dairy-free options on our menu. Would you like me to suggest some alternatives?\n\n[DEBUG INFO]\n{\n  \"flow\": \"tool_flow\",\n  \"phase1_tools_selected\": [\n    {\n      \"tool\": \"search_menu_...",
+          "response_time": 3.689981698989868,
+          "tools_used": [
+            "search_menu_by_ingredient"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_by_ingredient",
+                "parameters": {
+                  "ingredient": "Dairy-Free"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_by_ingredient",
+                "items_found": 0,
+                "found": 0
+              }
+            ],
+            "context_type": "allergen_query",
+            "customer_allergies": [],
+            "response_time": "3.03s"
+          }
+        }
+      ],
+      "total_messages": 3,
+      "successful_responses": 3,
+      "failed_responses": 0,
+      "response_times": [
+        4.042898416519165,
+        3.905573606491089,
+        3.689981698989868
+      ],
+      "tools_used": [
+        "filter_dietary_food_type",
+        "filter_dietary_food_type",
+        "search_menu_by_ingredient"
+      ],
+      "issues_found": [
+        "Items not found when they should exist"
+      ],
+      "avg_response_time": 3.8794845740000405,
+      "max_response_time": 4.042898416519165
+    },
+    {
+      "client_id": "7ac199ac-b1ab-4ddf-b658-dbba8d85252d",
+      "client_num": 10,
+      "messages": [
+        {
+          "message": "Show me the full menu",
+          "response": "Sure thing! Here\u2019s the full menu:\n\n- Bruschetta Trio $15.99\n- Stuffed Mushrooms $13.99\n- Shrimp Cocktail $19.99\n- Spinach Artichoke Dip $12.99\n- Beef Carpaccio $18.99\n- Mezze Platter $17.99\n- Oysters ...",
+          "response_time": 5.689905881881714,
+          "tools_used": [
+            "search_menu_general"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_menu_general",
+                "parameters": {
+                  "scope": "menu",
+                  "message_context": "Show me the full menu"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_menu_general",
+                "items_found": 20,
+                "found": 20
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "5.23s"
+          }
+        },
+        {
+          "message": "What categories do you have?",
+          "response": "Sure thing! We've got a variety of appetizers like Bruschetta Trio for $15.99, Stuffed Mushrooms for $13.99, and Shrimp Cocktail for $19.99. Would you like to know more about any of these?\n\n[DEBUG INF...",
+          "response_time": 4.002707242965698,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Appetizers"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 10,
+                "found": 10
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.33s"
+          }
+        },
+        {
+          "message": "Show me your pasta selection",
+          "response": "Sure thing! We've got some great pasta options here. Starting with the Spaghetti Carbonara at $18.99, and the Lobster Ravioli at $24.99. For something lighter, we have the Penne Arrabbiata at $24.99, ...",
+          "response_time": 4.393461227416992,
+          "tools_used": [
+            "search_by_food_type"
+          ],
+          "issues": [],
+          "debug_info": {
+            "flow": "tool_flow",
+            "phase1_tools_selected": [
+              {
+                "tool": "search_by_food_type",
+                "parameters": {
+                  "food_type": "Pasta"
+                }
+              }
+            ],
+            "tool_results_summary": [
+              {
+                "tool": "search_by_food_type",
+                "items_found": 6,
+                "found": 6
+              }
+            ],
+            "context_type": "general",
+            "customer_allergies": [],
+            "response_time": "3.76s"
+          }
+        }
+      ],
+      "total_messages": 3,
+      "successful_responses": 3,
+      "failed_responses": 0,
+      "response_times": [
+        5.689905881881714,
+        4.002707242965698,
+        4.393461227416992
+      ],
+      "tools_used": [
+        "search_menu_general",
+        "search_by_food_type",
+        "search_by_food_type"
+      ],
+      "issues_found": [],
+      "avg_response_time": 4.695358117421468,
+      "max_response_time": 5.689905881881714
+    }
+  ]
+}
