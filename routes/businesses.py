@@ -34,7 +34,7 @@ def list_businesses(
     
     # Build query
     query = """
-        SELECT business_id, data, business_type, metadata
+        SELECT business_id, data, business_type, name
         FROM businesses
         WHERE 1=1
     """
@@ -53,7 +53,7 @@ def list_businesses(
     total = db.execute(text(count_query), params).scalar()
     
     # Add pagination
-    query += " ORDER BY data->>'name' LIMIT :limit OFFSET :skip"
+    query += " ORDER BY name LIMIT :limit OFFSET :skip"
     params["limit"] = limit
     params["skip"] = skip
     
@@ -63,14 +63,14 @@ def list_businesses(
     # Format results
     businesses = []
     for row in results:
-        business_id, data, business_type, metadata = row
+        business_id, data, business_type, name = row
         businesses.append(BusinessInfo(
             business_id=business_id,
-            name=data.get("name", business_id),
+            name=name or (data.get("name") if data else business_id),
             type=business_type,
-            description=data.get("description"),
-            logo_url=metadata.get("logo_url") if metadata else None,
-            theme_color=metadata.get("theme_color") if metadata else None
+            description=data.get("description") if data else None,
+            logo_url=data.get("logo_url") if data else None,
+            theme_color=data.get("theme_color") if data else None
         ))
     
     return BusinessListResponse(businesses=businesses, total=total)
@@ -98,9 +98,8 @@ def get_business_types(db: Session = Depends(get_db)):
 def get_business_details(business_id: str, db: Session = Depends(get_db)):
     """Get detailed information about a specific business"""
     query = text("""
-        SELECT business_id, data, business_type, metadata,
-               (SELECT COUNT(*) FROM products WHERE business_id = b.business_id) as product_count
-        FROM businesses b
+        SELECT business_id, data, business_type, name
+        FROM businesses
         WHERE business_id = :business_id
     """)
     
@@ -110,25 +109,23 @@ def get_business_details(business_id: str, db: Session = Depends(get_db)):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Business not found")
     
-    business_id, data, business_type, metadata, product_count = result
+    business_id, data, business_type, name = result
     
     return {
         "business_id": business_id,
-        "name": data.get("name", business_id),
+        "name": name or (data.get("name") if data else business_id),
         "type": business_type,
-        "description": data.get("description"),
+        "description": data.get("description") if data else None,
         "contact": {
-            "email": data.get("email"),
-            "phone": data.get("phone"),
-            "address": data.get("address"),
-            "website": data.get("website")
+            "email": data.get("contact", {}).get("email") if data else None,
+            "phone": data.get("contact", {}).get("phone") if data else None,
+            "address": data.get("location", {}).get("address") if data else None,
+            "website": data.get("contact", {}).get("website") if data else None
         },
-        "metadata": metadata,
-        "product_count": product_count,
         "chat_enabled": True,
         "theme": {
-            "primary_color": metadata.get("theme_color", "#1976d2") if metadata else "#1976d2",
-            "logo_url": metadata.get("logo_url") if metadata else None,
-            "chat_widget_position": metadata.get("chat_position", "bottom-right") if metadata else "bottom-right"
+            "primary_color": "#1976d2",
+            "logo_url": None,
+            "chat_widget_position": "bottom-right"
         }
     }
