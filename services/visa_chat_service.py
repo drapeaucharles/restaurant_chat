@@ -88,28 +88,28 @@ def get_business_type(db: Session, business_id: str) -> str:
         if not MIA_VISA_ENABLED:
             return 'restaurant'
         
-        # Try to import visa models
-        try:
-            from models.visa_models import Business, RestaurantExtension
-        except ImportError:
-            # Visa models not available
-            return 'restaurant'
+        # Use raw SQL to check businesses table (same as routing logic)
+        from sqlalchemy import text
+        business_query = text("""
+            SELECT business_type 
+            FROM businesses 
+            WHERE business_id = :business_id
+        """)
+        business_result = db.execute(business_query, {"business_id": business_id}).fetchone()
         
-        # Check businesses table first
-        business = db.query(Business).filter(
-            Business.business_id == business_id
-        ).first()
+        if business_result:
+            return business_result[0]
         
-        if business:
-            return business.type
+        # Fallback: check restaurants table
+        restaurant_query = text("""
+            SELECT business_type 
+            FROM restaurants 
+            WHERE restaurant_id = :restaurant_id
+        """)
+        restaurant_result = db.execute(restaurant_query, {"restaurant_id": business_id}).fetchone()
         
-        # Check restaurant extensions
-        extension = db.query(RestaurantExtension).filter(
-            RestaurantExtension.restaurant_id == business_id
-        ).first()
-        
-        if extension:
-            return extension.business_type
+        if restaurant_result and restaurant_result[0]:
+            return restaurant_result[0]
         
         # Default to restaurant
         return 'restaurant'
