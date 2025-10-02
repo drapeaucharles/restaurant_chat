@@ -39,26 +39,11 @@ def full_flows_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         # Get chat history for context
         chat_history = get_chat_history_sql(db, req.client_id, req.restaurant_id)
         
-        # Initialize working flow orchestrator
-        orchestrator = WorkingVisaFlowOrchestrator(db, req.restaurant_id)
+        # Use AI-powered visa chat service instead of flow orchestrator
+        from services.visa_chat_service_ai_powered import ai_powered_visa_chat_service
         
-        # Process message through 7-step visa flows
-        result = orchestrator.process_message(
-            message=req.message,
-            client_id=req.client_id,
-            chat_history=chat_history
-        )
-        
-        # Save conversation to database
-        save_chat_message_sql(db, req.client_id, req.restaurant_id, req.message, "client")
-        save_chat_message_sql(db, req.client_id, req.restaurant_id, result["answer"], "ai")
-        
-        # Return response with flow information
-        return ChatResponse(
-            answer=result["answer"],
-            response_id=result.get("flow_used", "visa_flows"),
-            confidence_score=0.95  # High confidence for structured flows
-        )
+        logger.info(f"🤖 Using AI-powered visa chat service for {req.restaurant_id}")
+        return ai_powered_visa_chat_service(req, db)
         
     except Exception as e:
         logger.error(f"Error in full flows visa chat service: {str(e)}")
