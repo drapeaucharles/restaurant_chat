@@ -81,11 +81,11 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             
             # Check if this is a visa agency - use specialized visa chat service
             if business_type == 'visa_agency':
-                logger.info(f"Visa agency detected, using visa chat service")
+                logger.info(f"Visa agency detected, using simple visa chat service")
                 try:
-                    from services.visa_chat_service import visa_chat_service
-                    selected_service = visa_chat_service
-                    logger.info(f"Selected visa chat service for {req.restaurant_id}")
+                    from services.visa_chat_service_simple import simple_visa_chat_service
+                    selected_service = simple_visa_chat_service
+                    logger.info(f"Selected simple visa chat service for {req.restaurant_id}")
                 except ImportError as e:
                     logger.warning(f"Visa chat service not available: {e}, falling back to default")
                     selected_service = chat_services.get('default', chat_services.get('fallback'))
@@ -117,11 +117,11 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             
             # Check if this is a visa agency in restaurants table
             if business_type == 'visa_agency':
-                logger.info(f"Visa agency detected in restaurants table, using visa chat service")
+                logger.info(f"Visa agency detected in restaurants table, using simple visa chat service")
                 try:
-                    from services.visa_chat_service import visa_chat_service
-                    selected_service = visa_chat_service
-                    logger.info(f"Selected visa chat service for {req.restaurant_id}")
+                    from services.visa_chat_service_simple import simple_visa_chat_service
+                    selected_service = simple_visa_chat_service
+                    logger.info(f"Selected simple visa chat service for {req.restaurant_id}")
                 except ImportError as e:
                     logger.warning(f"Visa chat service not available: {e}, falling back to default")
                     selected_service = chat_services.get('default', chat_services.get('fallback'))
