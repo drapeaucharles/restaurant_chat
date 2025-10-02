@@ -9,7 +9,10 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from models.visa_models import VisaApplication, VisaLead, VisaProduct
+from models import visa_models
+VisaApplication = visa_models.VisaApplication
+VisaLead = visa_models.VisaLead
+VisaProduct = visa_models.VisaProduct
 
 logger = logging.getLogger(__name__)
 

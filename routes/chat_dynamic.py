@@ -79,6 +79,9 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             business_type = business_result[0]
             rag_mode = None  # Will be set from restaurants table if needed
             logger.info(f"Business {req.restaurant_id} is type '{business_type}'")
+        else:
+            business_type = None
+            logger.info(f"Business {req.restaurant_id} not found in businesses table")
             
         # Check if this is a visa agency - use AI-powered visa chat service
         logger.info(f"🔍 ROUTING DEBUG: business_type='{business_type}', checking if visa_agency")

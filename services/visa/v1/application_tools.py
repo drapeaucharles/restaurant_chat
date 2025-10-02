@@ -9,7 +9,11 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from models.visa_models import VisaApplication, VisaLead, VisaProduct, Catalog
+from models import visa_models
+VisaApplication = visa_models.VisaApplication
+VisaLead = visa_models.VisaLead  
+VisaProduct = visa_models.VisaProduct
+Catalog = visa_models.Catalog
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +246,7 @@ def generate_checklist(db: Session, product_id: str) -> List[Dict[str, Any]]:
     Generate document checklist for a visa product
     """
     # Import here to avoid circular imports
-    from models.visa_models import VisaRequirement
+    VisaRequirement = visa_models.VisaRequirement
     
     requirements = db.query(VisaRequirement).filter(
         VisaRequirement.visa_product_id == product_id
