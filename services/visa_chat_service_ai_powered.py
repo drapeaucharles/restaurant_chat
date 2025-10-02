@@ -333,6 +333,7 @@ IMPORTANT RULES:
         for pattern, code in nationality_patterns.items():
             if pattern in message_lower:
                 extracted["nationality_iso2"] = code
+                logger.info(f"🔍 NATIONALITY DETECTED: '{pattern}' → {code}")
                 break
         
         # Intelligent purpose detection using semantic categories
@@ -367,10 +368,16 @@ IMPORTANT RULES:
         
         if any(indicator in message_lower for indicator in tourism_indicators):
             extracted["purpose"] = "tourism"
+            matched_indicators = [ind for ind in tourism_indicators if ind in message_lower]
+            logger.info(f"🔍 TOURISM PURPOSE DETECTED: {matched_indicators}")
         elif any(indicator in message_lower for indicator in business_indicators):
-            extracted["purpose"] = "business"  
+            extracted["purpose"] = "business"
+            matched_indicators = [ind for ind in business_indicators if ind in message_lower]
+            logger.info(f"🔍 BUSINESS PURPOSE DETECTED: {matched_indicators}")
         elif any(indicator in message_lower for indicator in education_indicators):
             extracted["purpose"] = "education"
+            matched_indicators = [ind for ind in education_indicators if ind in message_lower]
+            logger.info(f"🔍 EDUCATION PURPOSE DETECTED: {matched_indicators}")
         
         # Duration extraction with intelligent parsing
         import re
@@ -396,8 +403,10 @@ IMPORTANT RULES:
                 if callable(converter):
                     if pattern.startswith(r"(\d+)"):
                         extracted["intended_stay_days"] = converter(match.group(1))
+                        logger.info(f"🔍 DURATION DETECTED: '{match.group(0)}' → {extracted['intended_stay_days']} days")
                     else:
                         extracted["intended_stay_days"] = converter(None)
+                        logger.info(f"🔍 DURATION DETECTED: '{match.group(0)}' → {extracted['intended_stay_days']} days")
                 break
         
         logger.info(f"Intelligent semantic extraction: {extracted}")
@@ -411,13 +420,26 @@ IMPORTANT RULES:
         
         # Extract profile updates first
         profile_updates = self.extract_profile_updates(message, current_profile)
+        logger.info(f"🔍 PROFILE DEBUG - Message: '{message}'")
+        logger.info(f"🔍 PROFILE DEBUG - Current profile: {current_profile}")
+        logger.info(f"🔍 PROFILE DEBUG - Extracted updates: {profile_updates}")
         
         # Update profile if new information found
         if profile_updates:
             updated_profile = current_profile.copy()
             updated_profile.update(profile_updates)
-            self._save_user_profile(client_id, updated_profile)
-            current_profile = updated_profile
+            logger.info(f"🔍 PROFILE DEBUG - Updated profile: {updated_profile}")
+            
+            save_success = self._save_user_profile(client_id, updated_profile)
+            logger.info(f"🔍 PROFILE DEBUG - Save success: {save_success}")
+            
+            if save_success:
+                current_profile = updated_profile
+                logger.info(f"🔍 PROFILE DEBUG - Profile successfully updated in memory")
+            else:
+                logger.error(f"🔍 PROFILE DEBUG - Failed to save profile to database")
+        else:
+            logger.info(f"🔍 PROFILE DEBUG - No profile updates detected")
         
         # Use intelligent semantic response generation (avoiding AI timeouts)
         message_lower = message.lower()
