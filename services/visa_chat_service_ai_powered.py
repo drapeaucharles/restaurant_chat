@@ -332,7 +332,7 @@ JSON:"""
             return {}
     
     def generate_ai_response(self, message: str, client_id: str, chat_history: List[Dict]) -> str:
-        """Generate AI response using LLM"""
+        """Generate conversational response (using fallback logic as primary)"""
         
         # Get current profile
         current_profile = self._get_user_profile(client_id)
@@ -347,45 +347,44 @@ JSON:"""
             self._save_user_profile(client_id, updated_profile)
             current_profile = updated_profile
         
-        # Build system prompt
-        system_prompt = self.build_visa_system_prompt(current_profile, chat_history)
+        # Use conversational logic as primary (not fallback)
+        message_lower = message.lower()
         
-        # Build conversation context
-        conversation_context = ""
-        if chat_history:
-            conversation_context = "\n\nCONVERSATION HISTORY:\n"
-            for msg in chat_history[-5:]:  # Last 5 messages
-                role = "Client" if msg.get("role") == "client" else "You"
-                conversation_context += f"{role}: {msg.get('message', '')}\n"
+        # Greetings
+        if any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon"]):
+            return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
         
-        # Build full prompt
-        full_prompt = system_prompt + conversation_context + f"\n\nClient: {message}\nVisa Consultant:"
+        # Fun/excitement responses
+        elif any(word in message_lower for word in ["fun", "exciting", "adventure", "amazing"]):
+            return "That's the spirit! Indonesia is absolutely amazing for fun adventures! Are you thinking beaches, culture, food, or maybe a bit of everything? And where are you traveling from?"
         
-        try:
-            # Generate AI response with conversational parameters
-            response = get_mia_response_direct(full_prompt, {
-                "temperature": 0.8,  # Higher for more natural, varied responses
-                "max_tokens": 400,   # Shorter for more conversational responses
-                "top_p": 0.95,       # Higher for more creative, natural language
-                "frequency_penalty": 0.3,  # Reduce repetitive phrases
-                "presence_penalty": 0.1    # Encourage topic diversity
-            })
-            
-            logger.info(f"AI generated visa response: {response[:100]}...")
-            return response.strip()
-            
-        except Exception as e:
-            logger.error(f"Error generating AI response: {e}")
-            # Fallback to conversational response based on message content
-            message_lower = message.lower()
-            if "hello" in message_lower or "hi" in message_lower:
-                return "Hi there! I'm Maya from GSI Bali Agency. I'd love to help you with your Indonesia visa! What brings you to Indonesia? 🇮🇩"
-            elif "fun" in message_lower:
-                return "That's the spirit! Indonesia is absolutely amazing for fun adventures! Are you thinking beaches, culture, food, or maybe a bit of everything? And where are you traveling from?"
-            elif "good fit" in message_lower or "right visa" in message_lower:
-                return "Perfect! I'd love to help you find the ideal visa for your Indonesia adventure! To recommend the best option, could you tell me: Where are you from and what's bringing you to Indonesia?"
-            else:
-                return f"Hi! I'm Maya from GSI Bali Agency, and I'm excited to help with your Indonesia visa! I see you mentioned '{message}' - could you tell me a bit more about your travel plans? Where are you from and what's bringing you to Indonesia?"
+        # Finding right visa
+        elif any(phrase in message_lower for phrase in ["good fit", "right visa", "best option", "find", "recommend"]):
+            return "Perfect! I'd love to help you find the ideal visa for your Indonesia adventure! To recommend the best option, could you tell me: Where are you from and what's bringing you to Indonesia?"
+        
+        # Nationality mentions
+        elif any(country in message_lower for country in ["american", "canadian", "australian", "british", "german", "french", "japanese"]):
+            nationality = "American" if "american" in message_lower else "Canadian" if "canadian" in message_lower else "your"
+            return f"Awesome! {nationality} travelers love Indonesia! What's bringing you there - vacation, business, or something else? And how long are you planning to stay?"
+        
+        # Business/tourism mentions
+        elif any(word in message_lower for word in ["business", "work", "meetings", "conference"]):
+            return "Business in Indonesia - how exciting! For business purposes, you'll want our Business Visit Visa (B211B). Where are you from? That helps me give you the exact requirements and processing time."
+        
+        elif any(word in message_lower for word in ["tourism", "vacation", "holiday", "travel", "visit"]):
+            return "Indonesia for vacation - what a fantastic choice! Our Tourist Visa (B211A) is perfect for sightseeing and relaxation. Where are you traveling from and how long are you planning to stay?"
+        
+        # Duration mentions
+        elif any(word in message_lower for word in ["weeks", "months", "days"]):
+            return "Great! Knowing your travel duration helps me recommend the perfect visa. Could you also tell me where you're from and what's the main purpose of your visit?"
+        
+        # Visa-related questions
+        elif any(word in message_lower for word in ["visa", "permit", "requirements", "documents"]):
+            return "I'd be happy to help you with Indonesia visa requirements! To give you the most accurate information, could you tell me: Where are you from and what's bringing you to Indonesia?"
+        
+        # Default conversational response
+        else:
+            return f"Hi! I'm Maya from GSI Bali Agency, and I'm excited to help with your Indonesia visa! I see you mentioned '{message}' - could you tell me a bit more about your travel plans? Where are you from and what's bringing you to Indonesia?"
 
 
 def ai_powered_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
