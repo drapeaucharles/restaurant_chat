@@ -147,41 +147,27 @@ def auto_deploy_gsi():
                         session.commit()
                         log("✅ Admin users created in restaurants table")
                     
-                    # Check if we need to restore sample restaurants
+                    # Check existing restaurant count (excluding admin users)
                     restaurant_count = session.execute(text("""
                         SELECT COUNT(*) FROM restaurants WHERE role = 'owner'
                     """)).scalar()
                     
-                    # Check if bella_vista_restaurant exists (the one frontend expects)
-                    bella_exists = session.execute(text("""
-                        SELECT COUNT(*) FROM restaurants WHERE restaurant_id = 'bella_vista_restaurant'
-                    """)).scalar() > 0
+                    log(f"📊 Found {restaurant_count} existing restaurants in database")
                     
-                    if restaurant_count == 0 or not bella_exists:
-                        # Delete old incorrect restaurant IDs and create proper ones
-                        session.execute(text("""
-                            DELETE FROM restaurants WHERE restaurant_id IN (
-                                'bella_vista', 'ocean_breeze', 'spice_garden', 'mountain_lodge', 'cafe_paris'
-                            )
-                        """))
-                        
-                        # Restore sample restaurants with proper IDs that match frontend expectations
-                        session.execute(text("""
-                            INSERT INTO restaurants (restaurant_id, password, role, data, restaurant_category, rag_mode)
-                            VALUES 
-                            ('bella_vista_restaurant', 'bella2024', 'owner', '{"name": "Bella Vista Restaurant", "description": "Fine dining Italian restaurant"}', 'italian', 'dynamic'),
-                            ('ocean_breeze_cafe', 'ocean2024', 'owner', '{"name": "Ocean Breeze Cafe", "description": "Seaside cafe with fresh seafood"}', 'seafood', 'dynamic'),
-                            ('spice_garden_restaurant', 'spice2024', 'owner', '{"name": "Spice Garden", "description": "Authentic Asian cuisine"}', 'asian', 'dynamic'),
-                            ('mountain_lodge_restaurant', 'lodge2024', 'owner', '{"name": "Mountain Lodge Restaurant", "description": "Rustic dining with mountain views"}', 'american', 'dynamic'),
-                            ('cafe_paris_bistro', 'paris2024', 'owner', '{"name": "Cafe Paris", "description": "French bistro and patisserie"}', 'french', 'dynamic'),
-                            ('test_restaurant', 'test123', 'owner', '{"name": "Test Restaurant", "description": "Test restaurant for development"}', 'test', 'dynamic'),
-                            ('demo_restaurant', 'demo2024', 'owner', '{"name": "Demo Restaurant", "description": "Demo restaurant for testing"}', 'demo', 'dynamic')
-                            ON CONFLICT (restaurant_id) DO NOTHING
-                        """))
+                    # Clean up any incorrectly named restaurants from previous auto-deploy attempts
+                    cleanup_result = session.execute(text("""
+                        DELETE FROM restaurants WHERE restaurant_id IN (
+                            'bella_vista', 'ocean_breeze', 'spice_garden', 'mountain_lodge', 'cafe_paris'
+                        ) AND role = 'owner'
+                    """))
+                    if cleanup_result.rowcount > 0:
                         session.commit()
-                        log("✅ Sample restaurants restored with correct IDs for frontend compatibility")
-                    else:
-                        log(f"✅ Found {restaurant_count} existing restaurants including bella_vista_restaurant")
+                        log(f"🧹 Cleaned up {cleanup_result.rowcount} incorrectly named auto-generated restaurants")
+                    
+                    # Note: Real restaurants should be created through the proper API endpoints
+                    # or restored from actual backups, not auto-generated here
+                    log("ℹ️  Restaurants should be created through /restaurants API or restored from backup")
+                    log("ℹ️  Auto-deploy only ensures admin users and GSI agency exist")
                     
                 except Exception as admin_error:
                     log(f"⚠️ Restaurant restoration warning: {admin_error}")
