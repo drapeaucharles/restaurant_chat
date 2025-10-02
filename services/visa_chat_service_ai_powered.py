@@ -494,6 +494,35 @@ RESPONSE GUIDELINES:
         
         return prompt
     
+    def _get_openai_response(self, prompt: str, params: Dict) -> str:
+        """Get response from OpenAI as fallback when MIA fails"""
+        try:
+            import openai
+            import os
+            
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                logger.warning("No OpenAI API key available")
+                return ""
+            
+            openai.api_key = api_key
+            
+            response = openai.ChatCompletion.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=params.get("max_tokens", 250),
+                temperature=params.get("temperature", 0.9)
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except ImportError:
+            logger.warning("OpenAI library not available")
+            return ""
+        except Exception as e:
+            logger.error(f"OpenAI API error: {e}")
+            return ""
+    
     def generate_ai_response(self, message: str, client_id: str, chat_history: List[Dict]) -> str:
         """Generate AI-driven visa consultation response - NO hardcoded patterns!"""
         
@@ -535,18 +564,30 @@ RESPONSE GUIDELINES:
             }
             
             logger.info(f"🤖 Generating AI response for: '{message[:50]}...'")
+            
+            # Try MIA first
             ai_response = get_mia_response_fast(visa_prompt, ai_params)
             
             if ai_response and len(ai_response.strip()) > 10 and not ai_response.startswith("I apologize"):
-                logger.info(f"✅ AI response successful: {ai_response[:100]}...")
+                logger.info(f"✅ MIA AI response successful: {ai_response[:100]}...")
                 return ai_response.strip()
             else:
-                logger.warning(f"⚠️ AI response failed or too short: '{ai_response}'")
+                logger.warning(f"⚠️ MIA AI response failed: '{ai_response}', trying direct API")
                 # Try direct API as backup
                 ai_response = get_mia_response_direct(visa_prompt, ai_params)
-                if ai_response and len(ai_response.strip()) > 10:
-                    logger.info(f"✅ Direct AI response successful: {ai_response[:100]}...")
+                if ai_response and len(ai_response.strip()) > 10 and not ai_response.startswith("I apologize"):
+                    logger.info(f"✅ Direct MIA response successful: {ai_response[:100]}...")
                     return ai_response.strip()
+                else:
+                    logger.warning(f"⚠️ All MIA methods failed, trying OpenAI fallback")
+                    # Try OpenAI as final fallback
+                    try:
+                        openai_response = self._get_openai_response(visa_prompt, ai_params)
+                        if openai_response and len(openai_response.strip()) > 10:
+                            logger.info(f"✅ OpenAI fallback successful: {openai_response[:100]}...")
+                            return openai_response.strip()
+                    except Exception as openai_error:
+                        logger.error(f"❌ OpenAI fallback failed: {openai_error}")
         except Exception as e:
             logger.error(f"❌ AI response error: {e}")
         
