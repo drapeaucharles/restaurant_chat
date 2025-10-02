@@ -122,7 +122,9 @@ class WorkingVisaFlowOrchestrator:
             normalizer_result = self._flow_normalizer(profile_delta)
             
             # Step 4: Route to appropriate flow based on intent
-            if intent == "ask_recommendation":
+            if intent == "greeting":
+                return self._flow_greeting(message, client_id, chat_history)
+            elif intent == "ask_recommendation":
                 return self._flow_recommender(message, client_id, chat_history)
             elif intent == "ask_requirements":
                 return self._flow_clarifier(message, client_id, chat_history)
@@ -154,23 +156,55 @@ class WorkingVisaFlowOrchestrator:
         # Extract profile data from message
         profile_delta = {}
         
-        # Extract nationality
+        # Extract nationality (enhanced with more countries and patterns)
         countries = {
-            "usa": "US", "america": "US", "american": "US",
-            "uk": "GB", "britain": "GB", "british": "GB", "england": "GB",
-            "australia": "AU", "australian": "AU",
+            "usa": "US", "america": "US", "american": "US", "united states": "US",
+            "uk": "GB", "britain": "GB", "british": "GB", "england": "GB", "united kingdom": "GB",
+            "australia": "AU", "australian": "AU", "aussie": "AU",
             "canada": "CA", "canadian": "CA",
-            "germany": "DE", "german": "DE",
-            "france": "FR", "french": "FR",
-            "japan": "JP", "japanese": "JP",
+            "germany": "DE", "german": "DE", "deutschland": "DE",
+            "france": "FR", "french": "FR", "français": "FR",
+            "japan": "JP", "japanese": "JP", "nippon": "JP",
             "singapore": "SG", "singaporean": "SG",
-            "malaysia": "MY", "malaysian": "MY"
+            "malaysia": "MY", "malaysian": "MY",
+            "china": "CN", "chinese": "CN", "prc": "CN",
+            "india": "IN", "indian": "IN",
+            "south korea": "KR", "korea": "KR", "korean": "KR",
+            "thailand": "TH", "thai": "TH",
+            "philippines": "PH", "filipino": "PH", "pinoy": "PH",
+            "vietnam": "VN", "vietnamese": "VN",
+            "netherlands": "NL", "dutch": "NL", "holland": "NL",
+            "italy": "IT", "italian": "IT",
+            "spain": "ES", "spanish": "ES",
+            "brazil": "BR", "brazilian": "BR",
+            "russia": "RU", "russian": "RU"
         }
         
-        for country_name, code in countries.items():
-            if country_name in message_lower:
-                profile_delta["nationality_iso2"] = code
-                break
+        # Check for "I'm from X" or "I am X" patterns
+        nationality_patterns = [
+            r"i'?m from (\w+)",
+            r"i am from (\w+)", 
+            r"i'?m (\w+)",
+            r"i am (\w+)",
+            r"my nationality is (\w+)",
+            r"nationality[:\s]+(\w+)"
+        ]
+        
+        import re
+        for pattern in nationality_patterns:
+            match = re.search(pattern, message_lower)
+            if match:
+                country_mention = match.group(1)
+                if country_mention in countries:
+                    profile_delta["nationality_iso2"] = countries[country_mention]
+                    break
+        
+        # Fallback: check for direct country mentions
+        if "nationality_iso2" not in profile_delta:
+            for country_name, code in countries.items():
+                if country_name in message_lower:
+                    profile_delta["nationality_iso2"] = code
+                    break
         
         # Extract purpose
         if any(word in message_lower for word in ["tourist", "tourism", "vacation", "holiday"]):
@@ -218,8 +252,13 @@ class WorkingVisaFlowOrchestrator:
             intent = "ask_status"
         elif profile_delta:
             intent = "provide_profile_data"
+        elif any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon", "how are you"]):
+            intent = "greeting"
+        elif len(message.strip()) < 10 and not any(word in message_lower for word in ["visa", "permit", "kitas"]):
+            # Short messages without visa keywords are likely greetings or general inquiries
+            intent = "greeting"
         else:
-            intent = "ask_recommendation"  # Default
+            intent = "ask_recommendation"  # Default for visa-related queries
         
         return {
             "intent": intent,
@@ -312,6 +351,37 @@ class WorkingVisaFlowOrchestrator:
                 normalized["intended_stay_days"] = days
         
         return normalized
+    
+    def _flow_greeting(self, message: str, client_id: str, chat_history: List[Dict]) -> Dict[str, Any]:
+        """
+        Flow 0: Greeting - Welcome new users and introduce services
+        """
+        # Check if this is a returning user with profile data
+        profile = self._get_user_profile(client_id)
+        
+        if profile and any(key in profile for key in ["nationality_iso2", "purpose", "intended_stay_days"]):
+            # Returning user with profile
+            welcome_parts = []
+            if "nationality_iso2" in profile:
+                welcome_parts.append(f"nationality: {profile['nationality_iso2']}")
+            if "purpose" in profile:
+                welcome_parts.append(f"purpose: {profile['purpose']}")
+            
+            if welcome_parts:
+                profile_text = ", ".join(welcome_parts)
+                answer = f"Welcome back! I see you're interested in Indonesia visas ({profile_text}). How can I help you today?\n\nI can assist with:\n• Visa recommendations\n• Requirements and documentation\n• Pricing and processing times\n• Application status\n\nWhat would you like to know?"
+            else:
+                answer = "Welcome back! How can I help you with your Indonesia visa needs today?"
+        else:
+            # New user - profile-first approach
+            answer = "Hello! Welcome to GSI Bali Agency. I'm here to help you find the perfect Indonesia visa for your needs.\n\nTo provide you with the most accurate recommendations, I'd like to learn a bit about your travel plans:\n\n**1. What's your nationality?** (This determines which visas you're eligible for)\n\n**2. What's the purpose of your visit?**\n   • Tourism/vacation\n   • Business meetings\n   • Work/employment\n   • Investment\n   • Family visit\n   • Other\n\n**3. How long do you plan to stay in Indonesia?**\n\nOnce I know these details, I can recommend the best visa options with accurate pricing and requirements. What's your nationality?"
+        
+        return {
+            "answer": answer,
+            "flow_used": "greeting",
+            "tools_executed": ["get_profile", "welcome_user"],
+            "next_suggested_actions": ["provide_profile_info", "ask_recommendation", "ask_requirements"]
+        }
     
     def _flow_recommender(self, message: str, client_id: str, chat_history: List[Dict]) -> Dict[str, Any]:
         """
@@ -503,15 +573,37 @@ class WorkingVisaFlowOrchestrator:
             days = profile_delta['intended_stay_days']
             acknowledged.append(f"stay duration ({days} days)")
         
+        # Get current profile to see what we already have
+        current_profile = self._get_user_profile(client_id) or {}
+        
+        # Check what information we still need
+        missing_info = []
+        if "nationality_iso2" not in current_profile and "nationality_iso2" not in profile_delta:
+            missing_info.append("nationality")
+        if "purpose" not in current_profile and "purpose" not in profile_delta:
+            missing_info.append("purpose")
+        if "intended_stay_days" not in current_profile and "intended_stay_days" not in profile_delta:
+            missing_info.append("duration")
+        
         if acknowledged:
             ack_text = ", ".join(acknowledged)
-            answer = f"Thank you for providing your {ack_text}. Based on this information, let me recommend the best visa options for you.\n\n"
-            
-            # Add recommendations based on profile
+            answer = f"Perfect! I've noted your {ack_text}.\n\n"
+        else:
+            answer = ""
+        
+        # Guide user through remaining steps
+        if missing_info:
+            if "nationality" in missing_info:
+                answer += "**What's your nationality?** This helps me determine which visas you're eligible for."
+            elif "purpose" in missing_info:
+                answer += "**What's the purpose of your visit to Indonesia?**\n• Tourism/vacation\n• Business meetings\n• Work/employment\n• Investment\n• Family visit\n• Study\n• Other"
+            elif "duration" in missing_info:
+                answer += "**How long do you plan to stay in Indonesia?** (e.g., '2 weeks', '3 months', '1 year')"
+        else:
+            # We have all the info - provide recommendations
+            answer += "Great! I have all the information I need. Let me recommend the best visa options for you:\n\n"
             rec_result = self._flow_recommender(message, client_id, [])
             answer += rec_result["answer"].split("Based on your needs, I recommend these visa options:\n\n")[1] if "Based on your needs" in rec_result["answer"] else rec_result["answer"]
-        else:
-            answer = "Thank you for the information. What else would you like to know about Indonesia visas?"
         
         return {
             "answer": answer,
