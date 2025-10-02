@@ -576,13 +576,17 @@ class WorkingVisaFlowOrchestrator:
         # Get current profile to see what we already have
         current_profile = self._get_user_profile(client_id) or {}
         
-        # Check what information we still need
+        # Check what information we still need (considering both current profile and new delta)
+        has_nationality = "nationality_iso2" in current_profile or "nationality_iso2" in profile_delta
+        has_purpose = "purpose" in current_profile or "purpose" in profile_delta  
+        has_duration = "intended_stay_days" in current_profile or "intended_stay_days" in profile_delta
+        
         missing_info = []
-        if "nationality_iso2" not in current_profile and "nationality_iso2" not in profile_delta:
+        if not has_nationality:
             missing_info.append("nationality")
-        if "purpose" not in current_profile and "purpose" not in profile_delta:
+        if not has_purpose:
             missing_info.append("purpose")
-        if "intended_stay_days" not in current_profile and "intended_stay_days" not in profile_delta:
+        if not has_duration:
             missing_info.append("duration")
         
         if acknowledged:
