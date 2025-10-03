@@ -120,47 +120,126 @@ def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
         # For visa agencies, get visa products instead of menu
         try:
             from sqlalchemy import text
-            visa_products_query = text("""
-                SELECT 
-                    vp.product_code,
-                    vp.name,
-                    vp.category,
-                    vp.first_stay_days,
-                    vp.extendable_to_days,
-                    vp.gov_fee_idr,
-                    vp.processing_sla_days,
-                    vp.notes,
-                    vp.sponsor_needed,
-                    vp.convertible
-                FROM visa_products vp
-                JOIN catalogs c ON vp.catalog_id = c.id
-                JOIN businesses b ON c.business_id = b.id
-                WHERE b.business_id = :business_id
-                ORDER BY vp.product_code
-            """)
-            visa_products = db.execute(visa_products_query, {"business_id": restaurant_id}).fetchall()
             
-            # Convert visa products to menu format for frontend compatibility
-            menu_data = []
-            for product in visa_products:
-                menu_item = {
-                    "title": product[1],  # name
-                    "description": f"Stay up to {product[3]} days" + (f", extendable to {product[4]} days" if product[4] else ""),
-                    "price": f"IDR {product[5]:,}" if product[5] else "Contact for pricing",
-                    "category": product[2] or "Visa Services",  # category
-                    "subcategory": "visa",
-                    "info": f"Processing time: {product[6]} days" if product[6] else None,
-                    "ingredients": [product[8]] if product[8] else [],  # sponsor_needed
-                    "allergens": [],
-                    "is_vegan": False,
-                    "is_vegetarian": False,
-                    "is_gluten_free": False,
-                    "is_dairy_free": False,
-                    "is_nut_free": False,
-                    "dietary_tags": ["Convertible"] if product[9] else [],
-                    "area": product[0]  # product_code
-                }
-                menu_data.append(menu_item)
+            # First, try to find the business UUID for GSI Bali Agency
+            business_uuid_query = text("""
+                SELECT business_id FROM businesses 
+                WHERE business_id = :restaurant_id OR name ILIKE '%GSI%' OR name ILIKE '%Bali%'
+                LIMIT 1
+            """)
+            business_result = db.execute(business_uuid_query, {"restaurant_id": restaurant_id}).fetchone()
+            
+            if business_result:
+                business_uuid = business_result[0]
+                logger.info(f"Found business UUID for {restaurant_id}: {business_uuid}")
+                
+                visa_products_query = text("""
+                    SELECT 
+                        vp.product_code,
+                        vp.name,
+                        vp.category,
+                        vp.first_stay_days,
+                        vp.extendable_to_days,
+                        vp.gov_fee_idr,
+                        vp.processing_sla_days,
+                        vp.notes,
+                        vp.sponsor_needed,
+                        vp.convertible
+                    FROM visa_products vp
+                    JOIN catalogs c ON vp.catalog_id = c.id
+                    JOIN businesses b ON c.business_id = b.id
+                    WHERE b.business_id = :business_id
+                    ORDER BY vp.product_code
+                """)
+                visa_products = db.execute(visa_products_query, {"business_id": business_uuid}).fetchall()
+                logger.info(f"Found {len(visa_products)} visa products for business {business_uuid}")
+                
+                # Convert visa products to menu format for frontend compatibility
+                menu_data = []
+                for product in visa_products:
+                    try:
+                        # Handle None values safely
+                        name = product[1] or "Unknown Visa"
+                        category = product[2] or "Visa Services"
+                        first_stay = product[3] or 0
+                        extendable_to = product[4]
+                        gov_fee = product[5]
+                        processing_days = product[6]
+                        notes = product[7]
+                        sponsor_needed = product[8]
+                        convertible = product[9]
+                        product_code = product[0] or "UNKNOWN"
+                        
+                        # Build description
+                        description_parts = []
+                        if first_stay:
+                            description_parts.append(f"Stay up to {first_stay} days")
+                        if extendable_to:
+                            description_parts.append(f"extendable to {extendable_to} days")
+                        if not description_parts:
+                            description_parts.append("Contact for details")
+                        
+                        description = ", ".join(description_parts)
+                        
+                        # Build price
+                        if gov_fee:
+                            price = f"IDR {gov_fee:,}"
+                        else:
+                            price = "Contact for pricing"
+                        
+                        # Build info
+                        info_parts = []
+                        if processing_days:
+                            info_parts.append(f"Processing time: {processing_days} days")
+                        if notes:
+                            info_parts.append(notes)
+                        info = " | ".join(info_parts) if info_parts else None
+                        
+                        # Build dietary tags (repurposed for visa features)
+                        dietary_tags = []
+                        if convertible:
+                            dietary_tags.append("Convertible")
+                        if sponsor_needed:
+                            dietary_tags.append("Sponsor Required")
+                        
+                        menu_item = {
+                            "title": name,
+                            "description": description,
+                            "price": price,
+                            "category": category,
+                            "subcategory": "visa",
+                            "info": info,
+                            "ingredients": [],  # Not used for visas
+                            "allergens": [],    # Not used for visas
+                            "is_vegan": False,
+                            "is_vegetarian": False,
+                            "is_gluten_free": False,
+                            "is_dairy_free": False,
+                            "is_nut_free": False,
+                            "dietary_tags": dietary_tags,
+                            "area": product_code
+                        }
+                        menu_data.append(menu_item)
+                        logger.info(f"Added visa product: {name} ({product_code})")
+                        
+                    except Exception as item_error:
+                        logger.error(f"Error processing visa product {product}: {item_error}")
+                        # Add error item for debugging
+                        menu_data.append({
+                            "title": f"Menu Item (Error)",
+                            "description": f"Unable to process item details: {str(item_error)}",
+                            "price": "N/A",
+                            "info": None,
+                            "category": None,
+                            "subcategory": None,
+                            "area": None,
+                            "ingredients": [],
+                            "allergens": []
+                        })
+            else:
+                logger.warning(f"No business UUID found for {restaurant_id}")
+                menu_data = []
+                
         except Exception as e:
             logger.error(f"Error fetching visa products for {restaurant_id}: {e}")
             menu_data = []
