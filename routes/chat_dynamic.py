@@ -84,8 +84,8 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             logger.info(f"Business {req.restaurant_id} not found in businesses table")
             
         # Check if this is a visa agency - use AI-powered visa chat service
-        logger.info(f"🔍 ROUTING DEBUG: business_type='{business_type}', checking if visa_agency")
-        if business_type == 'visa_agency':
+        logger.info(f"🔍 ROUTING DEBUG: business_type='{business_type}', checking if visa_agency or legal_visa")
+        if business_type in ['visa_agency', 'legal_visa']:
             logger.info(f"✅ VISA AGENCY DETECTED! Using AI-powered visa chat service")
             try:
                 logger.info(f"🔧 DEBUG: Importing hybrid_visa_chat_service...")
@@ -137,7 +137,7 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             logger.info(f"Restaurant {req.restaurant_id} using RAG mode: {rag_mode}")
             
             # Check if this is a visa agency in restaurants table
-            if business_type == 'visa_agency':
+            if business_type in ['visa_agency', 'legal_visa']:
                 logger.info(f"Visa agency detected in restaurants table, using full flows visa chat service")
                 try:
                     from services.visa_chat_service_full_flows import full_flows_visa_chat_service
