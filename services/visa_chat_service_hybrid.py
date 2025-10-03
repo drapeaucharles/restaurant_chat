@@ -355,6 +355,10 @@ def hybrid_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
     try:
         logger.info(f"🚀 HYBRID SERVICE ENTRY: Processing message '{req.message[:50]}...' for {req.restaurant_id}")
         
+        # Add immediate debug response to confirm we're being called
+        debug_response = f"[HYBRID SERVICE CALLED] Message: {req.message[:50]}..."
+        logger.info(f"🔍 DEBUG: {debug_response}")
+        
         # Get chat history for context
         from services.visa_chat_service_full_flows import get_chat_history_sql, save_chat_message_sql
         
@@ -383,7 +387,7 @@ def hybrid_visa_chat_service(req: ChatRequest, db: Session) -> ChatResponse:
         logger.info(f"🎯 Hybrid visa service completed for {req.restaurant_id}")
         
         return ChatResponse(
-            answer=result["answer"],
+            answer=result["answer"] + f"\n\n[HYBRID SERVICE CONFIRMED]",
             response_id=result.get("flow_used", "hybrid"),
             confidence_score=0.9
         )
