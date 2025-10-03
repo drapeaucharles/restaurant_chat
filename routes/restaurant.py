@@ -16,6 +16,66 @@ from database import get_db
 import models
 
 logger = logging.getLogger(__name__)
+
+def get_visa_image_url(product_code: str, category: str) -> str:
+    """Get appropriate image URL for visa product"""
+    # Use high-quality, relevant images for each visa type
+    image_mapping = {
+        # Tourist Visas
+        "B211A": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center",  # Beach/tourism
+        "VOA": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&h=300&fit=crop&crop=center",  # Airport
+        "E-KIT": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop&crop=center",  # Digital/online
+        
+        # Business & Work
+        "B211B": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop&crop=center",  # Business meeting
+        "IMTA": "https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400&h=300&fit=crop&crop=center",  # Office work
+        
+        # Residence & Long-term
+        "B213": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&crop=center",  # House/home
+        "VITAS": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=300&fit=crop&crop=center",  # Investment/money
+        "RETIREMENT": "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&h=300&fit=crop&crop=center",  # Retirement/relaxation
+        "SECOND_HOME": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&crop=center",  # Luxury home
+        
+        # Education
+        "STUDENT": "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=400&h=300&fit=crop&crop=center",  # University/education
+        "RESEARCH": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=400&h=300&fit=crop&crop=center",  # Research/lab
+        
+        # Special Purpose
+        "B211C": "https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=400&h=300&fit=crop&crop=center",  # Culture/social
+        "B211D": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop&crop=center",  # Media/journalism
+        "B211E": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&h=300&fit=crop&crop=center",  # Transit/airport
+        "MEDICAL": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=400&h=300&fit=crop&crop=center",  # Medical/healthcare
+        "HUMANITARIAN": "https://images.unsplash.com/photo-1593113598332-cd288d649433?w=400&h=300&fit=crop&crop=center",  # Humanitarian aid
+        
+        # Official
+        "DIPLOMATIC": "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=400&h=300&fit=crop&crop=center",  # Government/official
+        "OFFICIAL": "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=400&h=300&fit=crop&crop=center",  # Government/official
+    }
+    
+    # Return specific image if available, otherwise use category-based fallback
+    if product_code in image_mapping:
+        return image_mapping[product_code]
+    
+    # Category-based fallbacks
+    category_fallbacks = {
+        "Tourist": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center",
+        "Business": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop&crop=center",
+        "Residence": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=400&h=300&fit=crop&crop=center",
+        "Work": "https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400&h=300&fit=crop&crop=center",
+        "Investment": "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&h=300&fit=crop&crop=center",
+        "Education": "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=400&h=300&fit=crop&crop=center",
+        "Retirement": "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&h=300&fit=crop&crop=center",
+        "Social": "https://images.unsplash.com/photo-1547036967-23d11aacaee0?w=400&h=300&fit=crop&crop=center",
+        "Medical": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=400&h=300&fit=crop&crop=center",
+        "Humanitarian": "https://images.unsplash.com/photo-1593113598332-cd288d649433?w=400&h=300&fit=crop&crop=center",
+        "Media": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop&crop=center",
+        "Transit": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=400&h=300&fit=crop&crop=center",
+        "Diplomatic": "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=400&h=300&fit=crop&crop=center",
+        "Official": "https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=400&h=300&fit=crop&crop=center"
+    }
+    
+    return category_fallbacks.get(category, "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&crop=center")
+
 from schemas.restaurant import RestaurantUpdateRequest, RestaurantProfileUpdate, MenuItem
 from services.restaurant_service import apply_menu_fallbacks
 from services.file_service import save_upload_file, delete_upload_file
@@ -152,7 +212,25 @@ def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
                     JOIN catalogs c ON vp.catalog_id = c.id
                     JOIN businesses b ON c.business_id = b.id
                     WHERE b.business_id = :business_id
-                    ORDER BY vp.product_code
+                    ORDER BY 
+                        CASE vp.category
+                            WHEN 'Tourist' THEN 1
+                            WHEN 'Residence' THEN 2
+                            WHEN 'Business' THEN 3
+                            WHEN 'Work' THEN 4
+                            WHEN 'Investment' THEN 5
+                            WHEN 'Education' THEN 6
+                            WHEN 'Retirement' THEN 7
+                            WHEN 'Social' THEN 8
+                            WHEN 'Medical' THEN 9
+                            WHEN 'Humanitarian' THEN 10
+                            WHEN 'Media' THEN 11
+                            WHEN 'Transit' THEN 12
+                            WHEN 'Diplomatic' THEN 13
+                            WHEN 'Official' THEN 14
+                            ELSE 15
+                        END,
+                        vp.first_stay_days ASC
                 """)
                 visa_products = db.execute(visa_products_query, {"business_id": business_uuid}).fetchall()
                 logger.info(f"Found {len(visa_products)} visa products for business {business_uuid}")
@@ -212,6 +290,7 @@ def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
                             "category": category,
                             "subcategory": "visa",
                             "info": info,
+                            "photo_url": get_visa_image_url(product_code, category),
                             "ingredients": [],  # Not used for visas
                             "allergens": [],    # Not used for visas
                             "is_vegan": False,
