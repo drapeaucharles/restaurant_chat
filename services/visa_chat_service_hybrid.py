@@ -38,7 +38,13 @@ class HybridVisaService:
         """
         try:
             client_id = str(client_id)
-            chat_history = chat_history or []
+            
+            # Get chat history from database if not provided (like restaurant service does)
+            if not chat_history:
+                chat_history = self._get_chat_history_from_db(client_id)
+                logger.info(f"🔍 DEBUG: Retrieved chat history from DB: {len(chat_history)} messages")
+            else:
+                logger.info(f"🔍 DEBUG: Using provided chat history: {len(chat_history)} messages")
             
             # Step 1: Use orchestrator for routing and profile extraction
             router_result = self.orchestrator._flow_router(message, chat_history)
