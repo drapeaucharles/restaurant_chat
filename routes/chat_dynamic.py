@@ -86,7 +86,15 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
         # Check if this is a visa agency - use AI-powered visa chat service
         logger.info(f"🔍 ROUTING DEBUG: business_type='{business_type}', checking if visa_agency or legal_visa")
         logger.info(f"🔍 ROUTING DEBUG: business_result={business_result}")
-        if business_type in ['visa_agency', 'legal_visa']:
+        logger.info(f"🔍 ROUTING DEBUG: restaurant_id='{req.restaurant_id}'")
+        
+        # Check for visa agency by business type OR by specific business ID
+        is_visa_agency = (
+            business_type in ['visa_agency', 'legal_visa'] or 
+            req.restaurant_id == 'gsi_bali_agency'
+        )
+        
+        if is_visa_agency:
             logger.info(f"✅ VISA AGENCY DETECTED! Using AI-powered visa chat service")
             try:
                 logger.info(f"🔧 DEBUG: Importing hybrid_visa_chat_service...")
