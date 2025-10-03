@@ -5,6 +5,7 @@ Restaurant-related routes and endpoints.
 from datetime import timedelta
 from typing import List, Optional
 import json
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header
 from sqlalchemy.orm import Session
@@ -13,6 +14,8 @@ from sqlalchemy import text
 from auth import get_current_restaurant, get_current_owner, ACCESS_TOKEN_EXPIRE_MINUTES
 from database import get_db
 import models
+
+logger = logging.getLogger(__name__)
 from schemas.restaurant import RestaurantUpdateRequest, RestaurantProfileUpdate, MenuItem
 from services.restaurant_service import apply_menu_fallbacks
 from services.file_service import save_upload_file, delete_upload_file
