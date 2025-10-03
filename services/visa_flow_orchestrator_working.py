@@ -211,7 +211,7 @@ class WorkingVisaFlowOrchestrator:
                     break
         
         # Extract purpose (enhanced detection)
-        if any(word in message_lower for word in ["tourist", "tourism", "vacation", "holiday", "sightseeing", "leisure"]):
+        if any(word in message_lower for word in ["tourist", "tourism", "vacation", "holiday", "sightseeing", "leisure", "fun", "enjoy", "explore", "travel"]):
             profile_delta["purpose"] = "tourism"
         elif any(word in message_lower for word in ["business", "meeting", "conference", "work"]):
             profile_delta["purpose"] = "business"
