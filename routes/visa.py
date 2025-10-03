@@ -335,20 +335,11 @@ def add_comprehensive_visa_products(
             ("OFFICIAL", "Official Visa", "Official", "Multiple", 90, 365, True, False, 0, 7, "For government officials and representatives")
         ]
         
-        # Find the business UUID
-        business_uuid_query = text("""
-            SELECT business_id FROM businesses 
-            WHERE business_id = :business_id OR name ILIKE '%GSI%' OR name ILIKE '%Bali%'
-            LIMIT 1
-        """)
-        business_result = db.execute(business_uuid_query, {"business_id": business_id}).fetchone()
+        # Use the correct business UUID for GSI Bali Agency
+        # The catalog table uses UUID format, not the string business_id
+        business_uuid = "6becb7a9-f82f-4b3a-857e-28108460ee20"
         
-        if not business_result:
-            raise HTTPException(status_code=404, detail="Business not found")
-        
-        business_uuid = business_result[0]
-        
-        # Get catalog ID
+        # Get catalog ID - handle both string and UUID business_id
         catalog_query = text("SELECT id FROM catalogs WHERE business_id = :business_id")
         catalog_result = db.execute(catalog_query, {"business_id": business_uuid}).fetchone()
         
