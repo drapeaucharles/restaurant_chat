@@ -50,33 +50,34 @@ class HybridVisaService:
                 logger.info(f"🔄 Updating profile for {client_id}: {profile_delta}")
                 self.orchestrator._flow_profiler(client_id, profile_delta)
             
-            # Step 3: Get current complete profile
-            current_profile = self._get_current_profile(client_id)
-            
-            # Step 4: Generate AI response based on intent and context
-            ai_response = self._generate_contextual_ai_response(
-                message=message,
-                intent=intent,
-                profile=current_profile,
-                profile_delta=profile_delta,
-                chat_history=chat_history
-            )
-            
-            return {
-                "answer": ai_response,
-                "flow_used": f"hybrid_{intent}",
-                "tools_executed": ["profile_extraction", "ai_generation"],
-                "next_suggested_actions": self._get_next_actions(intent, current_profile)
-            }
-            
-        except Exception as e:
-            logger.error(f"❌ Hybrid service error: {e}")
-            return {
-                "answer": "I apologize, but I'm experiencing technical difficulties. Please try again or contact our support team for assistance with your visa inquiry.",
-                "flow_used": "error",
-                "tools_executed": [],
-                "next_suggested_actions": []
-            }
+        # Step 3: Get current complete profile
+        current_profile = self._get_current_profile(client_id)
+        logger.info(f"🔍 DEBUG: Current profile: {current_profile}")
+        
+        # Step 4: Generate AI response based on intent and context
+        ai_response = self._generate_contextual_ai_response(
+            message=message,
+            intent=intent,
+            profile=current_profile,
+            profile_delta=profile_delta,
+            chat_history=chat_history
+        )
+        
+        return {
+            "answer": ai_response,
+            "flow_used": f"hybrid_{intent}",
+            "tools_executed": ["profile_extraction", "ai_generation"],
+            "next_suggested_actions": self._get_next_actions(intent, current_profile)
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Hybrid service error: {e}")
+        return {
+            "answer": "I apologize, but I'm experiencing technical difficulties. Please try again or contact our support team for assistance with your visa inquiry.",
+            "flow_used": "error",
+            "tools_executed": [],
+            "next_suggested_actions": []
+        }
     
     def _get_current_profile(self, client_id: str) -> Dict[str, Any]:
         """Get current complete profile for the client"""
