@@ -110,7 +110,15 @@ class HybridVisaService:
             }).fetchone()
             
             if lead_result and lead_result[0]:
-                return json.loads(lead_result[0])
+                # Handle both string and dict formats
+                profile_data = lead_result[0]
+                if isinstance(profile_data, str):
+                    return json.loads(profile_data)
+                elif isinstance(profile_data, dict):
+                    return profile_data
+                else:
+                    logger.warning(f"Unexpected profile data type: {type(profile_data)}")
+                    return {}
             
             return {}
             
