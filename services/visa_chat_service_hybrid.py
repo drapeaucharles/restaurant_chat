@@ -255,6 +255,12 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
             if profile.get("nationality_iso2") and profile.get("purpose"):
                 prompt += """
 - Give a specific visa recommendation based on their profile
+- Use these visa types: E-KIT (Electronic Visa) for tourism up to 60 days, Visit Visa (B211A) for tourism, Business Visit Visa (B211B) for business, KITAS (B213) for long-term residence, Investment Visa (VITAS) for investors
+- For tourism 30-60 days: Recommend E-KIT (Electronic Visa) - IDR 500,000, 30 days extendable to 60 days
+- For tourism longer: Recommend Visit Visa (B211A) - 30 days extendable to 60 days
+- For business: Recommend Business Visit Visa (B211B) - 60 days
+- For long-term: Recommend KITAS (B213) - 1 year renewable
+- Include specific details like price and duration when available
 - Explain why it's suitable for their situation
 - Ask if they want to know requirements or costs"""
             else:
@@ -265,12 +271,16 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
         elif intent == "ask_requirements":
             prompt += """
 - List specific requirements for their situation
+- For E-KIT: Passport (6+ months validity), passport photo, completed application form, proof of accommodation, return ticket
+- For Visit Visa (B211A): Same as E-KIT plus sponsor letter from Indonesian citizen/company
 - Be practical and actionable
 - Mention next steps"""
         
         elif intent == "ask_price":
             prompt += """
 - Provide pricing information
+- For E-KIT: IDR 500,000 (includes processing and government fees)
+- For Visit Visa (B211A): IDR 1,500,000 (includes processing and government fees)
 - Mention what's included
 - Ask if they want to proceed"""
         

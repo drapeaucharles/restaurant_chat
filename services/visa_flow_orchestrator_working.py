@@ -258,6 +258,9 @@ class WorkingVisaFlowOrchestrator:
             intent = "ask_price"
         elif any(word in message_lower for word in ["status", "application", "progress", "track"]):
             intent = "ask_status"
+        elif any(word in message_lower for word in ["yes", "yeah", "yep", "sure", "ok", "okay", "please"]):
+            # Positive responses to previous questions about requirements/costs
+            intent = "ask_requirements"
         elif profile_delta:
             intent = "provide_profile_data"
         elif any(word in message_lower for word in ["hello", "hi", "hey", "good morning", "good afternoon", "how are you"]):
