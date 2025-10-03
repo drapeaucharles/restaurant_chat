@@ -8,7 +8,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.18",
+    "@whiskeysockets/baileys": "^6.6.0",
     "qrcode": "^1.5.3",
     "express": "^4.18.2",
     "cors": "^2.8.5",
@@ -32,6 +32,6 @@
   "author": "Restaurant Chatbot System",
   "license": "MIT",
   "engines": {
-    "node": ">=17.0.0"
+    "node": ">=17.0.0 <20.0.0"
   }
 }
