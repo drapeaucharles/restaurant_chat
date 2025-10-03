@@ -230,7 +230,27 @@ def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
                             WHEN 'Official' THEN 14
                             ELSE 15
                         END,
-                        vp.first_stay_days ASC
+                        CASE vp.product_code
+                            WHEN 'VOA' THEN 1
+                            WHEN 'B211A' THEN 2
+                            WHEN 'E-KIT' THEN 3
+                            WHEN 'B213' THEN 4
+                            WHEN 'SECOND_HOME' THEN 5
+                            WHEN 'B211B' THEN 6
+                            WHEN 'IMTA' THEN 7
+                            WHEN 'VITAS' THEN 8
+                            WHEN 'STUDENT' THEN 9
+                            WHEN 'RESEARCH' THEN 10
+                            WHEN 'RETIREMENT' THEN 11
+                            WHEN 'B211C' THEN 12
+                            WHEN 'MEDICAL' THEN 13
+                            WHEN 'HUMANITARIAN' THEN 14
+                            WHEN 'B211D' THEN 15
+                            WHEN 'B211E' THEN 16
+                            WHEN 'DIPLOMATIC' THEN 17
+                            WHEN 'OFFICIAL' THEN 18
+                            ELSE 19
+                        END
                 """)
                 visa_products = db.execute(visa_products_query, {"business_id": business_uuid}).fetchall()
                 logger.info(f"Found {len(visa_products)} visa products for business {business_uuid}")
