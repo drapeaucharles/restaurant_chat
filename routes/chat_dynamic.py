@@ -145,13 +145,18 @@ async def dynamic_chat(req: ChatRequest, db: Session = Depends(get_db)):
             
             logger.info(f"Restaurant {req.restaurant_id} using RAG mode: {rag_mode}")
             
-            # Check if this is a visa agency in restaurants table
-            if business_type in ['visa_agency', 'legal_visa']:
-                logger.info(f"Visa agency detected in restaurants table, using full flows visa chat service")
+            # Check if this is a visa agency in restaurants table OR by business ID
+            is_visa_agency_restaurant = (
+                business_type in ['visa_agency', 'legal_visa'] or 
+                req.restaurant_id == 'gsi_bali_agency'
+            )
+            
+            if is_visa_agency_restaurant:
+                logger.info(f"Visa agency detected in restaurants table, using hybrid visa chat service")
                 try:
-                    from services.visa_chat_service_full_flows import full_flows_visa_chat_service
-                    selected_service = full_flows_visa_chat_service
-                    logger.info(f"Selected full flows visa chat service for {req.restaurant_id}")
+                    from services.visa_chat_service_hybrid import hybrid_visa_chat_service
+                    selected_service = hybrid_visa_chat_service
+                    logger.info(f"Selected hybrid visa chat service for {req.restaurant_id}")
                 except ImportError as e:
                     logger.warning(f"Visa chat service not available: {e}, falling back to default")
                     selected_service = chat_services.get('default', chat_services.get('fallback'))
