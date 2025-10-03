@@ -134,8 +134,11 @@ class HybridVisaService:
         try:
             # Build contextual prompt based on intent and profile
             prompt = self._build_contextual_prompt(message, intent, profile, profile_delta, chat_history)
+            logger.info(f"🤖 AI PROMPT DEBUG: Intent={intent}, Profile={profile}, ProfileDelta={profile_delta}")
+            logger.info(f"🤖 AI PROMPT LENGTH: {len(prompt)} characters")
             
             # Use direct synchronous MIA call (same as working restaurant service)
+            logger.info(f"🚀 Making MIA request to: {MIA_BACKEND_URL}/chat")
             response = requests.post(
                 f"{MIA_BACKEND_URL}/chat",
                 json={
@@ -145,10 +148,13 @@ class HybridVisaService:
                 },
                 timeout=30
             )
+            logger.info(f"📡 MIA Response Status: {response.status_code}")
             
             if response.status_code == 200:
                 response_data = response.json()
                 ai_response = response_data.get("response", "")
+                logger.info(f"📥 MIA Response Data: {response_data}")
+                logger.info(f"📝 AI Response Raw: '{ai_response}'")
                 
                 if ai_response and len(ai_response.strip()) > 10:
                     logger.info(f"✅ AI response successful for {intent}: '{ai_response[:50]}...'")
@@ -157,6 +163,7 @@ class HybridVisaService:
                     logger.warning(f"⚠️ AI response too short or empty: '{ai_response}' - using fallback")
             else:
                 logger.warning(f"⚠️ MIA request failed with status {response.status_code} - using fallback")
+                logger.warning(f"📄 Response text: {response.text}")
             
             # Fallback to contextual template if AI fails
             logger.info(f"🔄 Using contextual fallback for {intent}")
