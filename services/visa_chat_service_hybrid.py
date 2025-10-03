@@ -184,16 +184,17 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
         
         if intent == "greeting":
             prompt += """
-- Warm welcome
-- Ask for 1-2 key pieces of info (nationality, purpose, OR duration)
-- Keep it short and friendly"""
+- Warm welcome and ask "How can I help you?"
+- Don't ask for specific info immediately
+- Let them tell you what they need"""
         
         elif intent == "provide_profile_data":
             prompt += """
 - Acknowledge the new information provided
-- If you have enough info (nationality + purpose + duration), give a specific recommendation
-- If missing key info, ask for 1 missing piece only
-- Be encouraging and show progress"""
+- Check what info you already have vs what's missing
+- If you have nationality + purpose + duration, give specific recommendation
+- If missing info, ask for ONLY the missing piece (don't repeat what you already know)
+- Show progress and be encouraging"""
         
         elif intent == "ask_recommendation":
             if profile.get("nationality_iso2") and profile.get("purpose"):
@@ -241,7 +242,7 @@ Generate a helpful response as Maya:"""
         duration = profile.get("intended_stay_days", 0)
         
         if intent == "greeting":
-            return "Hi! I'm Maya from GSI Bali Agency. What brings you to Indonesia and where are you from?"
+            return "Hello! I'm Maya from GSI Bali Agency. How can I help you with your Indonesia visa today?"
         
         elif intent == "provide_profile_data":
             if profile_delta.get("nationality_iso2") and profile_delta.get("purpose"):

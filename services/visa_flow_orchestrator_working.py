@@ -299,7 +299,13 @@ class WorkingVisaFlowOrchestrator:
             
             if lead_result:
                 # Update existing
-                current_profile = json.loads(lead_result[0]) if lead_result[0] else {}
+                if lead_result[0]:
+                    try:
+                        current_profile = json.loads(lead_result[0]) if isinstance(lead_result[0], str) else lead_result[0]
+                    except (json.JSONDecodeError, TypeError):
+                        current_profile = {}
+                else:
+                    current_profile = {}
                 current_profile.update(profile_delta)
                 
                 update_query = text("""
