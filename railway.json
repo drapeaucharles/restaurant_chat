@@ -5,7 +5,7 @@
     "nixpacksPlan": {
       "phases": {
         "setup": {
-          "nixPkgs": ["python311", "nodejs-18_x", "gcc"]
+          "nixPkgs": ["python311", "nodejs_20", "gcc"]
         },
         "install": {
           "cmds": [
