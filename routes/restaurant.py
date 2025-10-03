@@ -110,9 +110,66 @@ def get_restaurant_info(restaurant_id: str, db: Session = Depends(get_db)):
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
     
+    # Check if this is a visa agency (GSI Bali Agency)
+    is_visa_agency = (
+        restaurant_id == 'gsi_bali_agency' or 
+        getattr(restaurant, 'business_type', None) in ['visa_agency', 'legal_visa']
+    )
+    
+    if is_visa_agency:
+        # For visa agencies, get visa products instead of menu
+        try:
+            from sqlalchemy import text
+            visa_products_query = text("""
+                SELECT 
+                    vp.product_code,
+                    vp.name,
+                    vp.category,
+                    vp.first_stay_days,
+                    vp.extendable_to_days,
+                    vp.gov_fee_idr,
+                    vp.processing_sla_days,
+                    vp.notes,
+                    vp.sponsor_needed,
+                    vp.convertible
+                FROM visa_products vp
+                JOIN catalogs c ON vp.catalog_id = c.id
+                JOIN businesses b ON c.business_id = b.id
+                WHERE b.business_id = :business_id
+                ORDER BY vp.product_code
+            """)
+            visa_products = db.execute(visa_products_query, {"business_id": restaurant_id}).fetchall()
+            
+            # Convert visa products to menu format for frontend compatibility
+            menu_data = []
+            for product in visa_products:
+                menu_item = {
+                    "title": product[1],  # name
+                    "description": f"Stay up to {product[3]} days" + (f", extendable to {product[4]} days" if product[4] else ""),
+                    "price": f"IDR {product[5]:,}" if product[5] else "Contact for pricing",
+                    "category": product[2] or "Visa Services",  # category
+                    "subcategory": "visa",
+                    "info": f"Processing time: {product[6]} days" if product[6] else None,
+                    "ingredients": [product[8]] if product[8] else [],  # sponsor_needed
+                    "allergens": [],
+                    "is_vegan": False,
+                    "is_vegetarian": False,
+                    "is_gluten_free": False,
+                    "is_dairy_free": False,
+                    "is_nut_free": False,
+                    "dietary_tags": ["Convertible"] if product[9] else [],
+                    "area": product[0]  # product_code
+                }
+                menu_data.append(menu_item)
+        except Exception as e:
+            logger.error(f"Error fetching visa products for {restaurant_id}: {e}")
+            menu_data = []
+    else:
+        # Regular restaurant - get menu data
+        menu_data = restaurant.data.get("menu", [])
+    
     # Get embedding status
     embedding_status = get_embedding_status(db, restaurant_id)
-    menu_data = restaurant.data.get("menu", [])
     
     return {
         "restaurant_id": restaurant.restaurant_id,
