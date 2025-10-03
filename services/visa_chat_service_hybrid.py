@@ -69,8 +69,19 @@ class HybridVisaService:
                 chat_history=chat_history
             )
             
+            # Add debug info to response for real-time debugging
+            debug_info = f"""
+[DEBUG INFO]
+- Intent: {intent}
+- Profile: {current_profile}
+- ProfileDelta: {profile_delta}
+- ChatHistory: {len(chat_history)} messages
+- AI Response: {'SUCCESS' if ai_response else 'FAILED'}
+- Response Length: {len(ai_response) if ai_response else 0}
+"""
+            
             return {
-                "answer": ai_response,
+                "answer": ai_response + debug_info,
                 "flow_used": f"hybrid_{intent}",
                 "tools_executed": ["profile_extraction", "ai_generation"],
                 "next_suggested_actions": self._get_next_actions(intent, current_profile)
@@ -167,11 +178,33 @@ class HybridVisaService:
             
             # Fallback to contextual template if AI fails
             logger.info(f"🔄 Using contextual fallback for {intent}")
-            return self._get_contextual_fallback(intent, profile, profile_delta)
+            fallback_response = self._get_contextual_fallback(intent, profile, profile_delta)
+            
+            # Add debug info to fallback response
+            debug_info = f"""
+[DEBUG INFO - FALLBACK]
+- Intent: {intent}
+- Profile: {profile}
+- ProfileDelta: {profile_delta}
+- AI Call: FAILED
+- Using: Fallback Response
+"""
+            return fallback_response + debug_info
             
         except Exception as e:
             logger.error(f"❌ AI generation failed: {e}")
-            return self._get_contextual_fallback(intent, profile, profile_delta)
+            fallback_response = self._get_contextual_fallback(intent, profile, profile_delta)
+            
+            # Add debug info to exception fallback
+            debug_info = f"""
+[DEBUG INFO - EXCEPTION]
+- Intent: {intent}
+- Profile: {profile}
+- ProfileDelta: {profile_delta}
+- Error: {str(e)}
+- Using: Exception Fallback
+"""
+            return fallback_response + debug_info
     
     def _build_contextual_prompt(self, message: str, intent: str, profile: Dict, 
                                profile_delta: Dict, chat_history: List[Dict]) -> str:
