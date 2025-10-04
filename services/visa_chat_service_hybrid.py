@@ -52,8 +52,8 @@ class HybridVisaService:
             profile_delta = router_result.get("profile_delta", {})
             
             # Step 1.5: AI-POWERED INFORMATION EXTRACTION for multi-language support
-            # Always try AI extraction to enhance orchestrator results
-            logger.info(f"🤖 Trying AI extraction to enhance orchestrator results...")
+            # Always try AI extraction for ALL languages (not just when orchestrator fails)
+            logger.info(f"🤖 Running AI extraction for multi-language support...")
             ai_extracted = self._extract_info_with_ai(message)
             if ai_extracted:
                 # Merge AI extracted data with orchestrator data (AI takes precedence for missing fields)
@@ -61,7 +61,7 @@ class HybridVisaService:
                     if key not in profile_delta and value:
                         profile_delta[key] = value
                         logger.info(f"✅ AI added missing field {key}: {value}")
-                logger.info(f"✅ AI enhanced profile data: {ai_extracted}")
+                logger.info(f"✅ AI extracted data: {ai_extracted}")
             else:
                 logger.info(f"⚠️ AI extraction returned no data")
             
