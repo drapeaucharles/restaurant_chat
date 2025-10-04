@@ -352,15 +352,25 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
         duration = profile.get("intended_stay_days", 0)
         
         if intent == "greeting":
-            return "Hello! I'm Maya from GSI Bali Agency. What's your nationality and visit purpose for Indonesia?"
+            name = profile.get("client_name", "")
+            if name:
+                return f"Perfect {name}! What can I do for you today?"
+            else:
+                return "Hello! I'm Maya from GSI Bali Agency. What's your name?"
         
         elif intent == "provide_profile_data":
-            if profile_delta.get("nationality_iso2") and profile_delta.get("purpose"):
-                return f"Perfect! {nationality} travelers for {purpose} - I can definitely help with that. How long are you planning to stay?"
+            name = profile.get("client_name", "")
+            if profile_delta.get("client_name"):
+                return f"Nice to meet you {profile_delta['client_name']}! What's your nationality and the purpose of your visit to Indonesia?"
+            elif profile_delta.get("nationality_iso2") and profile_delta.get("purpose"):
+                greeting = f"Perfect {name}! " if name else "Perfect! "
+                return f"{greeting}{nationality} travelers for {purpose} - I can definitely help with that. How long are you planning to stay?"
             elif nationality and purpose and duration:
-                return f"Perfect! For {nationality} travelers, I recommend the Tourist Visa (B211A). Would you like to know the requirements?"
+                greeting = f"Perfect {name}! " if name else "Perfect! "
+                return f"{greeting}For {nationality} travelers, I recommend the Tourist Visa (B211A). Would you like to know the requirements?"
             else:
-                return "Thanks! Could you tell me your nationality and travel purpose?"
+                greeting = f"Thanks {name}! " if name else "Thanks! "
+                return f"{greeting}Could you tell me your nationality and travel purpose?"
         
         elif intent == "ask_recommendation":
             if nationality and purpose:

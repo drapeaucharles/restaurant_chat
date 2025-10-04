@@ -160,6 +160,22 @@ class WorkingVisaFlowOrchestrator:
         # Extract profile data from message
         profile_delta = {}
         
+        # Extract name (simple patterns)
+        import re
+        name_patterns = [
+            r"i'm\s+(\w+)",  # "I'm John"
+            r"my\s+name\s+is\s+(\w+)",  # "My name is John"
+            r"i\s+am\s+(\w+)",  # "I am John"
+            r"call\s+me\s+(\w+)",  # "Call me John"
+            r"^(\w+)$"  # Just a single word (if message is very short)
+        ]
+        
+        for pattern in name_patterns:
+            match = re.search(pattern, message_lower)
+            if match and len(match.group(1)) > 1:  # Avoid single letters
+                profile_delta["client_name"] = match.group(1).capitalize()
+                break
+        
         # Extract nationality (enhanced with more countries and patterns)
         countries = {
             "usa": "US", "america": "US", "american": "US", "united states": "US",
@@ -326,26 +342,41 @@ class WorkingVisaFlowOrchestrator:
                 
                 current_profile.update(profile_delta)
                 
-                update_query = text("""
-                    UPDATE visa_leads 
-                    SET profile_json = :profile_json, updated_at = now()
-                    WHERE business_id = :business_uuid AND id = :client_id
-                """)
-                self.db.execute(update_query, {
-                    "profile_json": json.dumps(current_profile),
-                    "business_uuid": business_uuid,
-                    "client_id": client_id
-                })
+                # Update both profile_json and client_name if name is provided
+                if "client_name" in profile_delta:
+                    update_query = text("""
+                        UPDATE visa_leads 
+                        SET profile_json = :profile_json, client_name = :client_name, updated_at = now()
+                        WHERE business_id = :business_uuid AND id = :client_id
+                    """)
+                    self.db.execute(update_query, {
+                        "profile_json": json.dumps(current_profile),
+                        "client_name": profile_delta["client_name"],
+                        "business_uuid": business_uuid,
+                        "client_id": client_id
+                    })
+                else:
+                    update_query = text("""
+                        UPDATE visa_leads 
+                        SET profile_json = :profile_json, updated_at = now()
+                        WHERE business_id = :business_uuid AND id = :client_id
+                    """)
+                    self.db.execute(update_query, {
+                        "profile_json": json.dumps(current_profile),
+                        "business_uuid": business_uuid,
+                        "client_id": client_id
+                    })
             else:
                 # Create new
                 insert_query = text("""
-                    INSERT INTO visa_leads (id, business_id, profile_json, status, created_at, updated_at)
-                    VALUES (:client_id, :business_uuid, :profile_json, 'new', now(), now())
+                    INSERT INTO visa_leads (id, business_id, profile_json, client_name, status, created_at, updated_at)
+                    VALUES (:client_id, :business_uuid, :profile_json, :client_name, 'new', now(), now())
                 """)
                 self.db.execute(insert_query, {
                     "client_id": client_id,
                     "business_uuid": business_uuid,
-                    "profile_json": json.dumps(profile_delta)
+                    "profile_json": json.dumps(profile_delta),
+                    "client_name": profile_delta.get("client_name")
                 })
             
             self.db.commit()
