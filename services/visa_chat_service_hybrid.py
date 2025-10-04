@@ -144,7 +144,7 @@ class HybridVisaService:
                 f"{MIA_BACKEND_URL}/chat",
                 json={
                     "message": prompt,
-                    "max_tokens": 50,  # Very short responses - enforce 150 char limit
+                    "max_tokens": 35,  # Very short responses - enforce 120 char limit
                     "temperature": 0.7
                 },
                 timeout=30
@@ -331,8 +331,8 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
         - CLARITY: Be specific about visa types and requirements
         
         CRITICAL RESPONSE RULES:
-        - MAXIMUM 2 SENTENCES ONLY - NO EXCEPTIONS
-        - MAXIMUM 150 CHARACTERS TOTAL - ENFORCE STRICTLY
+        - MAXIMUM 1-2 SENTENCES ONLY - NO EXCEPTIONS
+        - MAXIMUM 120 CHARACTERS TOTAL - ENFORCE STRICTLY
         - NO LISTS OR NUMBERED POINTS
         - ONE MAIN MESSAGE PER RESPONSE
         - CONTEXTUAL (reference their specific situation visiting INDONESIA)
