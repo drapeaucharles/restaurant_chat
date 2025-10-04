@@ -52,23 +52,18 @@ class HybridVisaService:
             profile_delta = router_result.get("profile_delta", {})
             
             # Step 1.5: AI-POWERED INFORMATION EXTRACTION for multi-language support
-            if not profile_delta.get("nationality_iso2") and not profile_delta.get("purpose") and not profile_delta.get("intended_stay_days"):
-                logger.info(f"🤖 Orchestrator didn't extract info, trying AI extraction...")
-                ai_extracted = self._extract_info_with_ai(message)
-                if ai_extracted:
-                    # Merge AI extracted data with orchestrator data
-                    profile_delta.update(ai_extracted)
-                    logger.info(f"✅ AI extracted additional info: {ai_extracted}")
-            elif intent == "provide_profile_data" and len(profile_delta) < 2:
-                # If orchestrator only extracted partial info, enhance with AI
-                logger.info(f"🤖 Enhancing partial extraction with AI...")
-                ai_extracted = self._extract_info_with_ai(message)
-                if ai_extracted:
-                    # Only add info that wasn't already extracted
-                    for key, value in ai_extracted.items():
-                        if key not in profile_delta and value:
-                            profile_delta[key] = value
-                    logger.info(f"✅ AI enhanced profile data: {ai_extracted}")
+            # Always try AI extraction to enhance orchestrator results
+            logger.info(f"🤖 Trying AI extraction to enhance orchestrator results...")
+            ai_extracted = self._extract_info_with_ai(message)
+            if ai_extracted:
+                # Merge AI extracted data with orchestrator data (AI takes precedence for missing fields)
+                for key, value in ai_extracted.items():
+                    if key not in profile_delta and value:
+                        profile_delta[key] = value
+                        logger.info(f"✅ AI added missing field {key}: {value}")
+                logger.info(f"✅ AI enhanced profile data: {ai_extracted}")
+            else:
+                logger.info(f"⚠️ AI extraction returned no data")
             
             # Step 2: Update profile if needed
             if profile_delta:
