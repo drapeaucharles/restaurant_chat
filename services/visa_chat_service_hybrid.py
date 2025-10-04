@@ -232,6 +232,16 @@ CUSTOMER PROFILE:"""
         if profile_delta:
             prompt += f"\nNEW INFO THIS MESSAGE: {profile_delta}"
         
+        # Add profile validation rules
+        prompt += """
+
+PROFILE VALIDATION RULES:
+- DURATION VALIDATION: If duration > 365 days, suggest this might be for long-term residence
+- DURATION VALIDATION: If duration > 10000 days, this seems unreasonable - ask for clarification
+- PURPOSE VALIDATION: Ensure purpose matches their stated intentions
+- NATIONALITY VALIDATION: Confirm nationality is clear and valid
+- CONSISTENCY CHECK: Don't change purpose without explicit user request"""
+        
         # Add conversation progression guidance
         prompt += f"""
 
@@ -245,24 +255,34 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
         
         elif intent == "provide_profile_data":
             prompt += """
-- Acknowledge the new information provided
-- Check what info you already have vs what's missing
-- If you have nationality + purpose + duration, give specific recommendation
-- If missing info, ask for ONLY the missing piece (don't repeat what you already know)
-- Show progress and be encouraging"""
+- CONTEXT AWARENESS RULES:
+  * NEVER ask for information already in the profile
+  * Acknowledge what they just provided
+  * Show what you know: "I now have your nationality (X), purpose (Y), duration (Z)"
+  * Identify ONLY the missing piece needed for recommendation
+  * If profile is complete (nationality + purpose + duration), give specific recommendation
+  * If incomplete, ask for ONLY the missing piece with encouragement
+- PROGRESS TRACKING: Show conversation progress clearly
+- AVOID REPETITION: Don't ask for info you already have"""
         
         elif intent == "ask_recommendation":
             if profile.get("nationality_iso2") and profile.get("purpose"):
                 prompt += """
-- Give a specific visa recommendation based on their profile
-- Use these visa types: E-KIT (Electronic Visa) for tourism up to 60 days, Visit Visa (B211A) for tourism, Business Visit Visa (B211B) for business, KITAS (B213) for long-term residence, Investment Visa (VITAS) for investors
-- For tourism 30-60 days: Recommend E-KIT (Electronic Visa) - IDR 500,000, 30 days extendable to 60 days
-- For tourism longer: Recommend Visit Visa (B211A) - 30 days extendable to 60 days
-- For business: Recommend Business Visit Visa (B211B) - 60 days
-- For long-term: Recommend KITAS (B213) - 1 year renewable
-- Include specific details like price and duration when available
-- Explain why it's suitable for their situation
-- Ask if they want to know requirements or costs"""
+- Analyze their profile and apply intelligent visa recommendation rules:
+  * DURATION RULE: If stay > 180 days → recommend long-term visas (KITAS, VITAS)
+  * DURATION RULE: If stay ≤ 60 days → recommend short-term visas (E-KIT, B211A)
+  * DURATION RULE: If stay 60-180 days → recommend extendable visas (B211A with extensions)
+  * PURPOSE RULE: Tourism → E-KIT or Visit Visa (B211A)
+  * PURPOSE RULE: Business → Business Visit Visa (B211B) 
+  * PURPOSE RULE: Investment → VITAS or Investment KITAS
+  * PURPOSE RULE: Education → Student Visa or Education KITAS
+  * PURPOSE RULE: Retirement → Retirement KITAS
+  * PURPOSE RULE: Work → Work KITAS or IMTA
+- Always match visa duration capacity to their intended stay duration
+- If their stay exceeds visa capacity, explain extension options
+- Include pricing: E-KIT (IDR 500,000), B211A (IDR 1,500,000), KITAS/VITAS (varies)
+- Explain why this specific visa fits their situation
+- Ask if they want requirements or costs"""
             else:
                 prompt += """
 - Need more info first - ask for missing nationality, purpose, or duration
@@ -270,21 +290,35 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
         
         elif intent == "ask_requirements":
             prompt += """
-- List specific requirements for their situation
-- For E-KIT: Passport (6+ months validity), passport photo, completed application form, proof of accommodation, return ticket
-- For Visit Visa (B211A): Same as E-KIT plus sponsor letter from Indonesian citizen/company
+- REQUIREMENTS INTELLIGENCE RULES:
+  * Analyze their profile to determine visa type first
+  * BASE REQUIREMENTS: Passport (6+ months), photo, application form, accommodation proof, return ticket
+  * SPONSOR REQUIREMENTS: Required for B211A, B211B, KITAS, VITAS (not for E-KIT)
+  * PURPOSE-SPECIFIC: Add requirements based on purpose (business letter, medical documents, etc.)
+  * DURATION-SPECIFIC: Long-term visas may need additional financial proof
+- Provide requirements that match their specific visa recommendation
 - Be practical and actionable
 - Mention next steps"""
         
         elif intent == "ask_price":
             prompt += """
-- Provide pricing information
-- For E-KIT: IDR 500,000 (includes processing and government fees)
-- For Visit Visa (B211A): IDR 1,500,000 (includes processing and government fees)
-- Mention what's included
+- PRICING INTELLIGENCE RULES:
+  * Match pricing to their recommended visa type
+  * STANDARD PRICING: E-KIT (IDR 500,000), B211A (IDR 1,500,000), B211B (IDR 1,500,000)
+  * LONG-TERM PRICING: KITAS/VITAS (varies by type, typically IDR 3,000,000+)
+  * EXPLAIN VALUE: Mention what's included (processing, government fees, support)
+  * COMPARISON: If multiple options, explain cost differences
+- Be transparent about pricing
 - Ask if they want to proceed"""
         
         prompt += """
+
+CONVERSATION INTELLIGENCE RULES:
+- CONSISTENCY: Similar scenarios should get similar response patterns
+- PROGRESSION: Build logically on previous conversation
+- PERSONALIZATION: Reference their specific nationality, purpose, duration
+- EFFICIENCY: Don't repeat information already provided
+- CLARITY: Be specific about visa types and requirements
 
 CRITICAL RESPONSE RULES:
 - MAXIMUM 2 SENTENCES ONLY - NO EXCEPTIONS
