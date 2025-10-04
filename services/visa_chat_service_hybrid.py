@@ -69,19 +69,9 @@ class HybridVisaService:
                 chat_history=chat_history
             )
             
-            # Add debug info to response for real-time debugging
-            debug_info = f"""
-[DEBUG INFO]
-- Intent: {intent}
-- Profile: {current_profile}
-- ProfileDelta: {profile_delta}
-- ChatHistory: {len(chat_history)} messages
-- AI Response: {'SUCCESS' if ai_response else 'FAILED'}
-- Response Length: {len(ai_response) if ai_response else 0}
-"""
-            
+            # Return clean AI response without debug info
             return {
-                "answer": ai_response + debug_info,
+                "answer": ai_response,
                 "flow_used": f"hybrid_{intent}",
                 "tools_executed": ["profile_extraction", "ai_generation"],
                 "next_suggested_actions": self._get_next_actions(intent, current_profile)
@@ -154,7 +144,7 @@ class HybridVisaService:
                 f"{MIA_BACKEND_URL}/chat",
                 json={
                     "message": prompt,
-                    "max_tokens": 80,  # Much shorter responses
+                    "max_tokens": 50,  # Very short responses - enforce 150 char limit
                     "temperature": 0.7
                 },
                 timeout=30
@@ -180,31 +170,15 @@ class HybridVisaService:
             logger.info(f"🔄 Using contextual fallback for {intent}")
             fallback_response = self._get_contextual_fallback(intent, profile, profile_delta)
             
-            # Add debug info to fallback response
-            debug_info = f"""
-[DEBUG INFO - FALLBACK]
-- Intent: {intent}
-- Profile: {profile}
-- ProfileDelta: {profile_delta}
-- AI Call: FAILED
-- Using: Fallback Response
-"""
-            return fallback_response + debug_info
+            # Return clean fallback response without debug info
+            return fallback_response
             
         except Exception as e:
             logger.error(f"❌ AI generation failed: {e}")
             fallback_response = self._get_contextual_fallback(intent, profile, profile_delta)
             
-            # Add debug info to exception fallback
-            debug_info = f"""
-[DEBUG INFO - EXCEPTION]
-- Intent: {intent}
-- Profile: {profile}
-- ProfileDelta: {profile_delta}
-- Error: {str(e)}
-- Using: Exception Fallback
-"""
-            return fallback_response + debug_info
+            # Return clean exception fallback without debug info
+            return fallback_response
     
     def _build_contextual_prompt(self, message: str, intent: str, profile: Dict, 
                                profile_delta: Dict, chat_history: List[Dict]) -> str:
@@ -348,23 +322,24 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
 - Ask if they want to proceed"""
         
         prompt += """
-
-CONVERSATION INTELLIGENCE RULES:
-- CONSISTENCY: Similar scenarios should get similar response patterns
-- PROGRESSION: Build logically on previous conversation
-- PERSONALIZATION: Reference their specific nationality, purpose, duration
-- EFFICIENCY: Don't repeat information already provided
-- CLARITY: Be specific about visa types and requirements
-
-CRITICAL RESPONSE RULES:
-- MAXIMUM 2 SENTENCES ONLY - NO EXCEPTIONS
-- NO LISTS OR NUMBERED POINTS
-- ONE MAIN MESSAGE PER RESPONSE
-- CONTEXTUAL (reference their specific situation visiting INDONESIA)
-- PROGRESSIVE (build on what you already know, don't repeat)
-- NATURAL but CONCISE
-
-Generate a helpful response as Maya:"""
+        
+        CONVERSATION INTELLIGENCE RULES:
+        - CONSISTENCY: Similar scenarios should get similar response patterns
+        - PROGRESSION: Build logically on previous conversation
+        - PERSONALIZATION: Reference their specific nationality, purpose, duration
+        - EFFICIENCY: Don't repeat information already provided
+        - CLARITY: Be specific about visa types and requirements
+        
+        CRITICAL RESPONSE RULES:
+        - MAXIMUM 2 SENTENCES ONLY - NO EXCEPTIONS
+        - MAXIMUM 150 CHARACTERS TOTAL - ENFORCE STRICTLY
+        - NO LISTS OR NUMBERED POINTS
+        - ONE MAIN MESSAGE PER RESPONSE
+        - CONTEXTUAL (reference their specific situation visiting INDONESIA)
+        - PROGRESSIVE (build on what you already know, don't repeat)
+        - NATURAL but EXTREMELY CONCISE
+        
+        Generate a helpful response as Maya:"""
         
         return prompt
     
@@ -377,7 +352,7 @@ Generate a helpful response as Maya:"""
         duration = profile.get("intended_stay_days", 0)
         
         if intent == "greeting":
-            return "Hello! I'm Maya from GSI Bali Agency. How can I help you with your Indonesia visa today?"
+            return "Hello! I'm Maya from GSI Bali Agency. What's your nationality and visit purpose for Indonesia?"
         
         elif intent == "provide_profile_data":
             if profile_delta.get("nationality_iso2") and profile_delta.get("purpose"):
