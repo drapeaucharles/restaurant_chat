@@ -432,7 +432,7 @@ Return ONLY valid JSON, no other text:"""
             )
             
             if response.status_code == 200:
-                ai_response = response.json().get("answer", "").strip()
+                ai_response = response.json().get("response", "").strip()
                 # Try to parse JSON from AI response
                 import json
                 import re
