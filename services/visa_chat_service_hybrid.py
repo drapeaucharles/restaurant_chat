@@ -402,7 +402,9 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
         """Use AI to extract nationality, purpose, and duration from ANY language"""
         try:
             import requests
-            from config import MIA_BACKEND_URL
+            
+            # Use the restaurant chat endpoint which handles MIA routing internally
+            restaurant_chat_url = "https://restaurantchat-production.up.railway.app/chat"
             
             extraction_prompt = f"""Extract visa information from this message in ANY language:
 
@@ -422,17 +424,17 @@ EXAMPLES:
 Return ONLY valid JSON, no other text:"""
 
             response = requests.post(
-                f"{MIA_BACKEND_URL}/chat",
+                restaurant_chat_url,
                 json={
-                    "message": extraction_prompt,
-                    "max_tokens": 100,
-                    "temperature": 0.3
+                    "client_id": "extraction_test",
+                    "restaurant_id": "gsi_bali_agency", 
+                    "message": extraction_prompt
                 },
                 timeout=15
             )
             
             if response.status_code == 200:
-                ai_response = response.json().get("response", "").strip()
+                ai_response = response.json().get("answer", "").strip()
                 # Try to parse JSON from AI response
                 import json
                 import re
