@@ -1,0 +1,174 @@
+{
+  "test_info": {
+    "timestamp": "20251002_194102",
+    "test_type": "10_client_visa_sequential",
+    "api_url": "https://restaurantchat-production.up.railway.app/chat",
+    "business_id": "gsi_bali_agency",
+    "total_clients": 10,
+    "total_time_minutes": 7.190600856145223
+  },
+  "summary": {
+    "successful_responses": 10,
+    "failed_responses": 0,
+    "success_rate": 100.0,
+    "visa_related_responses": 0,
+    "visa_related_rate": 0.0,
+    "profile_extraction_responses": 0,
+    "avg_response_time": 38.642053031921385,
+    "max_response_time": 42.84451341629028,
+    "issues_found": 20,
+    "unique_issues": 11
+  },
+  "detailed_results": [
+    {
+      "client_id": "645edb50-f3ef-408c-b9e2-bbe374733174",
+      "client_num": 1,
+      "message": "I need visa help for Indonesia",
+      "response": "Please use the internal tools v5 service for actual responses.",
+      "response_time": 35.42500424385071,
+      "status": "success",
+      "issues": [
+        "Slow response: 35.4s",
+        "Response not visa-related"
+      ],
+      "visa_related": false,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "f2b10683-0620-47cd-b2b5-386029fc816f",
+      "client_num": 2,
+      "message": "I want to get a KITAS visa",
+      "response": "Please use the internal tools v5 service for actual responses.",
+      "response_time": 35.4556519985199,
+      "status": "success",
+      "issues": [
+        "Slow response: 35.5s",
+        "Response not visa-related"
+      ],
+      "visa_related": false,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "9e07032e-dbeb-420b-9cd0-b7e39c237cb8",
+      "client_num": 3,
+      "message": "I am American and want to visit for tourism",
+      "response": "Please use the internal tools v5 service for actual responses.",
+      "response_time": 42.84451341629028,
+      "status": "success",
+      "issues": [
+        "Slow response: 42.8s",
+        "Response not visa-related"
+      ],
+      "visa_related": false,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "e9ea436d-db67-4ae8-99a5-5c755f085ff9",
+      "client_num": 4,
+      "message": "I want to stay in Indonesia for 6 months",
+      "response": "Please use the internal tools v5 service for actual responses.",
+      "response_time": 40.06363606452942,
+      "status": "success",
+      "issues": [
+        "Slow response: 40.1s",
+        "Response not visa-related"
+      ],
+      "visa_related": false,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "e7e22414-2e86-4171-983b-0c18fd89448e",
+      "client_num": 5,
+      "message": "I need a visa for business meetings in Bali",
+      "response": "Please use the internal tools v5 service for actual responses.",
+      "response_time": 40.391462564468384,
+      "status": "success",
+      "issues": [
+        "Slow response: 40.4s",
+        "Response not visa-related"
+      ],
+      "visa_related": false,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "42412ba6-ca46-4527-bd69-ccdef9cace4c",
+      "client_num": 6,
+      "message": "I want to retire in Indonesia, what visa do I need?",
+      "response": "Please use the internal tools v5 service for actual responses.",
+      "response_time": 37.008689403533936,
+      "status": "success",
+      "issues": [
+        "Slow response: 37.0s",
+        "Response not visa-related"
+      ],
+      "visa_related": false,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "4c8ad99d-8a85-4682-8644-e750f92e98cf",
+      "client_num": 7,
+      "message": "I work remotely for a US company, can I get a work visa?",
+      "response": "Please use the internal tools v5 service for actual responses.",
+      "response_time": 39.74996471405029,
+      "status": "success",
+      "issues": [
+        "Slow response: 39.7s",
+        "Response not visa-related"
+      ],
+      "visa_related": false,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "208f7f78-6906-4899-bab4-4b1c781b45e2",
+      "client_num": 8,
+      "message": "I want to start a business in Indonesia",
+      "response": "Please use the internal tools v5 service for actual responses.",
+      "response_time": 39.032673358917236,
+      "status": "success",
+      "issues": [
+        "Slow response: 39.0s",
+        "Response not visa-related"
+      ],
+      "visa_related": false,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "7ee740f5-f9a0-4d10-aaf0-1ea96f9cd778",
+      "client_num": 9,
+      "message": "My spouse is Indonesian, what visa can I get?",
+      "response": "Please use the internal tools v5 service for actual responses.",
+      "response_time": 37.32963752746582,
+      "status": "success",
+      "issues": [
+        "Slow response: 37.3s",
+        "Response not visa-related"
+      ],
+      "visa_related": false,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "07ae22c8-2e99-4170-86e2-be02913cb57b",
+      "client_num": 10,
+      "message": "I want to study in Indonesia, what are my options?",
+      "response": "Please use the internal tools v5 service for actual responses.",
+      "response_time": 39.11929702758789,
+      "status": "success",
+      "issues": [
+        "Slow response: 39.1s",
+        "Response not visa-related"
+      ],
+      "visa_related": false,
+      "profile_extraction": false,
+      "debug_info": null
+    }
+  ]
+}

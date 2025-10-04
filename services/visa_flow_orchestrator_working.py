@@ -228,17 +228,23 @@ class WorkingVisaFlowOrchestrator:
                     profile_delta["nationality_iso2"] = code
                     break
         
-        # Extract purpose (enhanced detection with context awareness)
+        # Extract purpose using AI (language-friendly approach)
+        # Basic English patterns for fallback, but AI will handle multi-language detection
+        basic_tourism_words = ["tourist", "tourism", "vacation", "holiday", "travel", "fun", "enjoy", "explore"]
+        basic_business_words = ["business", "meeting", "conference"]
+        basic_education_words = ["study", "student", "education", "university", "school"]
+        basic_work_words = ["job", "employment", "working", "work"]
+        
         # Check for work-related questions first (to avoid changing existing purpose)
         work_questions = ["work part-time", "work with", "can i work", "working with", "employment with"]
         if any(phrase in message_lower for phrase in work_questions):
             # Don't change purpose for work-related questions
             pass
-        elif any(word in message_lower for word in ["tourist", "tourism", "vacation", "holiday", "sightseeing", "leisure", "fun", "enjoy", "explore", "travel"]):
+        elif any(word in message_lower for word in basic_tourism_words):
             profile_delta["purpose"] = "tourism"
-        elif any(word in message_lower for word in ["business", "meeting", "conference"]):
+        elif any(word in message_lower for word in basic_business_words):
             profile_delta["purpose"] = "business"
-        elif any(word in message_lower for word in ["study", "student", "education", "university", "school"]):
+        elif any(word in message_lower for word in basic_education_words):
             profile_delta["purpose"] = "education"
         elif any(word in message_lower for word in ["retire", "retirement"]):
             profile_delta["purpose"] = "retirement"
@@ -246,7 +252,7 @@ class WorkingVisaFlowOrchestrator:
             profile_delta["purpose"] = "investment"
         elif any(word in message_lower for word in ["family", "visit family", "relatives"]):
             profile_delta["purpose"] = "family_visit"
-        elif any(word in message_lower for word in ["job", "employment", "working"]):
+        elif any(word in message_lower for word in basic_work_words):
             profile_delta["purpose"] = "work"
         
         # Extract intended stay duration

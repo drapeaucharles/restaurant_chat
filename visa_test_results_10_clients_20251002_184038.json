@@ -1,0 +1,144 @@
+{
+  "test_info": {
+    "timestamp": "20251002_184038",
+    "test_type": "10_client_visa_sequential",
+    "api_url": "https://restaurantchat-production.up.railway.app/chat",
+    "business_id": "gsi_bali_agency",
+    "total_clients": 10,
+    "total_time_minutes": 0.8757890780766805
+  },
+  "summary": {
+    "successful_responses": 10,
+    "failed_responses": 0,
+    "success_rate": 100.0,
+    "visa_related_responses": 10,
+    "visa_related_rate": 100.0,
+    "profile_extraction_responses": 6,
+    "avg_response_time": 0.7531206369400024,
+    "max_response_time": 0.8283727169036865,
+    "issues_found": 0,
+    "unique_issues": 0
+  },
+  "detailed_results": [
+    {
+      "client_id": "46b92ca0-c823-4063-89a4-d89f5e1a6476",
+      "client_num": 1,
+      "message": "I need visa help for Indonesia",
+      "response": "I'd be happy to help you with Indonesia visa information! To give you the most accurate details, could you tell me: Where are you from and what's bringing you to Indonesia?",
+      "response_time": 0.7136938571929932,
+      "status": "success",
+      "issues": [],
+      "visa_related": true,
+      "profile_extraction": true,
+      "debug_info": null
+    },
+    {
+      "client_id": "d6304311-8fc0-4cd5-975d-7bce4963bd34",
+      "client_num": 2,
+      "message": "I want to get a KITAS visa",
+      "response": "I'd be happy to help you with Indonesia visa information! To give you the most accurate details, could you tell me: Where are you from and what's bringing you to Indonesia?",
+      "response_time": 0.8270282745361328,
+      "status": "success",
+      "issues": [],
+      "visa_related": true,
+      "profile_extraction": true,
+      "debug_info": null
+    },
+    {
+      "client_id": "c907bd7b-ec5d-4998-9aaf-00e38d02cc3c",
+      "client_num": 3,
+      "message": "I am American and want to visit for tourism",
+      "response": "Awesome! American travelers for tourism love Indonesia! How long are you planning to stay? That helps me recommend the perfect visa type.",
+      "response_time": 0.7077207565307617,
+      "status": "success",
+      "issues": [],
+      "visa_related": true,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "91598b62-af5c-4c5f-b44f-1971df2c2a01",
+      "client_num": 4,
+      "message": "I want to stay in Indonesia for 6 months",
+      "response": "Great! Knowing your travel duration (6 months) helps me recommend the perfect visa. Could you also tell me where you're from and what's the main purpose of your visit?",
+      "response_time": 0.7582147121429443,
+      "status": "success",
+      "issues": [],
+      "visa_related": true,
+      "profile_extraction": true,
+      "debug_info": null
+    },
+    {
+      "client_id": "db2a7a2f-d934-4721-b375-7af4ee3993e4",
+      "client_num": 5,
+      "message": "I need a visa for business meetings in Bali",
+      "response": "Awesome! American travelers for business love Indonesia! How long are you planning to stay? That helps me recommend the perfect visa type.",
+      "response_time": 0.7661077976226807,
+      "status": "success",
+      "issues": [],
+      "visa_related": true,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "78668b3f-5ac6-4d76-b0d4-6f9a25ec5273",
+      "client_num": 6,
+      "message": "I want to retire in Indonesia, what visa do I need?",
+      "response": "I'd be happy to help you with Indonesia visa information! To give you the most accurate details, could you tell me: Where are you from and what's bringing you to Indonesia?",
+      "response_time": 0.8283727169036865,
+      "status": "success",
+      "issues": [],
+      "visa_related": true,
+      "profile_extraction": true,
+      "debug_info": null
+    },
+    {
+      "client_id": "8028ab58-7bb8-4502-929c-bb84f443807b",
+      "client_num": 7,
+      "message": "I work remotely for a US company, can I get a work visa?",
+      "response": "Awesome! American travelers for business love Indonesia! How long are you planning to stay? That helps me recommend the perfect visa type.",
+      "response_time": 0.7118449211120605,
+      "status": "success",
+      "issues": [],
+      "visa_related": true,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "5478be4b-abc4-4534-9b53-8652e51159d3",
+      "client_num": 8,
+      "message": "I want to start a business in Indonesia",
+      "response": "Awesome! American travelers for business love Indonesia! How long are you planning to stay? That helps me recommend the perfect visa type.",
+      "response_time": 0.7353036403656006,
+      "status": "success",
+      "issues": [],
+      "visa_related": true,
+      "profile_extraction": false,
+      "debug_info": null
+    },
+    {
+      "client_id": "5c7f36c7-41f4-41ac-af4c-ac6dc898ad76",
+      "client_num": 9,
+      "message": "My spouse is Indonesian, what visa can I get?",
+      "response": "Awesome! American travelers love Indonesia! What's bringing you there - vacation, business, or something else? And how long are you planning to stay?",
+      "response_time": 0.7068233489990234,
+      "status": "success",
+      "issues": [],
+      "visa_related": true,
+      "profile_extraction": true,
+      "debug_info": null
+    },
+    {
+      "client_id": "09b51790-c506-4685-95bd-59201d1e6935",
+      "client_num": 10,
+      "message": "I want to study in Indonesia, what are my options?",
+      "response": "Perfect! I'd love to help you find the ideal visa for your Indonesia adventure! To recommend the best option, could you tell me: Where are you from and what's bringing you to Indonesia?",
+      "response_time": 0.7760963439941406,
+      "status": "success",
+      "issues": [],
+      "visa_related": true,
+      "profile_extraction": true,
+      "debug_info": null
+    }
+  ]
+}

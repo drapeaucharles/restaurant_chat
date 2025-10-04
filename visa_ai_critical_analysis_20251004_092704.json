@@ -1,0 +1,1493 @@
+[
+  {
+    "client_id": "4a5fc7d5-8469-4683-9970-3a4069067d5c",
+    "name": "Canadian Tourist (30 days)",
+    "responses": [
+      {
+        "message": "Hello, I need a visa for Indonesia",
+        "response": "Hello! Thank you for reaching out. To start, could you please tell me more about your planned visit to Indonesia, such as the purpose and expected duration? This will help me determine the appropriate visa type for you.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {}\n- ProfileDelta: {}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 219\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 393,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": null
+      },
+      {
+        "message": "I'm from Canada and want to visit for tourism",
+        "response": "I now have your nationality (CA) and purpose (tourism). To provide the best recommendation, could you please let me know how many days you plan to stay in Indonesia?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA'}\n- ProfileDelta: {'nationality_iso2': 'CA', 'purpose': 'tourism'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 165\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 435,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "CA"
+          },
+          "created_at": "2025-10-04 02:27:13.398573+00:00",
+          "updated_at": "2025-10-04 02:27:13.398573+00:00"
+        }
+      },
+      {
+        "message": "I plan to stay for 30 days",
+        "response": "I now have your nationality (CA), purpose (tourism), and intended stay days (30). Based on your plans, a suitable visa option would be the B211A visa, which allows you to stay for up to 60 days, extendable from your initial 30-day entry. Shall we proceed with this option?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA', 'intended_stay_days': 30}\n- ProfileDelta: {'intended_stay_days': 30}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 272\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 546,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "CA",
+            "intended_stay_days": 30
+          },
+          "created_at": "2025-10-04 02:27:13.398573+00:00",
+          "updated_at": "2025-10-04 02:27:20.952916+00:00"
+        }
+      },
+      {
+        "message": "What visa do you recommend?",
+        "response": "For your 30-day trip to Indonesia, I would recommend the E-KIT visa. It's perfect for your short tourism plans and allows you to stay up to 60 days in total. The cost is IDR 500,000. Since your stay is within the allowed limit, there's no need for an extension. Would you like details on the application requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA', 'intended_stay_days': 30}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 326\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 575,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "CA",
+            "intended_stay_days": 30
+          },
+          "created_at": "2025-10-04 02:27:13.398573+00:00",
+          "updated_at": "2025-10-04 02:27:20.952916+00:00"
+        }
+      },
+      {
+        "message": "What are the requirements?",
+        "response": "For your 30-day tourist visa to Indonesia, you'll need a valid passport with at least six months of validity remaining, a recent passport-sized photo, and an completed visa application form. You also need to provide proof of accommodation and a return ticket. Since your stay is short, an E-KIT visa would be suitable. Next, I can help you fill out the application and gather any necessary documents.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA', 'intended_stay_days': 30}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 400\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 647,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "CA",
+            "intended_stay_days": 30
+          },
+          "created_at": "2025-10-04 02:27:13.398573+00:00",
+          "updated_at": "2025-10-04 02:27:20.952916+00:00"
+        }
+      },
+      {
+        "message": "How much does it cost?",
+        "response": "Hello! For your 30-day tourist visit to Indonesia from Canada, the cost would be IDR 500,000 for the E-KIT visa. This includes processing fees, government charges, and our support throughout the application process. Would you like to proceed with this option?\n[DEBUG INFO]\n- Intent: ask_price\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA', 'intended_stay_days': 30}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 259\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 499,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [],
+          "score": 100
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "CA",
+            "intended_stay_days": 30
+          },
+          "created_at": "2025-10-04 02:27:13.398573+00:00",
+          "updated_at": "2025-10-04 02:27:20.952916+00:00"
+        }
+      }
+    ],
+    "final_db_profile": {
+      "profile": {
+        "purpose": "tourism",
+        "nationality_iso2": "CA",
+        "intended_stay_days": 30
+      },
+      "created_at": "2025-10-04 02:27:13.398573+00:00",
+      "updated_at": "2025-10-04 02:27:20.952916+00:00"
+    }
+  },
+  {
+    "client_id": "94324823-5c69-4ee8-8c83-495a2da27a0b",
+    "name": "American Business Traveler (2 weeks)",
+    "responses": [
+      {
+        "message": "Hi, I need a business visa",
+        "response": "Hi there! For your business visa, you'll need to apply with your passport (valid for at least 6 months), photos, and an application form. Since it's a business trip, please provide a letter from your Indonesian business partner or sponsor. This will help us proceed with your application. Next, we'll check your accommodation and return ticket details.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'business'}\n- ProfileDelta: {'purpose': 'business'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 352\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 568,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long",
+            "No visa recommendation"
+          ],
+          "score": 50
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "business"
+          },
+          "created_at": "2025-10-04 02:27:55.421577+00:00",
+          "updated_at": "2025-10-04 02:27:55.421577+00:00"
+        }
+      },
+      {
+        "message": "I'm American and coming for business meetings",
+        "response": "I now have your nationality (US), purpose (business). To help you best, I need to know the expected duration of your visit.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'US'}\n- ProfileDelta: {'nationality_iso2': 'US', 'purpose': 'business'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 123\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 395,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "business",
+            "nationality_iso2": "US"
+          },
+          "created_at": "2025-10-04 02:27:55.421577+00:00",
+          "updated_at": "2025-10-04 02:28:03.599638+00:00"
+        }
+      },
+      {
+        "message": "I'll be there for 2 weeks",
+        "response": "I now have your nationality (US), purpose (business), and duration (14 days). For a 14-day business trip to Indonesia, you would need a B211A visa. Shall I proceed with the application process?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'US', 'intended_stay_days': 14}\n- ProfileDelta: {'intended_stay_days': 14}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 193\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 468,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [],
+          "score": 100
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "business",
+            "nationality_iso2": "US",
+            "intended_stay_days": 14
+          },
+          "created_at": "2025-10-04 02:27:55.421577+00:00",
+          "updated_at": "2025-10-04 02:28:11.261143+00:00"
+        }
+      },
+      {
+        "message": "What documents do I need?",
+        "response": "Given your profile, you'll likely need a B211A visa, which allows up to 60 days in Indonesia. For this, you'll need your passport (valid for at least 6 months), recent passport photos, an application form, proof of accommodation, and return tickets. Since your stay is 14 days, there's no need for additional financial proof. Next, we can complete your application form and gather the required documents.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'business', 'nationality_iso2': 'US', 'intended_stay_days': 14}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 404\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 652,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "business",
+            "nationality_iso2": "US",
+            "intended_stay_days": 14
+          },
+          "created_at": "2025-10-04 02:27:55.421577+00:00",
+          "updated_at": "2025-10-04 02:28:11.261143+00:00"
+        }
+      },
+      {
+        "message": "How much does it cost?",
+        "response": "Hello! For your business trip to Indonesia, the cost would depend on the visa type that best suits your needs. Given your 14-day duration, the E-KIT or B211A visa would be appropriate. The E-KIT costs IDR 500,000 and allows you to stay for up to 30 days, which can be extended to 60 days. Would you like to proceed with this option?\n[DEBUG INFO]\n- Intent: ask_price\n- Profile: {'purpose': 'business', 'nationality_iso2': 'US', 'intended_stay_days': 14}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 332\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 573,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "business",
+            "nationality_iso2": "US",
+            "intended_stay_days": 14
+          },
+          "created_at": "2025-10-04 02:27:55.421577+00:00",
+          "updated_at": "2025-10-04 02:28:11.261143+00:00"
+        }
+      }
+    ],
+    "final_db_profile": {
+      "profile": {
+        "purpose": "business",
+        "nationality_iso2": "US",
+        "intended_stay_days": 14
+      },
+      "created_at": "2025-10-04 02:27:55.421577+00:00",
+      "updated_at": "2025-10-04 02:28:11.261143+00:00"
+    }
+  },
+  {
+    "client_id": "37199c90-e3e8-4a5a-a094-2c8af3103228",
+    "name": "Australian Long-term Tourist (6 months)",
+    "responses": [
+      {
+        "message": "Hello, I want to visit Indonesia for a long time",
+        "response": "Hello! Welcome to GSI Bali Agency. It's great that you're planning to visit Indonesia for a long time. How can I assist you with your visa needs?\n[DEBUG INFO]\n- Intent: greeting\n- Profile: {}\n- ProfileDelta: {}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 145\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 311,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": false,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": null
+      },
+      {
+        "message": "I'm from Australia and want to stay for 6 months for tourism",
+        "response": "I now have your nationality (Australia), purpose (tourism), and intended stay (180 days). For a 180-day stay, a B211A visa would be suitable, as it allows up to 60 days initially and can be extended. Shall I proceed with the application process?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'AU', 'intended_stay_days': 180}\n- ProfileDelta: {'nationality_iso2': 'AU', 'purpose': 'tourism', 'intended_stay_days': 180}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 245\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 569,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "AU",
+            "intended_stay_days": 180
+          },
+          "created_at": "2025-10-04 02:28:45.398199+00:00",
+          "updated_at": "2025-10-04 02:28:45.398199+00:00"
+        }
+      },
+      {
+        "message": "What's the best visa for me?",
+        "response": "Given your planned stay of 180 days, the B211A visa is the most suitable option. It allows an initial stay of 30 days, which can be extended to 60 days. This fits your needs perfectly for tourism in Indonesia. The cost is IDR 1,500,000. We can discuss the extension process once you have the visa. Would you like more details on the requirements and costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'AU', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 356\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 605,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "AU",
+            "intended_stay_days": 180
+          },
+          "created_at": "2025-10-04 02:28:45.398199+00:00",
+          "updated_at": "2025-10-04 02:28:45.398199+00:00"
+        }
+      },
+      {
+        "message": "Can I extend it if I want to stay longer?",
+        "response": "Certainly! For your 180-day visit to Indonesia, the B211A visa would be suitable, as it allows an initial stay of 30 days that can be extended to 60 days. However, since your planned stay exceeds 60 days, you will need to extend your visa before it expires. Would you like me to provide the details on the extension process and cost?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'AU', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 333\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 583,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "AU",
+            "intended_stay_days": 180
+          },
+          "created_at": "2025-10-04 02:28:45.398199+00:00",
+          "updated_at": "2025-10-04 02:28:45.398199+00:00"
+        }
+      },
+      {
+        "message": "What are the requirements?",
+        "response": "Based on your profile, it seems you're planning a tourist visit to Indonesia for 180 days. For this duration, you'll need a B211A visa, which allows up to 60 days stay with an extension option. The base requirements include a valid passport (valid for at least 6 months), recent passport photos, completed visa application form, proof of accommodation, and return ticket. Since this exceeds the standard 30-day limit, you'll also need to provide financial proof to support your stay. Next, we can fill out the application together.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'AU', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 531\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 779,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "AU",
+            "intended_stay_days": 180
+          },
+          "created_at": "2025-10-04 02:28:45.398199+00:00",
+          "updated_at": "2025-10-04 02:28:45.398199+00:00"
+        }
+      }
+    ],
+    "final_db_profile": {
+      "profile": {
+        "purpose": "tourism",
+        "nationality_iso2": "AU",
+        "intended_stay_days": 180
+      },
+      "created_at": "2025-10-04 02:28:45.398199+00:00",
+      "updated_at": "2025-10-04 02:28:45.398199+00:00"
+    }
+  },
+  {
+    "client_id": "1593d1e7-027e-4848-9a0d-bb019f00e9f0",
+    "name": "British Student (4 years)",
+    "responses": [
+      {
+        "message": "Hi, I need a student visa",
+        "response": "Hello! For your educational purposes in Indonesia, we would recommend applying for the B211A visa, which allows you to stay for up to 60 days, extendable if needed. The base requirements include your passport (valid for at least six months), photos, completed application form, proof of accommodation, and return ticket. Would you like to proceed with these details?\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'education'}\n- ProfileDelta: {'purpose': 'education'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 366\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 584,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "education"
+          },
+          "created_at": "2025-10-04 02:29:20.162652+00:00",
+          "updated_at": "2025-10-04 02:29:20.162652+00:00"
+        }
+      },
+      {
+        "message": "I'm from UK and got accepted to a university in Jakarta",
+        "response": "I now have your nationality (GB), purpose (education), and duration (not specified yet). To help you with your visa application, I need to know the exact length of your stay. This will help me recommend the right type of visa for your needs.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'education', 'nationality_iso2': 'GB'}\n- ProfileDelta: {'nationality_iso2': 'GB', 'purpose': 'education'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 241\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 515,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long",
+            "No visa recommendation"
+          ],
+          "score": 50
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "education",
+            "nationality_iso2": "GB"
+          },
+          "created_at": "2025-10-04 02:29:20.162652+00:00",
+          "updated_at": "2025-10-04 02:29:28.215301+00:00"
+        }
+      },
+      {
+        "message": "I'll be studying for 4 years",
+        "response": "I now have your nationality (GB), purpose (education), and duration (1460 days). Given your intended stay of more than 365 days, I suggest applying for a KITAS visa, which is suitable for long-term residence. Please confirm if this aligns with your plans to study in Indonesia for 4 years.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'education', 'nationality_iso2': 'GB', 'intended_stay_days': 1460}\n- ProfileDelta: {'purpose': 'education', 'intended_stay_days': 1460}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 289\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 593,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "education",
+            "nationality_iso2": "GB",
+            "intended_stay_days": 1460
+          },
+          "created_at": "2025-10-04 02:29:20.162652+00:00",
+          "updated_at": "2025-10-04 02:29:36.040221+00:00"
+        }
+      },
+      {
+        "message": "What visa do you recommend?",
+        "response": "Given your intention to stay in Indonesia for 1460 days, which is more than 365 days, I recommend applying for the KITAS visa. This visa is suitable for long-term residence and aligns with your purpose of education. Please note that the KITAS allows for a stay of up to 1 year initially, which can be extended. Would you like details on the requirements and costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'education', 'nationality_iso2': 'GB', 'intended_stay_days': 1460}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 364\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 617,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "education",
+            "nationality_iso2": "GB",
+            "intended_stay_days": 1460
+          },
+          "created_at": "2025-10-04 02:29:20.162652+00:00",
+          "updated_at": "2025-10-04 02:29:36.040221+00:00"
+        }
+      },
+      {
+        "message": "Can I work part-time with this visa?",
+        "response": "Hello! Welcome to GSI Bali Agency. It's great to hear from you. Can I help you with your visa for visiting Indonesia?\n[DEBUG INFO]\n- Intent: greeting\n- Profile: {'purpose': 'education', 'nationality_iso2': 'GB', 'intended_stay_days': 1460}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 117\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 360,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "education",
+            "nationality_iso2": "GB",
+            "intended_stay_days": 1460
+          },
+          "created_at": "2025-10-04 02:29:20.162652+00:00",
+          "updated_at": "2025-10-04 02:29:36.040221+00:00"
+        }
+      },
+      {
+        "message": "What are the requirements?",
+        "response": "Given your profile, it seems like you might be looking into a long-term visa for education in Indonesia. For a stay of 1460 days, I would recommend applying for the KITAS visa, which is designed for long-term residence. The main requirements include a valid passport with at least six months' validity, recent passport photos, an application form, proof of accommodation, and financial proof to support your stay. Since this is for educational purposes, you'll also need to provide an acceptance letter from an Indonesian educational institution. Next, we can fill out the application together.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'education', 'nationality_iso2': 'GB', 'intended_stay_days': 1460}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 594\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 845,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "education",
+            "nationality_iso2": "GB",
+            "intended_stay_days": 1460
+          },
+          "created_at": "2025-10-04 02:29:20.162652+00:00",
+          "updated_at": "2025-10-04 02:29:36.040221+00:00"
+        }
+      }
+    ],
+    "final_db_profile": {
+      "profile": {
+        "purpose": "education",
+        "nationality_iso2": "GB",
+        "intended_stay_days": 1460
+      },
+      "created_at": "2025-10-04 02:29:20.162652+00:00",
+      "updated_at": "2025-10-04 02:29:36.040221+00:00"
+    }
+  },
+  {
+    "client_id": "f7431d42-ffda-4fd8-88e2-1497597fa90e",
+    "name": "French Remote Worker (6 months)",
+    "responses": [
+      {
+        "message": "Hello, I want to work remotely from Indonesia",
+        "response": "Hello! Welcome to GSI Bali Agency. It's great to hear you're interested in working remotely in Indonesia. How can I assist you today with your visa needs?\n[DEBUG INFO]\n- Intent: greeting\n- Profile: {}\n- ProfileDelta: {}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 154\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 320,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": null
+      },
+      {
+        "message": "I'm from France and plan to stay for 6 months",
+        "response": "I now have your nationality (France), purpose (visiting Indonesia), and duration (180 days). Based on your planned stay, I recommend applying for the E-KIT visa, which allows up to 60 days stay and can be extended. Please confirm if this suits your plans or if you need further assistance.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'nationality_iso2': 'FR', 'intended_stay_days': 180}\n- ProfileDelta: {'nationality_iso2': 'FR', 'intended_stay_days': 180}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 289\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 569,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "nationality_iso2": "FR",
+            "intended_stay_days": 180
+          },
+          "created_at": "2025-10-04 02:30:17.777991+00:00",
+          "updated_at": "2025-10-04 02:30:17.777991+00:00"
+        }
+      },
+      {
+        "message": "What visa allows remote work?",
+        "response": "To provide the best advice, could you please confirm your nationality and the purpose of your visit to Indonesia? This will help me recommend the most suitable visa option for remote work.\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'nationality_iso2': 'FR', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 188\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 415,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": {
+          "profile": {
+            "nationality_iso2": "FR",
+            "intended_stay_days": 180
+          },
+          "created_at": "2025-10-04 02:30:17.777991+00:00",
+          "updated_at": "2025-10-04 02:30:17.777991+00:00"
+        }
+      },
+      {
+        "message": "Can I extend it?",
+        "response": "To extend your visa for up to 180 days, we would typically recommend applying for a KITAS (Residence Permit) if your stay exceeds 30 days. However, since your planned stay is 180 days, which is quite long, we should confirm your nationality and purpose of visit to provide the most accurate advice. Could you please share these details?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'nationality_iso2': 'FR', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 336\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 564,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "nationality_iso2": "FR",
+            "intended_stay_days": 180
+          },
+          "created_at": "2025-10-04 02:30:17.777991+00:00",
+          "updated_at": "2025-10-04 02:30:17.777991+00:00"
+        }
+      },
+      {
+        "message": "What documents do I need?",
+        "response": "Given your profile, it seems you're planning a longer stay in Indonesia. For a 180-day visit, the B211A visa would be suitable. You'll need your passport (valid for at least 6 months), a recent passport photo, an application form, proof of accommodation, and a return ticket. Since this is for a longer stay than typical tourist visas allow, you might also need to provide financial proof to support your stay. Next, we can submit your application together.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'nationality_iso2': 'FR', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 457\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 683,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "nationality_iso2": "FR",
+            "intended_stay_days": 180
+          },
+          "created_at": "2025-10-04 02:30:17.777991+00:00",
+          "updated_at": "2025-10-04 02:30:17.777991+00:00"
+        }
+      }
+    ],
+    "final_db_profile": {
+      "profile": {
+        "nationality_iso2": "FR",
+        "intended_stay_days": 180
+      },
+      "created_at": "2025-10-04 02:30:17.777991+00:00",
+      "updated_at": "2025-10-04 02:30:17.777991+00:00"
+    }
+  },
+  {
+    "client_id": "62137a0d-b3b4-4044-8602-75ec4b02829e",
+    "name": "Japanese Tourist (45 days)",
+    "responses": [
+      {
+        "message": "I need a visa for Indonesia",
+        "response": "Hello! Thank you for reaching out. To help you with your visa for visiting Indonesia, could you please share your nationality, the purpose of your visit, and the approximate duration? This will allow me to recommend the appropriate visa type and provide you with the necessary requirements.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {}\n- ProfileDelta: {}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 290\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 464,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": null
+      },
+      {
+        "message": "I'm Japanese and want to visit for tourism",
+        "response": "I now have your nationality (Japanese), purpose (tourism). To proceed, could you please tell me the expected duration of your stay in Indonesia?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'JP'}\n- ProfileDelta: {'nationality_iso2': 'JP', 'purpose': 'tourism'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 144\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 414,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "JP"
+          },
+          "created_at": "2025-10-04 02:30:59.487479+00:00",
+          "updated_at": "2025-10-04 02:30:59.487479+00:00"
+        }
+      },
+      {
+        "message": "I'll stay for 45 days",
+        "response": "I now have your nationality (JP), purpose (tourism), and duration (45 days). Based on your intended stay of 45 days, I recommend applying for the B211A visa, which allows a stay of up to 60 days and can be extended if needed.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'JP', 'intended_stay_days': 45}\n- ProfileDelta: {'intended_stay_days': 45}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 225\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 499,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [],
+          "score": 100
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "JP",
+            "intended_stay_days": 45
+          },
+          "created_at": "2025-10-04 02:30:59.487479+00:00",
+          "updated_at": "2025-10-04 02:31:06.954411+00:00"
+        }
+      },
+      {
+        "message": "What's the best option?",
+        "response": "Given your planned stay of 45 days in Indonesia, the best options would be either the B211A visa (30 days extendable to 60) or the E-KIT visa (30 days extendable to 60). The B211A is slightly more expensive at IDR 1,500,000, while the E-KIT costs IDR 500,000. Both will fit your needs perfectly. Would you like details on the application process or the costs involved?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'JP', 'intended_stay_days': 45}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 368\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 617,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "JP",
+            "intended_stay_days": 45
+          },
+          "created_at": "2025-10-04 02:30:59.487479+00:00",
+          "updated_at": "2025-10-04 02:31:06.954411+00:00"
+        }
+      },
+      {
+        "message": "How much will it cost?",
+        "response": "Hello! For a 45-day trip to Indonesia, the cost will depend on the type of visa you choose. The E-KIT option would be suitable, costing IDR 500,000, which includes processing fees and support. Would you like to proceed with this option?\n[DEBUG INFO]\n- Intent: ask_price\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'JP', 'intended_stay_days': 45}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 236\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 476,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [],
+          "score": 100
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "tourism",
+            "nationality_iso2": "JP",
+            "intended_stay_days": 45
+          },
+          "created_at": "2025-10-04 02:30:59.487479+00:00",
+          "updated_at": "2025-10-04 02:31:06.954411+00:00"
+        }
+      }
+    ],
+    "final_db_profile": {
+      "profile": {
+        "purpose": "tourism",
+        "nationality_iso2": "JP",
+        "intended_stay_days": 45
+      },
+      "created_at": "2025-10-04 02:30:59.487479+00:00",
+      "updated_at": "2025-10-04 02:31:06.954411+00:00"
+    }
+  },
+  {
+    "client_id": "ebb48b47-f54b-443c-9b87-08ae4faaa40b",
+    "name": "German Investor (2 years)",
+    "responses": [
+      {
+        "message": "Hello, I want to invest in Indonesia",
+        "response": "Hello! It's great to hear about your interest in investing in Indonesia. I now have your purpose as investment. Could you please share your nationality so we can proceed with the visa recommendation?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'investment'}\n- ProfileDelta: {'purpose': 'investment'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 199\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 423,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": false,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "investment"
+          },
+          "created_at": "2025-10-04 02:31:33.575108+00:00",
+          "updated_at": "2025-10-04 02:31:33.575108+00:00"
+        }
+      },
+      {
+        "message": "I'm from Germany and plan to stay for 2 years",
+        "response": "I now have your nationality (Germany), purpose (investment), and duration (730 days). Given your planned stay of 730 days, I recommend applying for the KITAS visa, which is suitable for long-term residence. Please confirm if you need any assistance with the application process.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'investment', 'nationality_iso2': 'DE', 'intended_stay_days': 730}\n- ProfileDelta: {'nationality_iso2': 'DE', 'intended_stay_days': 730}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 278\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 583,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "investment",
+            "nationality_iso2": "DE",
+            "intended_stay_days": 730
+          },
+          "created_at": "2025-10-04 02:31:33.575108+00:00",
+          "updated_at": "2025-10-04 02:31:41.197966+00:00"
+        }
+      },
+      {
+        "message": "What visa do I need for investment?",
+        "response": "Given your intention to invest in Indonesia for 730 days, you would need a KITAS (Kartu Izin Tinggal Saing) visa, which is designed for long-term residence. This visa will allow you to stay in Indonesia for up to 1 year, which fits your planned duration perfectly. The cost typically ranges from IDR 3,000,000 to IDR 5,000,000. Would you like more details on the requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'investment', 'nationality_iso2': 'DE', 'intended_stay_days': 730}\n- ProfileDelta: {'purpose': 'investment'}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 385\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 660,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "investment",
+            "nationality_iso2": "DE",
+            "intended_stay_days": 730
+          },
+          "created_at": "2025-10-04 02:31:33.575108+00:00",
+          "updated_at": "2025-10-04 02:31:49.138768+00:00"
+        }
+      },
+      {
+        "message": "What are the requirements?",
+        "response": "Given your profile, it seems you might be seeking a visa for long-term residence in Indonesia, which could indicate a potential change in your purpose. For an investment stay of 730 days, you would likely need a KITAS visa. The base requirements include a valid passport with at least six months validity, recent passport photos, completed application forms, proof of accommodation, and a return or onward ticket. Additionally, you will need to provide documentation related to your investment plans. Please confirm if this aligns with your intentions, and we can proceed from there.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'investment', 'nationality_iso2': 'DE', 'intended_stay_days': 730}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 583\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 834,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "investment",
+            "nationality_iso2": "DE",
+            "intended_stay_days": 730
+          },
+          "created_at": "2025-10-04 02:31:33.575108+00:00",
+          "updated_at": "2025-10-04 02:31:49.138768+00:00"
+        }
+      },
+      {
+        "message": "How much does it cost?",
+        "response": "Given your planned duration of 730 days in Indonesia, it sounds like you might be considering a long-term stay. For such an extended period, the KITAS visa would be suitable. The cost for this visa is around IDR 3,000,000, which includes processing fees and support from our team. Would you like to proceed with this option?\n[DEBUG INFO]\n- Intent: ask_price\n- Profile: {'purpose': 'investment', 'nationality_iso2': 'DE', 'intended_stay_days': 730}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 324\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 568,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "investment",
+            "nationality_iso2": "DE",
+            "intended_stay_days": 730
+          },
+          "created_at": "2025-10-04 02:31:33.575108+00:00",
+          "updated_at": "2025-10-04 02:31:49.138768+00:00"
+        }
+      }
+    ],
+    "final_db_profile": {
+      "profile": {
+        "purpose": "investment",
+        "nationality_iso2": "DE",
+        "intended_stay_days": 730
+      },
+      "created_at": "2025-10-04 02:31:33.575108+00:00",
+      "updated_at": "2025-10-04 02:31:49.138768+00:00"
+    }
+  },
+  {
+    "client_id": "c86df70d-1ee0-43e5-9162-72ff7984a70f",
+    "name": "Singaporean Family Visitor (2 months)",
+    "responses": [
+      {
+        "message": "Hi, I need a visa to visit family",
+        "response": "Hi there! Since you plan to visit family in Indonesia, we'll likely need a B211A or B211B visa, which allows you to stay for up to 60 days. For this visa, you'll need your passport (valid for at least 6 months), photos, an application form, proof of accommodation, and a return ticket. Do you have these ready?\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'family_visit'}\n- ProfileDelta: {'purpose': 'family_visit'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 310\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 534,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "family_visit"
+          },
+          "created_at": "2025-10-04 02:32:15.909197+00:00",
+          "updated_at": "2025-10-04 02:32:15.909197+00:00"
+        }
+      },
+      {
+        "message": "I'm from Singapore and want to visit relatives",
+        "response": "I now have your nationality (Singapore), purpose (family visit). To proceed, could you please tell me the duration of your planned stay in Indonesia?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'family_visit', 'nationality_iso2': 'SG'}\n- ProfileDelta: {'nationality_iso2': 'SG', 'purpose': 'family_visit'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 149\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 429,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "family_visit",
+            "nationality_iso2": "SG"
+          },
+          "created_at": "2025-10-04 02:32:15.909197+00:00",
+          "updated_at": "2025-10-04 02:32:24.163457+00:00"
+        }
+      },
+      {
+        "message": "I plan to stay for 2 months",
+        "response": "I now have your nationality (SG), purpose (family visit), and intended stay of 60 days. Given your plans, a B211A visa would be suitable, as it allows up to 60 days with an extension. Should you need any more information or assistance, please let me know.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'family_visit', 'nationality_iso2': 'SG', 'intended_stay_days': 60}\n- ProfileDelta: {'intended_stay_days': 60}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 255\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 534,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "family_visit",
+            "nationality_iso2": "SG",
+            "intended_stay_days": 60
+          },
+          "created_at": "2025-10-04 02:32:15.909197+00:00",
+          "updated_at": "2025-10-04 02:32:31.825508+00:00"
+        }
+      },
+      {
+        "message": "What visa is suitable?",
+        "response": "For your family visit to Indonesia lasting 60 days, I recommend either the B211A visa or the E-KIT visa. Both allow an initial stay of 30 days that can be extended to 60 days. The E-KIT is slightly cheaper at IDR 500,000, while the B211A offers more flexibility at IDR 1,500,000. Would you like details on the application requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'family_visit', 'nationality_iso2': 'SG', 'intended_stay_days': 60}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 344\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 598,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "family_visit",
+            "nationality_iso2": "SG",
+            "intended_stay_days": 60
+          },
+          "created_at": "2025-10-04 02:32:15.909197+00:00",
+          "updated_at": "2025-10-04 02:32:31.825508+00:00"
+        }
+      },
+      {
+        "message": "What documents do I need?",
+        "response": "For your family visit to Indonesia, you'll need a passport valid for at least six months, two recent photos, and an application form. Since your duration is 60 days, the B211A visa would be suitable. No sponsor is required, but you must provide proof of accommodation and return tickets. Next, we can submit your application.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'family_visit', 'nationality_iso2': 'SG', 'intended_stay_days': 60}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 325\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 577,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "family_visit",
+            "nationality_iso2": "SG",
+            "intended_stay_days": 60
+          },
+          "created_at": "2025-10-04 02:32:15.909197+00:00",
+          "updated_at": "2025-10-04 02:32:31.825508+00:00"
+        }
+      }
+    ],
+    "final_db_profile": {
+      "profile": {
+        "purpose": "family_visit",
+        "nationality_iso2": "SG",
+        "intended_stay_days": 60
+      },
+      "created_at": "2025-10-04 02:32:15.909197+00:00",
+      "updated_at": "2025-10-04 02:32:31.825508+00:00"
+    }
+  },
+  {
+    "client_id": "e3297c22-bcb1-40f3-9b6d-913e66f0aae9",
+    "name": "Indian Conference Attendee (1 week)",
+    "responses": [
+      {
+        "message": "Hello, I need a visa for a conference",
+        "response": "Hello! For your business conference in Indonesia, we recommend applying for the B211A visa, which allows entry for up to 60 days. The base requirements include your passport (valid for at least 6 months), recent photos, completed application form, proof of accommodation, and return ticket. Would you like more details on these requirements?\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'business'}\n- ProfileDelta: {'purpose': 'business'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 341\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 557,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "business"
+          },
+          "created_at": "2025-10-04 02:32:58.326678+00:00",
+          "updated_at": "2025-10-04 02:32:58.326678+00:00"
+        }
+      },
+      {
+        "message": "I'm from India and attending a business conference",
+        "response": "I now have your nationality (India), purpose (business), and understand you will be attending a conference. To proceed, I need to know the duration of your planned stay in Indonesia.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'IN'}\n- ProfileDelta: {'nationality_iso2': 'IN', 'purpose': 'business'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 182\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 454,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "business",
+            "nationality_iso2": "IN"
+          },
+          "created_at": "2025-10-04 02:32:58.326678+00:00",
+          "updated_at": "2025-10-04 02:33:06.213009+00:00"
+        }
+      },
+      {
+        "message": "I'll be there for 1 week",
+        "response": "I now have your nationality (IN), purpose (business), and duration (7 days). For a 7-day business trip to Indonesia, you would likely need a B211A visa, which allows entry for up to 60 days. Is there anything else you need to add to your profile?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'IN', 'intended_stay_days': 7}\n- ProfileDelta: {'intended_stay_days': 7}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 246\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 519,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "business",
+            "nationality_iso2": "IN",
+            "intended_stay_days": 7
+          },
+          "created_at": "2025-10-04 02:32:58.326678+00:00",
+          "updated_at": "2025-10-04 02:33:14.315565+00:00"
+        }
+      },
+      {
+        "message": "What visa do I need?",
+        "response": "For your 7-day business visit to Indonesia, the perfect visa option would be the E-KIT (30 days). It allows 30 days extendable to 60 days, which suits your planned stay. The cost is IDR 500,000. No extension is needed as it covers your duration. Would you like to proceed with the requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'business', 'nationality_iso2': 'IN', 'intended_stay_days': 7}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 303\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 552,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "business",
+            "nationality_iso2": "IN",
+            "intended_stay_days": 7
+          },
+          "created_at": "2025-10-04 02:32:58.326678+00:00",
+          "updated_at": "2025-10-04 02:33:14.315565+00:00"
+        }
+      },
+      {
+        "message": "How much does it cost?",
+        "response": "Hello! For your business trip to Indonesia lasting 7 days, the most suitable option would be the B211A visa, which costs IDR 1,500,000. This includes processing fees and support from our team. Would you like to proceed with this option?\n[DEBUG INFO]\n- Intent: ask_price\n- Profile: {'purpose': 'business', 'nationality_iso2': 'IN', 'intended_stay_days': 7}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 236\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 476,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": false,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [],
+          "score": 100
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "business",
+            "nationality_iso2": "IN",
+            "intended_stay_days": 7
+          },
+          "created_at": "2025-10-04 02:32:58.326678+00:00",
+          "updated_at": "2025-10-04 02:33:14.315565+00:00"
+        }
+      }
+    ],
+    "final_db_profile": {
+      "profile": {
+        "purpose": "business",
+        "nationality_iso2": "IN",
+        "intended_stay_days": 7
+      },
+      "created_at": "2025-10-04 02:32:58.326678+00:00",
+      "updated_at": "2025-10-04 02:33:14.315565+00:00"
+    }
+  },
+  {
+    "client_id": "f44f62e0-7836-4959-bc10-a63a1b03aaf5",
+    "name": "Thai Retiree (1 year)",
+    "responses": [
+      {
+        "message": "Hi, I want to retire in Indonesia",
+        "response": "Hi there! It's great to hear that you're planning to retire in Indonesia. I now have your purpose (retirement). To help you with the visa process, I need to know your nationality and how long you plan to stay. This will help me recommend the right visa type for your needs.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'retirement'}\n- ProfileDelta: {'purpose': 'retirement'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 273\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 497,
+          "mentions_visa": false,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "No visa recommendation"
+          ],
+          "score": 80
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "retirement"
+          },
+          "created_at": "2025-10-04 02:33:40.331842+00:00",
+          "updated_at": "2025-10-04 02:33:40.331842+00:00"
+        }
+      },
+      {
+        "message": "I'm from Thailand and want to stay for 1 year",
+        "response": "I now have your nationality (Thai), purpose (retirement), and duration (365 days). Given your intended stay of 365 days, it sounds like you're planning for long-term residence. For such an extended stay, you would need the KITAS visa, which is designed for long-term stays. Shall I proceed with the application process for the KITAS visa?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'retirement', 'nationality_iso2': 'TH', 'intended_stay_days': 365}\n- ProfileDelta: {'nationality_iso2': 'TH', 'intended_stay_days': 365}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 338\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 643,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "retirement",
+            "nationality_iso2": "TH",
+            "intended_stay_days": 365
+          },
+          "created_at": "2025-10-04 02:33:40.331842+00:00",
+          "updated_at": "2025-10-04 02:33:48.070971+00:00"
+        }
+      },
+      {
+        "message": "What visa is available for retirement?",
+        "response": "For your retirement in Indonesia, the KITAS (Residence Permit) would be most suitable, as it allows stays of over 365 days. This aligns perfectly with your intended stay of 365 days. Would you like to know more about the requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'retirement', 'nationality_iso2': 'TH', 'intended_stay_days': 365}\n- ProfileDelta: {'purpose': 'retirement'}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 243\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 518,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "retirement",
+            "nationality_iso2": "TH",
+            "intended_stay_days": 365
+          },
+          "created_at": "2025-10-04 02:33:40.331842+00:00",
+          "updated_at": "2025-10-04 02:33:56.061835+00:00"
+        }
+      },
+      {
+        "message": "Can I extend it?",
+        "response": "Given your planned stay of 365 days in Indonesia for retirement, a KITAS would be the most suitable option. It allows for long-term residence and would better suit your needs compared to multiple extensions of a B211A visa. Would you like to proceed with the requirements and costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'retirement', 'nationality_iso2': 'TH', 'intended_stay_days': 365}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 282\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 535,
+          "mentions_visa": true,
+          "mentions_price": true,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": true,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "retirement",
+            "nationality_iso2": "TH",
+            "intended_stay_days": 365
+          },
+          "created_at": "2025-10-04 02:33:40.331842+00:00",
+          "updated_at": "2025-10-04 02:33:56.061835+00:00"
+        }
+      },
+      {
+        "message": "What are the requirements?",
+        "response": "Given your intention to retire in Indonesia for 365 days, it sounds like you might be considering a long-term stay. For such a duration, you would likely need a KITAS visa, which is designed for long-term residence. The main requirements include your passport (valid for at least 6 months), photos, completed application form, proof of accommodation, and financial proof to support your stay. Next, we can prepare your application together.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'retirement', 'nationality_iso2': 'TH', 'intended_stay_days': 365}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 440\n\n\n[HYBRID SERVICE CONFIRMED]",
+        "analysis": {
+          "length": 691,
+          "mentions_visa": true,
+          "mentions_price": false,
+          "mentions_requirements": true,
+          "is_contextual": true,
+          "mentions_duration": true,
+          "asks_question": false,
+          "expected_visa_match": null,
+          "issues": [
+            "Response too long"
+          ],
+          "score": 70
+        },
+        "db_profile": {
+          "profile": {
+            "purpose": "retirement",
+            "nationality_iso2": "TH",
+            "intended_stay_days": 365
+          },
+          "created_at": "2025-10-04 02:33:40.331842+00:00",
+          "updated_at": "2025-10-04 02:33:56.061835+00:00"
+        }
+      }
+    ],
+    "final_db_profile": {
+      "profile": {
+        "purpose": "retirement",
+        "nationality_iso2": "TH",
+        "intended_stay_days": 365
+      },
+      "created_at": "2025-10-04 02:33:40.331842+00:00",
+      "updated_at": "2025-10-04 02:33:56.061835+00:00"
+    }
+  }
+]

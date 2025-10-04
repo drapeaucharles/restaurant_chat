@@ -51,6 +51,25 @@ class HybridVisaService:
             intent = router_result["intent"]
             profile_delta = router_result.get("profile_delta", {})
             
+            # Step 1.5: AI-POWERED INFORMATION EXTRACTION for multi-language support
+            if not profile_delta.get("nationality_iso2") and not profile_delta.get("purpose") and not profile_delta.get("intended_stay_days"):
+                logger.info(f"🤖 Orchestrator didn't extract info, trying AI extraction...")
+                ai_extracted = self._extract_info_with_ai(message)
+                if ai_extracted:
+                    # Merge AI extracted data with orchestrator data
+                    profile_delta.update(ai_extracted)
+                    logger.info(f"✅ AI extracted additional info: {ai_extracted}")
+            elif intent == "provide_profile_data" and len(profile_delta) < 2:
+                # If orchestrator only extracted partial info, enhance with AI
+                logger.info(f"🤖 Enhancing partial extraction with AI...")
+                ai_extracted = self._extract_info_with_ai(message)
+                if ai_extracted:
+                    # Only add info that wasn't already extracted
+                    for key, value in ai_extracted.items():
+                        if key not in profile_delta and value:
+                            profile_delta[key] = value
+                    logger.info(f"✅ AI enhanced profile data: {ai_extracted}")
+            
             # Step 2: Update profile if needed
             if profile_delta:
                 logger.info(f"🔄 Updating profile for {client_id}: {profile_delta}")
@@ -260,7 +279,12 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
   * For education: Ask about institution, program, start date
   * For investment: Ask about investment amount, business type
 - PROGRESS TRACKING: Show conversation progress clearly
-- AVOID REPETITION: Don't ask for info you already have"""
+- AVOID REPETITION: Don't ask for info you already have
+- MULTI-LANGUAGE INFO EXTRACTION:
+  * Extract nationality from ANY language (not just English)
+  * Extract purpose from ANY language (tourism, business, education, etc.)
+  * Extract duration from ANY language format
+  * Use context clues to understand meaning regardless of language"""
         
         elif intent == "ask_recommendation":
             if profile.get("nationality_iso2") and profile.get("purpose"):
@@ -379,6 +403,57 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
         
         return prompt
     
+    def _extract_info_with_ai(self, message: str) -> Dict[str, Any]:
+        """Use AI to extract nationality, purpose, and duration from ANY language"""
+        try:
+            import requests
+            from config import MIA_BACKEND_URL
+            
+            extraction_prompt = f"""Extract visa information from this message in ANY language:
+
+MESSAGE: "{message}"
+
+Extract and return ONLY a JSON object with:
+- nationality_iso2: ISO2 country code (e.g., "US", "CA", "FR", "DE", "JP")
+- purpose: one of ["tourism", "business", "education", "work", "investment", "retirement", "family_visit"]
+- intended_stay_days: number of days (extract from any time format)
+- client_name: extracted name if mentioned
+
+EXAMPLES:
+- "Je suis français et je veux visiter Bali pendant 30 jours" → {{"nationality_iso2": "FR", "purpose": "tourism", "intended_stay_days": 30}}
+- "Soy argentino, vengo por negocios por 2 semanas" → {{"nationality_iso2": "AR", "purpose": "business", "intended_stay_days": 14}}
+- "私は日本人で、観光で60日間滞在したい" → {{"nationality_iso2": "JP", "purpose": "tourism", "intended_stay_days": 60}}
+
+Return ONLY valid JSON, no other text:"""
+
+            response = requests.post(
+                f"{MIA_BACKEND_URL}/chat",
+                json={
+                    "message": extraction_prompt,
+                    "max_tokens": 100,
+                    "temperature": 0.3
+                },
+                timeout=15
+            )
+            
+            if response.status_code == 200:
+                ai_response = response.json().get("answer", "").strip()
+                # Try to parse JSON from AI response
+                import json
+                import re
+                
+                # Look for JSON pattern in response
+                json_match = re.search(r'\{[^}]*\}', ai_response)
+                if json_match:
+                    extracted_data = json.loads(json_match.group())
+                    logger.info(f"🤖 AI extracted: {extracted_data}")
+                    return extracted_data
+                    
+        except Exception as e:
+            logger.warning(f"AI extraction failed: {e}")
+            
+        return {}
+
     def _get_contextual_fallback(self, intent: str, profile: Dict, profile_delta: Dict) -> str:
         """
         Contextual fallback responses when AI fails

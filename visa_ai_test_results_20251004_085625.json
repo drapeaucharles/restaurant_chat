@@ -1,0 +1,373 @@
+{
+  "test_info": {
+    "start_time": "2025-10-04T08:50:48.463408",
+    "end_time": "2025-10-04T08:56:25.978498",
+    "duration_minutes": 5.6252515,
+    "total_clients": 10,
+    "total_messages": 62,
+    "backend_url": "https://restaurantchat-production.up.railway.app",
+    "restaurant_id": "gsi_bali_agency"
+  },
+  "results": {
+    "37333f1f-4a1d-4e34-8ad1-8c09bfed6025": {
+      "name": "Canadian Tourist (60 days)",
+      "conversation": [
+        {
+          "message": "Hello, I need a visa for Indonesia",
+          "response": "Hello! To apply for a visa to visit Indonesia, you'll need your passport (valid for at least 6 months), a recent passport photo, and a completed application form. Since you're planning a tourist visit, we can proceed with the E-KIT visa, which doesn't require a sponsor letter. Next, please gather these documents, and we can submit your application.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {}\n- ProfileDelta: {}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 350\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:50:50.895487"
+        },
+        {
+          "message": "I'm from Canada and want to visit for tourism",
+          "response": "Thank you for providing your details. We now have your nationality as Canada and purpose as tourism. Next, could you please share the expected duration of your stay in Indonesia? This will help us with your visa application.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA'}\n- ProfileDelta: {'nationality_iso2': 'CA', 'purpose': 'tourism'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 224\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:50:56.032828"
+        },
+        {
+          "message": "I plan to stay for 60 days",
+          "response": "Thank you for letting me know your intended stay of 60 days. With your nationality, purpose, and duration now clear, I can recommend applying for an Electronic Visa (e-Visa) for your trip to Indonesia. Please provide any missing details so we can proceed with your application.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA', 'intended_stay_days': 60}\n- ProfileDelta: {'intended_stay_days': 60}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 277\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:01.285758"
+        },
+        {
+          "message": "My travel dates are September 15 to November 15, 2024",
+          "response": "Great to hear your travel dates! We have your nationality, purpose of tourism, and duration of 60 days. Next, could you please confirm your travel plans and any accommodation details? This will help us with your visa application.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA', 'intended_stay_days': 60}\n- ProfileDelta: {'purpose': 'tourism'}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 229\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:06.373293"
+        },
+        {
+          "message": "Yes, I want to know the requirements",
+          "response": "For your tourist visa to Indonesia, you'll need a valid passport (with at least 6 months validity), recent passport photos, a completed application form, proof of accommodation, and a return ticket. Next, we can discuss if an E-KIT or a Visit Visa (B211A) is best for your trip.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA', 'intended_stay_days': 60}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 278\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:11.428132"
+        },
+        {
+          "message": "What's the cost?",
+          "response": "The cost for an E-KIT visa to visit Indonesia is IDR 500,000, while a Visit Visa (B211A) costs IDR 1,500,000. Both include processing and government fees. Would you like to proceed with the E-KIT or Visit Visa for your 60-day trip?\n[DEBUG INFO]\n- Intent: ask_price\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA', 'intended_stay_days': 60}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 231\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:16.998273"
+        },
+        {
+          "message": "Perfect, I'd like to apply",
+          "response": "Based on your plan to visit Indonesia for tourism for 60 days, the E-KIT (Electronic Visa) would be perfect for your needs, costing IDR 500,000 and allowing you to stay for up to 60 days. Would you like to know more about the requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'CA', 'intended_stay_days': 60}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 248\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:22.278734"
+        }
+      ]
+    },
+    "ce1900f2-07f0-4a8b-82ca-22e150081329": {
+      "name": "American Business Traveler",
+      "conversation": [
+        {
+          "message": "Hi, I need a business visa",
+          "response": "For your business visa, you'll need a valid passport (with at least six months' validity), a recent passport photo, and a completed application form. Additionally, you should have a sponsor letter from an Indonesian company or citizen, and proof of accommodation and return ticket. Next, we can proceed with filling out the application form and gathering the necessary documents.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'business'}\n- ProfileDelta: {'purpose': 'business'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 379\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:29.446082"
+        },
+        {
+          "message": "I'm American and coming for business meetings",
+          "response": "Great to have that information! We now know your nationality is US and your purpose is business. Next, could you please share the approximate duration of your stay in Indonesia? This will help us determine the best type of visa for you.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'US'}\n- ProfileDelta: {'nationality_iso2': 'US', 'purpose': 'business'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 236\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:35.106697"
+        },
+        {
+          "message": "I'll be there for 2 weeks",
+          "response": "Great to hear you're planning a 14-day business trip to Indonesia! We just need your travel dates now to proceed with your visa application.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'US', 'intended_stay_days': 14}\n- ProfileDelta: {'intended_stay_days': 14}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 140\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:39.781639"
+        },
+        {
+          "message": "What documents do I need?",
+          "response": "For your business visit to Indonesia, you'll need a passport valid for at least six months, recent passport photos, a completed application form, proof of accommodation, and a return ticket. Additionally, since it's a business visit, you should have a sponsor letter from an Indonesian company or citizen. Next, let's fill out the forms together.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'business', 'nationality_iso2': 'US', 'intended_stay_days': 14}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 346\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:44.984228"
+        },
+        {
+          "message": "How much does it cost?",
+          "response": "For your business visit to Indonesia, the E-KIT costs IDR 500,000 and the Visit Visa (B211A) costs IDR 1,500,000. Which one would you like to proceed with?\n[DEBUG INFO]\n- Intent: ask_price\n- Profile: {'purpose': 'business', 'nationality_iso2': 'US', 'intended_stay_days': 14}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 155\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:50.345782"
+        },
+        {
+          "message": "Can I extend it if needed?",
+          "response": "For your business visit to Indonesia, you can extend your visa if needed, but you must apply for an extension before your visa expires. You'll need to provide additional documentation showing your continued need to stay.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'business', 'nationality_iso2': 'US', 'intended_stay_days': 14}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 220\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:51:55.185910"
+        }
+      ]
+    },
+    "7bb6758a-4c2a-4e27-aae5-a2a0569c2259": {
+      "name": "Australian Long-term Visitor",
+      "conversation": [
+        {
+          "message": "Hello, I want to stay in Indonesia for 6 months",
+          "response": "Thank you for letting me know your intended stay of 180 days in Indonesia. We need to confirm your nationality and the purpose of your visit to give you the right advice.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'intended_stay_days': 180}\n- ProfileDelta: {'intended_stay_days': 180}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 170\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:02.404385"
+        },
+        {
+          "message": "I'm from Australia",
+          "response": "Thank you for providing your nationality. We now have your Australian citizenship. Next, could you please share your purpose of visiting Indonesia? This will help us give you the best advice on obtaining your visa.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'nationality_iso2': 'AU', 'intended_stay_days': 180}\n- ProfileDelta: {'nationality_iso2': 'AU'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 214\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:07.606631"
+        },
+        {
+          "message": "I want to explore different islands and learn about the culture",
+          "response": "Great to hear about your plans! With your purpose as tourism and a duration of 180 days, we're well on our way. Next, could you tell me about your travel dates? This will help us secure the best visa options for your trip to Indonesia.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'AU', 'intended_stay_days': 180}\n- ProfileDelta: {'purpose': 'tourism'}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 235\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:12.800669"
+        },
+        {
+          "message": "What's the best visa for me?",
+          "response": "Based on your profile, I recommend applying for the Visit Visa (B211A). It's suitable for your 180-day tourism plan, as it allows up to 60 days initially and can be extended. Would you like to know more about the requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'AU', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 235\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:18.065807"
+        },
+        {
+          "message": "What are the requirements?",
+          "response": "For your tourist visa to Indonesia, you'll need a valid passport with at least six months' validity, recent passport photos, a completed application form, proof of accommodation, and a return ticket. Since you're from Australia, you won't need a sponsor letter. Next, we can proceed with filling out the application form and gathering the necessary documents.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'AU', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 359\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:23.497451"
+        },
+        {
+          "message": "How much will it cost?",
+          "response": "For your tourism visa to Indonesia for 180 days, the E-KIT option costs IDR 500,000 and the Visit Visa (B211A) costs IDR 1,500,000. Which one would you like to proceed with?\n[DEBUG INFO]\n- Intent: ask_price\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'AU', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 173\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:28.821855"
+        },
+        {
+          "message": "Do I need a sponsor?",
+          "response": "For your visit to Indonesia, since it's for tourism, you won't need a sponsor. However, you will need to provide proof of accommodation and a return ticket in your visa application. Make sure your passport has at least six months' validity before applying.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'AU', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 256\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:34.249611"
+        }
+      ]
+    },
+    "61b87944-0f67-4925-a310-b4a53db544a7": {
+      "name": "German Investor",
+      "conversation": [
+        {
+          "message": "I'm interested in investment visa",
+          "response": "Thank you for sharing your interest in an investment visa. We need to confirm your nationality to proceed. Once I have that, we can move forward with your application.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'investment'}\n- ProfileDelta: {'purpose': 'investment'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 167\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:41.225539"
+        },
+        {
+          "message": "I'm German and want to invest in Indonesia",
+          "response": "Great to hear about your interest in investing in Indonesia! We need to know how long you plan to stay to give you a specific recommendation.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'investment', 'nationality_iso2': 'DE'}\n- ProfileDelta: {'nationality_iso2': 'DE', 'purpose': 'investment'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 141\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:46.155302"
+        },
+        {
+          "message": "I plan to stay long-term, maybe 2-3 years",
+          "response": "Thank you for providing your intended stay duration of 1095 days. We have all the necessary information now regarding your nationality, purpose, and duration. Based on this, I recommend applying for a Business Visa, which will allow you to invest in Indonesia for the specified period. Let’s proceed with your application.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'investment', 'nationality_iso2': 'DE', 'intended_stay_days': 1095}\n- ProfileDelta: {'intended_stay_days': 1095}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 322\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:51.164995"
+        },
+        {
+          "message": "What investment visa options do you have?",
+          "response": "Thank you for providing your details. With Germany as your nationality, investment as your purpose, and a duration of 1095 days, I can recommend the Investor Visa for you. Let’s proceed with this option.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'investment', 'nationality_iso2': 'DE', 'intended_stay_days': 1095}\n- ProfileDelta: {'purpose': 'investment'}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 203\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:52:57.285308"
+        },
+        {
+          "message": "What's the minimum investment amount?",
+          "response": "Thank you for providing your purpose of investment. With your nationality, purpose, and duration now clear, we can recommend the appropriate visa option for your visit to Indonesia. Let’s proceed with checking the specific requirements for investors like you.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'investment', 'nationality_iso2': 'DE', 'intended_stay_days': 1095}\n- ProfileDelta: {'purpose': 'investment'}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 259\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:02.323759"
+        },
+        {
+          "message": "What documents are required?",
+          "response": "For your investment visit to Indonesia, you'll need a valid passport (with at least six months' validity), a recent passport photo, a completed application form, proof of accommodation, a round-trip ticket, and a sponsor letter from an Indonesian citizen or company. Next, we can proceed with submitting your application.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'investment', 'nationality_iso2': 'DE', 'intended_stay_days': 1095}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 321\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:07.456621"
+        }
+      ]
+    },
+    "ef428a34-6598-468f-9d24-9ba5eddbdcbb": {
+      "name": "British Student",
+      "conversation": [
+        {
+          "message": "Hi, I need a student visa",
+          "response": "For your student visa to Indonesia, you'll need to provide a sponsor letter from an Indonesian educational institution, along with the E-KIT documents including your passport, passport photos, completed application form, proof of accommodation, and return ticket. Next, we should contact your chosen educational institution to obtain the necessary sponsor letter.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'education'}\n- ProfileDelta: {'purpose': 'education'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 363\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:14.832904"
+        },
+        {
+          "message": "I'm from UK and got accepted to a university in Jakarta",
+          "response": "Great to hear about your acceptance to the university in Jakarta! We now have your nationality and purpose. Next, could you please share the expected duration of your stay in Indonesia? This will help us determine the most suitable visa option for you.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'education', 'nationality_iso2': 'GB'}\n- ProfileDelta: {'nationality_iso2': 'GB', 'purpose': 'education'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 252\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:19.705896"
+        },
+        {
+          "message": "I'll be studying for 4 years",
+          "response": "Thank you for providing your intended stay details. With your nationality, purpose of education, and duration of 1460 days, we're well on our way. Next, could you please share your travel dates? This will help us secure the appropriate visa for your study period in Indonesia.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'education', 'nationality_iso2': 'GB', 'intended_stay_days': 1460}\n- ProfileDelta: {'purpose': 'education', 'intended_stay_days': 1460}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 276\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:24.903171"
+        },
+        {
+          "message": "What type of visa do I need?",
+          "response": "For your educational purpose in Indonesia, you will need a Visit Visa (B211A). In addition to the E-KIT requirements, you'll also need a sponsor letter from an Indonesian citizen or company. Next, we should prepare your application and ensure all documents are correct.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'education', 'nationality_iso2': 'GB', 'intended_stay_days': 1460}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 269\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:30.078214"
+        },
+        {
+          "message": "What are the requirements?",
+          "response": "For your educational purposes in Indonesia, you'll need a sponsor letter from an Indonesian citizen or company, along with all the E-KIT requirements. Next, submit your application to the Indonesian embassy or consulate in the UK.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'education', 'nationality_iso2': 'GB', 'intended_stay_days': 1460}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 230\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:35.178610"
+        },
+        {
+          "message": "Can I work part-time with this visa?",
+          "response": "Thank you for providing your purpose of business. With the information you've given, we can proceed. Next, could you please confirm if you will be staying in Indonesia for 1460 days? This will help us determine the type of visa you need.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'GB', 'intended_stay_days': 1460}\n- ProfileDelta: {'purpose': 'business'}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 237\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:40.596409"
+        }
+      ]
+    },
+    "1a647b96-0342-4fa2-887c-18ca28f64fc6": {
+      "name": "Japanese Retiree",
+      "conversation": [
+        {
+          "message": "Hello, I'm interested in retirement visa",
+          "response": "Hello! Thank you for letting me know your purpose is for retirement. We need your nationality to proceed with your application for a retirement visa to Indonesia.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'retirement'}\n- ProfileDelta: {'purpose': 'retirement'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 162\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:47.279613"
+        },
+        {
+          "message": "I'm Japanese, 65 years old",
+          "response": "Thank you for providing your intended stay duration of 23,725 days. With your nationality and purpose of visiting Indonesia for retirement, we have most of the information needed. The next step is to confirm your health status and any necessary documentation. Let’s ensure everything aligns for a smooth application process.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'retirement', 'nationality_iso2': 'JP', 'intended_stay_days': 23725}\n- ProfileDelta: {'nationality_iso2': 'JP', 'intended_stay_days': 23725}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 324\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:52.563734"
+        },
+        {
+          "message": "I want to retire in Bali",
+          "response": "Thank you for sharing your intention to retire in Bali. We have your nationality (JP) and purpose (retirement) now. The duration of 23725 days is quite extensive; we’ll need to ensure your visa application aligns with this long-term stay. Could you please confirm your exact date of arrival? This will help us tailor the application process accordingly.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'retirement', 'nationality_iso2': 'JP', 'intended_stay_days': 23725}\n- ProfileDelta: {'purpose': 'retirement'}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 353\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:53:58.012834"
+        },
+        {
+          "message": "What retirement visa options are available?",
+          "response": "Thank you for providing your profile details. With Japan as your nationality, retirement as your purpose, and a duration of 23725 days, we can recommend the Retirement Visa for Indonesia. Please confirm if you plan to reside in Bali or another region, as this may affect the application process.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'retirement', 'nationality_iso2': 'JP', 'intended_stay_days': 23725}\n- ProfileDelta: {'purpose': 'retirement'}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 295\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:54:03.359619"
+        },
+        {
+          "message": "What are the age and financial requirements?",
+          "response": "For your retirement visit to Indonesia, both the E-KIT and B211A visa require a valid passport with at least six months' validity, passport photos, and proof of accommodation. Additionally, you'll need a sponsor letter if applying for the B211A visa. Ensure your financial statements show sufficient funds for your stay. Next, complete the application forms and gather all required documents.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'retirement', 'nationality_iso2': 'JP', 'intended_stay_days': 23725}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 392\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:54:08.656724"
+        },
+        {
+          "message": "How long can I stay?",
+          "response": "Error 502: {\"status\":\"error\",\"code\":502,\"message\":\"Application failed to respond\",\"request_id\":\"1oXMe5VSRjeqJywcV7rehQ\"}",
+          "timestamp": "2025-10-04T08:54:11.893737"
+        }
+      ]
+    },
+    "25a49a8e-e5c4-481e-819e-3c41d6844f3f": {
+      "name": "Singaporean Family Visitor",
+      "conversation": [
+        {
+          "message": "I need a visa to visit family in Indonesia",
+          "response": "To apply for a family visit visa, you'll need your passport with at least six months' validity, a recent passport photo, a completed application form, proof of accommodation, and a return ticket. Additionally, you'll need a sponsor letter from an Indonesian citizen or company. Next, fill out the application form and gather all required documents.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'family_visit'}\n- ProfileDelta: {'purpose': 'family_visit'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 348\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:54:19.282150"
+        },
+        {
+          "message": "I'm from Singapore",
+          "response": "Thank you for providing your nationality. We now have your basic details. To proceed, could you please share your planned duration of stay in Indonesia?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'family_visit', 'nationality_iso2': 'SG'}\n- ProfileDelta: {'nationality_iso2': 'SG'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 152\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:54:24.220184"
+        },
+        {
+          "message": "I want to stay for 1 month",
+          "response": "Great to hear your plans! With your nationality, purpose, and duration now confirmed, we're well on our way. Next, could you share your travel dates? This will help us finalize your visa application.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'family_visit', 'nationality_iso2': 'SG', 'intended_stay_days': 30}\n- ProfileDelta: {'intended_stay_days': 30}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 199\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:54:29.251145"
+        },
+        {
+          "message": "My family lives in Jakarta",
+          "response": "Thank you for sharing that your family lives in Jakarta. We have all the necessary details now—nationality (SG), purpose (family visit), and duration (30 days). Your visa application for visiting Indonesia should proceed smoothly. Next, could you please provide your travel dates?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'family_visit', 'nationality_iso2': 'SG', 'intended_stay_days': 30}\n- ProfileDelta: {'purpose': 'family_visit'}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 280\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:54:35.890953"
+        },
+        {
+          "message": "What visa should I get?",
+          "response": "For your family visit to Indonesia for 30 days, the Visit Visa (B211A) would be suitable. It costs IDR 350,000 and allows a stay of up to 60 days. Would you like to know more about the requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'family_visit', 'nationality_iso2': 'SG', 'intended_stay_days': 30}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 207\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:54:41.162406"
+        },
+        {
+          "message": "Do I need an invitation letter?",
+          "response": "For your family visit to Indonesia, you will need an invitation letter from an Indonesian sponsor. This is in addition to the E-KIT requirements, which include your passport (valid for at least 6 months), passport photos, completed application form, proof of accommodation, and return ticket.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'family_visit', 'nationality_iso2': 'SG', 'intended_stay_days': 30}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 292\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:54:46.469098"
+        }
+      ]
+    },
+    "005e61bf-33d1-4d58-a78f-04dc2e9b357a": {
+      "name": "French Digital Nomad",
+      "conversation": [
+        {
+          "message": "Hi, I'm a digital nomad from France",
+          "response": "Hello! Nice to meet you. With your French nationality, you're ready to explore Indonesia. Could you please share your travel purpose and expected duration? This will help me give you the best advice for your visa application.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'nationality_iso2': 'FR'}\n- ProfileDelta: {'nationality_iso2': 'FR'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 225\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:54:53.594623"
+        },
+        {
+          "message": "I want to work remotely from Indonesia",
+          "response": "Thank you for letting me know your purpose is business. I now have your nationality (FR) and purpose (business). We just need the duration of your stay to give you a specific recommendation on which visa might be suitable for your needs in Indonesia.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'FR'}\n- ProfileDelta: {'purpose': 'business'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 250\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:54:58.750660"
+        },
+        {
+          "message": "I plan to stay for 6 months",
+          "response": "Great to hear your plans! With your nationality, purpose, and duration now clear, we can proceed with your visa application for Indonesia. Next, could you share your recent passport details?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'FR', 'intended_stay_days': 180}\n- ProfileDelta: {'intended_stay_days': 180}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 190\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:55:03.472030"
+        },
+        {
+          "message": "What visa allows remote work?",
+          "response": "The Business Visit Visa (B211B) would be suitable for your needs, allowing you to stay for 60 days and conduct business in Indonesia. It's perfect for your 180-day plan, even though it's split into stages. Would you like to know more about the requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'business', 'nationality_iso2': 'FR', 'intended_stay_days': 180}\n- ProfileDelta: {'purpose': 'business'}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 266\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:55:08.873395"
+        },
+        {
+          "message": "Can I extend it?",
+          "response": "For your business trip, the Business Visit Visa (B211B) would be suitable, allowing you 60 days in Indonesia. Since you're planning a longer stay, you might consider extending your visa upon arrival. Would you like to know more about the requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'business', 'nationality_iso2': 'FR', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 260\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:55:14.045982"
+        },
+        {
+          "message": "What are the requirements?",
+          "response": "For your business visit to Indonesia, you'll need a valid passport (with at least 6 months validity), a recent passport photo, and a completed application form. Additionally, you should have proof of accommodation, a return ticket, and a sponsor letter from an Indonesian company or citizen, if applying for a Visit Visa (B211A). Next, review the application form and gather all required documents to submit.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'business', 'nationality_iso2': 'FR', 'intended_stay_days': 180}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 408\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:55:19.492764"
+        }
+      ]
+    },
+    "5c1a0265-6f38-44e5-8eda-a145b76ce771": {
+      "name": "Malaysian Medical Tourist",
+      "conversation": [
+        {
+          "message": "Hello, I need a medical visa",
+          "response": "Hello! For a medical visa to visit Indonesia, you'll need your passport with at least six months' validity, a recent passport photo, and a completed application form. Additionally, you should have proof of accommodation and a return ticket. Since it's a medical visa, you might also need a doctor’s note explaining your medical condition and why you need to be treated in Indonesia. Next, let's gather these documents and proceed with your application.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {}\n- ProfileDelta: {}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 452\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:55:27.021091"
+        },
+        {
+          "message": "I'm from Malaysia",
+          "response": "Thank you for letting me know you're from Malaysia. We have your nationality now. Next, could you please share your purpose of visiting Indonesia and how long you plan to stay? This will help us with your visa application.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'nationality_iso2': 'MY'}\n- ProfileDelta: {'nationality_iso2': 'MY'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 222\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:55:32.333235"
+        },
+        {
+          "message": "I need medical treatment in Jakarta",
+          "response": "To get a visit visa for medical treatment in Jakarta, you'll need your passport (valid for at least 6 months), a recent passport photo, and a completed application form. Additionally, you'll require a sponsor letter from an Indonesian citizen or company. Next, submit these documents to our office, and we'll process your visa.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'nationality_iso2': 'MY'}\n- ProfileDelta: {}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 327\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:55:37.576032"
+        },
+        {
+          "message": "I'll stay for 2 months",
+          "response": "Great to hear your plans! With your nationality (MY) and intended stay of 60 days, we're close to submitting your visa application. Just need to confirm your purpose of visit now.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'nationality_iso2': 'MY', 'intended_stay_days': 60}\n- ProfileDelta: {'intended_stay_days': 60}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 179\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:55:42.563375"
+        },
+        {
+          "message": "What medical visa do you offer?",
+          "response": "To provide the best advice, could you please confirm your nationality and the exact purpose of your visit to Indonesia? This will help me recommend the most suitable visa option for you.\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'nationality_iso2': 'MY', 'intended_stay_days': 60}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 186\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:55:47.572034"
+        },
+        {
+          "message": "What documents do I need?",
+          "response": "For your visit to Indonesia, you'll need a passport valid for at least six months, a recent passport photo, and a completed application form. Since you're not staying longer than 60 days, you can apply for the E-KIT if you have a sponsor letter from an Indonesian citizen or company, or proceed with the standard Visit Visa (B211A) if you don't. Next, let's review your documents to ensure everything is in order.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'nationality_iso2': 'MY', 'intended_stay_days': 60}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 413\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:55:53.098722"
+        }
+      ]
+    },
+    "49eee69c-8adc-4a2d-b6da-efd37284ba1f": {
+      "name": "Indian Conference Attendee",
+      "conversation": [
+        {
+          "message": "Hi, I need a visa for a conference",
+          "response": "For your business conference in Indonesia, you'll need to provide a sponsor letter from an Indonesian citizen or company, along with the same documents required for an E-KIT visa. Next, we should prepare your application form and gather all necessary documentation.\n[DEBUG INFO]\n- Intent: ask_requirements\n- Profile: {'purpose': 'business'}\n- ProfileDelta: {'purpose': 'business'}\n- ChatHistory: 1 messages\n- AI Response: SUCCESS\n- Response Length: 265\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:56:00.345331"
+        },
+        {
+          "message": "I'm from India",
+          "response": "Great to have that information! We already know your nationality is IN and your purpose is business. Next, could you please share the estimated duration of your stay in Indonesia? This will help us give you the best advice on the visa requirements.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'IN'}\n- ProfileDelta: {'nationality_iso2': 'IN'}\n- ChatHistory: 4 messages\n- AI Response: SUCCESS\n- Response Length: 248\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:56:05.295963"
+        },
+        {
+          "message": "I'll attend a 3-day conference in Bali",
+          "response": "Thank you for letting me know about your business trip to Bali. With your nationality and purpose of visit confirmed, I just need to know the exact dates to give you a precise recommendation on the type of visa you'll need.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'business', 'nationality_iso2': 'IN'}\n- ProfileDelta: {'purpose': 'business'}\n- ChatHistory: 7 messages\n- AI Response: SUCCESS\n- Response Length: 223\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:56:10.345600"
+        },
+        {
+          "message": "I want to extend my stay for tourism",
+          "response": "Thank you for letting me know your purpose is tourism. I see we already have your nationality as IN. To give you a specific recommendation, could you please tell me how long you plan to stay in Indonesia?\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'IN'}\n- ProfileDelta: {'purpose': 'tourism'}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 204\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:56:15.528106"
+        },
+        {
+          "message": "What's the best visa option?",
+          "response": "For your trip to Indonesia for tourism, I would recommend the Visit Visa (B211A), which allows up to 60 days. It’s suitable because it covers your planned duration of stay. Would you like to know more about the requirements or costs?\n[DEBUG INFO]\n- Intent: ask_recommendation\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'IN'}\n- ProfileDelta: {}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 233\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:56:20.832786"
+        },
+        {
+          "message": "Can I combine business and tourism?",
+          "response": "Great to hear from you! With your nationality as India and purpose being tourism, we're making good progress. Could you please let me know the duration of your trip? This will help me give you the best advice on combining business and tourism in Indonesia.\n[DEBUG INFO]\n- Intent: provide_profile_data\n- Profile: {'purpose': 'tourism', 'nationality_iso2': 'IN'}\n- ProfileDelta: {'purpose': 'tourism'}\n- ChatHistory: 10 messages\n- AI Response: SUCCESS\n- Response Length: 256\n\n\n[HYBRID SERVICE CONFIRMED]",
+          "timestamp": "2025-10-04T08:56:25.978477"
+        }
+      ]
+    }
+  }
+}
