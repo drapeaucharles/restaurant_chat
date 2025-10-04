@@ -314,6 +314,16 @@ class WorkingVisaFlowOrchestrator:
                         current_profile = {}
                 else:
                     current_profile = {}
+                # Purpose consistency check - don't change purpose from work-related questions
+                if "purpose" in profile_delta and "purpose" in current_profile:
+                    work_questions = ["work part-time", "work with", "can i work", "working with", "employment with"]
+                    # Check if this is a work-related question that shouldn't change purpose
+                    if current_profile["purpose"] in ["education", "tourism", "business"] and profile_delta["purpose"] == "business":
+                        # Only allow purpose change if it's not from a work-related question
+                        # For now, preserve existing purpose for education and tourism
+                        if current_profile["purpose"] in ["education", "tourism"]:
+                            profile_delta = {k: v for k, v in profile_delta.items() if k != "purpose"}
+                
                 current_profile.update(profile_delta)
                 
                 update_query = text("""
