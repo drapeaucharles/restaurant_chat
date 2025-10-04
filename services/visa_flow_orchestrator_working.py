@@ -167,12 +167,14 @@ class WorkingVisaFlowOrchestrator:
             r"my\s+name\s+is\s+(\w+)",  # "My name is John"
             r"i\s+am\s+(\w+)",  # "I am John"
             r"call\s+me\s+(\w+)",  # "Call me John"
-            r"^(\w+)$"  # Just a single word (if message is very short)
         ]
+        
+        # Avoid common words that aren't names
+        common_words = {"from", "the", "and", "for", "with", "to", "in", "on", "at", "by", "of", "a", "an", "is", "are", "was", "were", "be", "been", "have", "has", "had", "do", "does", "did", "will", "would", "could", "should", "may", "might", "can", "must"}
         
         for pattern in name_patterns:
             match = re.search(pattern, message_lower)
-            if match and len(match.group(1)) > 1:  # Avoid single letters
+            if match and len(match.group(1)) > 1 and match.group(1).lower() not in common_words:
                 profile_delta["client_name"] = match.group(1).capitalize()
                 break
         
