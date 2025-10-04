@@ -270,23 +270,53 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
         
         elif intent == "ask_recommendation":
             if profile.get("nationality_iso2") and profile.get("purpose"):
+                # Get duration for specific rules
+                duration = profile.get("intended_stay_days", 0)
+                
+                if duration > 365:
+                    prompt += """
+- CRITICAL DURATION RULE: Stay > 365 days = LONG-TERM RESIDENCE
+- RECOMMEND: KITAS or VITAS (NOT B211A or E-KIT)
+- KITAS allows 1+ years residence, perfect for long-term stays
+- Include pricing: KITAS/VITAS (varies by type, typically IDR 3,000,000+)
+- Explain this is for long-term residence, not tourism"""
+                elif duration > 180:
+                    prompt += """
+- CRITICAL DURATION RULE: Stay > 180 days = EXTENDED STAY
+- RECOMMEND: KITAS (long-term) or B211A with multiple extensions
+- B211A allows 30 days + 2 extensions (30+60+60 = 150 days max)
+- For 180+ days, KITAS is more appropriate than multiple extensions
+- Include pricing: B211A (IDR 1,500,000), KITAS (varies)
+- Explain extension limitations vs long-term visa benefits"""
+                elif duration > 60:
+                    prompt += """
+- DURATION RULE: Stay > 60 days = NEEDS EXTENSION
+- RECOMMEND: B211A (30 days extendable to 60) with extension plan
+- E-KIT only allows 30 days extendable to 60 days max
+- B211A is better for stays > 60 days
+- Include pricing: B211A (IDR 1,500,000)
+- Explain extension process and timing"""
+                elif duration > 30:
+                    prompt += """
+- DURATION RULE: Stay 30-60 days = EXTENDABLE VISA
+- RECOMMEND: B211A (30 days extendable to 60) or E-KIT (30 days extendable to 60)
+- Both allow 30 days initial + 1 extension to 60 days
+- E-KIT is cheaper (IDR 500,000), B211A more flexible (IDR 1,500,000)
+- Include pricing and explain extension process"""
+                else:
+                    prompt += """
+- DURATION RULE: Stay ≤ 30 days = SHORT STAY
+- RECOMMEND: E-KIT (30 days) or B211A (30 days)
+- E-KIT is perfect for short tourism (IDR 500,000)
+- B211A if they need more flexibility (IDR 1,500,000)
+- Include pricing and explain no extension needed"""
+                
                 prompt += """
-- Analyze their profile and apply intelligent visa recommendation rules:
-  * DURATION RULE: If stay > 365 days → recommend long-term visas (KITAS, VITAS)
-  * DURATION RULE: If stay ≤ 30 days → recommend E-KIT (30 days extendable to 60)
-  * DURATION RULE: If stay 30-60 days → recommend B211A (30 days extendable to 60)
-  * DURATION RULE: If stay 60-365 days → recommend B211A with multiple extensions or KITAS
-  * PURPOSE RULE: Tourism → E-KIT or B211A (NOT KITAS for short stays)
-  * PURPOSE RULE: Business → B211B (business visa)
-  * PURPOSE RULE: Investment → VITAS or Investment KITAS (for long-term)
-  * PURPOSE RULE: Education → Student Visa or Education KITAS (for long-term)
-  * PURPOSE RULE: Retirement → Retirement KITAS (for long-term)
-  * PURPOSE RULE: Work → Work KITAS or IMTA (for long-term)
-- CRITICAL: KITAS is for LONG-TERM residence (1+ years), NOT for 60-day tourism
-- B211A allows 30 days extendable to 60 days, NOT 180 days
-- Always match visa duration capacity to their intended stay duration
-- If their stay exceeds visa capacity, explain extension options
-- Include pricing: E-KIT (IDR 500,000), B211A (IDR 1,500,000), KITAS/VITAS (varies)
+- CRITICAL VISA TYPE ACCURACY:
+  * KITAS = Long-term residence (1+ years), NOT for short tourism
+  * B211A = 30 days extendable to 60 days, NOT 180 days
+  * E-KIT = 30 days extendable to 60 days, NOT longer
+- Always match visa duration capacity to their intended stay
 - Explain why this specific visa fits their situation
 - Ask if they want requirements or costs"""
             else:
