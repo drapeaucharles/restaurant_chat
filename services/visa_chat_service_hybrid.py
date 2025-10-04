@@ -240,7 +240,10 @@ PROFILE VALIDATION RULES:
 - DURATION VALIDATION: If duration > 10000 days, this seems unreasonable - ask for clarification
 - PURPOSE VALIDATION: Ensure purpose matches their stated intentions
 - NATIONALITY VALIDATION: Confirm nationality is clear and valid
-- CONSISTENCY CHECK: Don't change purpose without explicit user request"""
+- CONSISTENCY CHECK: Don't change purpose without explicit user request
+- VISA TYPE VALIDATION: KITAS is for long-term residence (1+ years), NOT for short tourism
+- VISA TYPE VALIDATION: B211A allows 30 days extendable to 60 days, NOT 180 days
+- VISA TYPE VALIDATION: E-KIT is for 30 days extendable to 60 days, NOT longer"""
         
         # Add conversation progression guidance
         prompt += f"""
@@ -269,15 +272,18 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
             if profile.get("nationality_iso2") and profile.get("purpose"):
                 prompt += """
 - Analyze their profile and apply intelligent visa recommendation rules:
-  * DURATION RULE: If stay > 180 days → recommend long-term visas (KITAS, VITAS)
-  * DURATION RULE: If stay ≤ 60 days → recommend short-term visas (E-KIT, B211A)
-  * DURATION RULE: If stay 60-180 days → recommend extendable visas (B211A with extensions)
-  * PURPOSE RULE: Tourism → E-KIT or Visit Visa (B211A)
-  * PURPOSE RULE: Business → Business Visit Visa (B211B) 
-  * PURPOSE RULE: Investment → VITAS or Investment KITAS
-  * PURPOSE RULE: Education → Student Visa or Education KITAS
-  * PURPOSE RULE: Retirement → Retirement KITAS
-  * PURPOSE RULE: Work → Work KITAS or IMTA
+  * DURATION RULE: If stay > 365 days → recommend long-term visas (KITAS, VITAS)
+  * DURATION RULE: If stay ≤ 30 days → recommend E-KIT (30 days extendable to 60)
+  * DURATION RULE: If stay 30-60 days → recommend B211A (30 days extendable to 60)
+  * DURATION RULE: If stay 60-365 days → recommend B211A with multiple extensions or KITAS
+  * PURPOSE RULE: Tourism → E-KIT or B211A (NOT KITAS for short stays)
+  * PURPOSE RULE: Business → B211B (business visa)
+  * PURPOSE RULE: Investment → VITAS or Investment KITAS (for long-term)
+  * PURPOSE RULE: Education → Student Visa or Education KITAS (for long-term)
+  * PURPOSE RULE: Retirement → Retirement KITAS (for long-term)
+  * PURPOSE RULE: Work → Work KITAS or IMTA (for long-term)
+- CRITICAL: KITAS is for LONG-TERM residence (1+ years), NOT for 60-day tourism
+- B211A allows 30 days extendable to 60 days, NOT 180 days
 - Always match visa duration capacity to their intended stay duration
 - If their stay exceeds visa capacity, explain extension options
 - Include pricing: E-KIT (IDR 500,000), B211A (IDR 1,500,000), KITAS/VITAS (varies)

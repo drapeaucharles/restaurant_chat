@@ -210,10 +210,15 @@ class WorkingVisaFlowOrchestrator:
                     profile_delta["nationality_iso2"] = code
                     break
         
-        # Extract purpose (enhanced detection)
-        if any(word in message_lower for word in ["tourist", "tourism", "vacation", "holiday", "sightseeing", "leisure", "fun", "enjoy", "explore", "travel"]):
+        # Extract purpose (enhanced detection with context awareness)
+        # Check for work-related questions first (to avoid changing existing purpose)
+        work_questions = ["work part-time", "work with", "can i work", "working with", "employment with"]
+        if any(phrase in message_lower for phrase in work_questions):
+            # Don't change purpose for work-related questions
+            pass
+        elif any(word in message_lower for word in ["tourist", "tourism", "vacation", "holiday", "sightseeing", "leisure", "fun", "enjoy", "explore", "travel"]):
             profile_delta["purpose"] = "tourism"
-        elif any(word in message_lower for word in ["business", "meeting", "conference", "work"]):
+        elif any(word in message_lower for word in ["business", "meeting", "conference"]):
             profile_delta["purpose"] = "business"
         elif any(word in message_lower for word in ["study", "student", "education", "university", "school"]):
             profile_delta["purpose"] = "education"
