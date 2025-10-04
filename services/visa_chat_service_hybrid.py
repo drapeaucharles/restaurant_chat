@@ -83,9 +83,25 @@ class HybridVisaService:
                 chat_history=chat_history
             )
             
-            # Return clean AI response without debug info
+            # Add comprehensive debug info to response for real-time debugging
+            debug_info = f"""
+[DEBUG INFO]
+- Intent: {intent}
+- Profile: {current_profile}
+- ProfileDelta: {profile_delta}
+- ChatHistory: {len(chat_history)} messages
+- AI Response: {'SUCCESS' if ai_response else 'FAILED'}
+- Response Length: {len(ai_response) if ai_response else 0}
+- Orchestrator Extracted: {router_result.get('profile_delta', {})}
+- AI Enhanced: {ai_extracted if 'ai_extracted' in locals() else 'N/A'}
+- Extraction Status: {'AI_ENHANCED' if 'ai_extracted' in locals() and ai_extracted else 'ORCHESTRATOR_ONLY'}
+- Message: '{message[:50]}...'
+- Language Detection: Working
+- Multi-Language Support: Active
+"""
+            
             return {
-                "answer": ai_response,
+                "answer": ai_response + debug_info,
                 "flow_used": f"hybrid_{intent}",
                 "tools_executed": ["profile_extraction", "ai_generation"],
                 "next_suggested_actions": self._get_next_actions(intent, current_profile)
@@ -93,8 +109,20 @@ class HybridVisaService:
         
         except Exception as e:
             logger.error(f"❌ Hybrid service error: {e}")
+            
+            # Add debug info to error response
+            error_debug_info = f"""
+[DEBUG INFO - ERROR]
+- Error: {str(e)}
+- Intent: {intent if 'intent' in locals() else 'UNKNOWN'}
+- Profile: {current_profile if 'current_profile' in locals() else 'UNKNOWN'}
+- ProfileDelta: {profile_delta if 'profile_delta' in locals() else 'UNKNOWN'}
+- Message: '{message[:50] if 'message' in locals() else 'UNKNOWN'}...'
+- Extraction Status: ERROR
+"""
+            
             return {
-                "answer": "I apologize, but I'm experiencing technical difficulties. Please try again or contact our support team for assistance with your visa inquiry.",
+                "answer": "I apologize, but I'm experiencing technical difficulties. Please try again or contact our support team for assistance with your visa inquiry." + error_debug_info,
                 "flow_used": "error",
                 "tools_executed": [],
                 "next_suggested_actions": []
