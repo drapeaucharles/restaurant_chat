@@ -257,7 +257,7 @@ class HybridVisaService:
                     return "I'd love to help! Could you tell me your nationality and travel purpose?"
             
             else:
-                # Default response
+                # Default response - ensure we always have language-specific responses
                 if message_language == "fr":
                     return "Bonjour, je peux vous aider avec votre visa pour l'Indonésie."
                 elif message_language == "es":
@@ -323,7 +323,7 @@ class HybridVisaService:
                     return "I'd love to help! Could you tell me your nationality and travel purpose?"
             
             else:
-                # Default response
+                # Default response - ensure we always have language-specific responses
                 if message_language == "fr":
                     return "Bonjour, je peux vous aider avec votre visa pour l'Indonésie."
                 elif message_language == "es":
@@ -630,14 +630,14 @@ Return ONLY valid JSON, no other text:"""
         """Detect language from message using simple pattern matching"""
         message_lower = message.lower()
         
-        # Language detection patterns
-        if any(word in message_lower for word in ["bonjour", "salut", "je", "tu", "vous", "français", "française"]):
+        # Language detection patterns - Enhanced with more phrases
+        if any(word in message_lower for word in ["bonjour", "salut", "je", "tu", "vous", "français", "française", "j'ai", "besoin", "visa", "pour", "le", "tourisme", "jours"]):
             return "fr"
-        elif any(word in message_lower for word in ["hola", "soy", "necesito", "español", "española", "mexicano", "mexicana"]):
+        elif any(word in message_lower for word in ["hola", "soy", "necesito", "español", "española", "mexicano", "mexicana", "para", "negocios", "semanas"]):
             return "es"
-        elif any(word in message_lower for word in ["hallo", "ich", "bin", "deutsch", "deutsche", "deutscher"]):
+        elif any(word in message_lower for word in ["hallo", "ich", "bin", "deutsch", "deutsche", "deutscher", "brauche", "visum", "für", "studium", "monate"]):
             return "de"
-        elif any(word in message_lower for word in ["こんにちは", "私は", "日本人", "ビザ", "インドネシア"]):
+        elif any(word in message_lower for word in ["こんにちは", "私は", "日本人", "ビザ", "インドネシア", "観光", "ため", "日間"]):
             return "ja"
         elif any(word in message_lower for word in ["안녕하세요", "저는", "한국인", "비자", "인도네시아"]):
             return "ko"
