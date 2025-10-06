@@ -208,10 +208,15 @@ class HybridVisaService:
                 logger.warning(f"⚠️ MIA request failed with status {response.status_code} - using fallback")
                 logger.warning(f"📄 Response text: {response.text}")
             
-            # Force AI response - don't use orchestrator fallback
-            logger.warning(f"⚠️ AI generation failed, but forcing AI response for language consistency")
+            # Try OpenAI fallback if MIA fails
+            logger.warning(f"⚠️ MIA failed, trying OpenAI fallback")
+            openai_response = self._try_openai_fallback(prompt)
+            if openai_response:
+                logger.info(f"✅ OpenAI fallback successful: '{openai_response[:50]}...'")
+                return openai_response
             
-            # Create a simple AI response based on detected language
+            # Final fallback - language-specific responses
+            logger.warning(f"⚠️ All AI services failed, using language-specific fallback")
             message_language = self._detect_language_from_message(message)
             
             if message_language == "fr":
@@ -228,7 +233,17 @@ class HybridVisaService:
         except Exception as e:
             logger.error(f"❌ AI generation failed: {e}")
             
-            # Force language-consistent response even on exception
+            # Try OpenAI fallback even on exception
+            try:
+                prompt = self._build_contextual_prompt(message, intent, profile, profile_delta, chat_history)
+                openai_response = self._try_openai_fallback(prompt)
+                if openai_response:
+                    logger.info(f"✅ OpenAI fallback successful on exception: '{openai_response[:50]}...'")
+                    return openai_response
+            except Exception as fallback_error:
+                logger.warning(f"OpenAI fallback also failed: {fallback_error}")
+            
+            # Final fallback - language-specific responses
             message_language = self._detect_language_from_message(message)
             
             if message_language == "fr":
@@ -502,6 +517,36 @@ Return ONLY valid JSON, no other text:"""
             logger.warning(f"AI extraction failed: {e}")
             
         return {}
+    
+    def _try_openai_fallback(self, prompt: str) -> str:
+        """Try OpenAI as fallback when MIA fails"""
+        try:
+            import openai
+            from config import OPENAI_API_KEY
+            
+            if not OPENAI_API_KEY:
+                logger.warning("No OpenAI API key available")
+                return None
+                
+            openai.api_key = OPENAI_API_KEY
+            
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are Maya, a professional visa consultant. Respond in the same language as the user. Keep responses under 120 characters."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=50,
+                temperature=0.7
+            )
+            
+            ai_response = response.choices[0].message.content.strip()
+            logger.info(f"🤖 OpenAI response: '{ai_response}'")
+            return ai_response
+            
+        except Exception as e:
+            logger.warning(f"OpenAI fallback failed: {e}")
+            return None
     
     def _detect_language_from_message(self, message: str) -> str:
         """Detect language from message using simple pattern matching"""
