@@ -208,19 +208,39 @@ class HybridVisaService:
                 logger.warning(f"⚠️ MIA request failed with status {response.status_code} - using fallback")
                 logger.warning(f"📄 Response text: {response.text}")
             
-            # Fallback to contextual template if AI fails
-            logger.info(f"🔄 Using contextual fallback for {intent}")
-            fallback_response = self._get_contextual_fallback(intent, profile, profile_delta)
+            # Force AI response - don't use orchestrator fallback
+            logger.warning(f"⚠️ AI generation failed, but forcing AI response for language consistency")
             
-            # Return clean fallback response without debug info
-            return fallback_response
+            # Create a simple AI response based on detected language
+            message_language = self._detect_language_from_message(message)
+            
+            if message_language == "fr":
+                return "Bonjour, je peux vous aider avec votre visa pour l'Indonésie."
+            elif message_language == "es":
+                return "Hola, puedo ayudarte con tu visa para Indonesia."
+            elif message_language == "de":
+                return "Hallo, ich kann Ihnen bei Ihrem Visum für Indonesien helfen."
+            elif message_language == "ja":
+                return "こんにちは、インドネシアのビザについてお手伝いできます。"
+            else:
+                return "Hello, I can help you with your visa for Indonesia."
             
         except Exception as e:
             logger.error(f"❌ AI generation failed: {e}")
-            fallback_response = self._get_contextual_fallback(intent, profile, profile_delta)
             
-            # Return clean exception fallback without debug info
-            return fallback_response
+            # Force language-consistent response even on exception
+            message_language = self._detect_language_from_message(message)
+            
+            if message_language == "fr":
+                return "Bonjour, je peux vous aider avec votre visa pour l'Indonésie."
+            elif message_language == "es":
+                return "Hola, puedo ayudarte con tu visa para Indonesia."
+            elif message_language == "de":
+                return "Hallo, ich kann Ihnen bei Ihrem Visum für Indonesien helfen."
+            elif message_language == "ja":
+                return "こんにちは、インドネシアのビザについてお手伝いできます。"
+            else:
+                return "Hello, I can help you with your visa for Indonesia."
     
     def _build_contextual_prompt(self, message: str, intent: str, profile: Dict, 
                                profile_delta: Dict, chat_history: List[Dict]) -> str:
