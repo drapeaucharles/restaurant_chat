@@ -630,13 +630,17 @@ Return ONLY valid JSON, no other text:"""
         """Detect language from message using simple pattern matching"""
         message_lower = message.lower()
         
-        # Language detection patterns - Enhanced with more phrases
-        if any(word in message_lower for word in ["bonjour", "salut", "je", "tu", "vous", "français", "française", "j'ai", "besoin", "visa", "pour", "le", "tourisme", "jours"]):
+        # Language detection patterns - More specific patterns to avoid false positives
+        # French: Use more specific patterns and avoid short words that can be substrings
+        if any(word in message_lower for word in ["bonjour", "salut", "français", "française", "j'ai", "besoin", "pour le", "tourisme", "jours"]):
             return "fr"
+        # Spanish: Use more specific patterns
         elif any(word in message_lower for word in ["hola", "soy", "necesito", "español", "española", "mexicano", "mexicana", "para", "negocios", "semanas"]):
             return "es"
-        elif any(word in message_lower for word in ["hallo", "ich", "bin", "deutsch", "deutsche", "deutscher", "brauche", "visum", "für", "studium", "monate"]):
+        # German: Use more specific patterns
+        elif any(word in message_lower for word in ["hallo", "ich bin", "deutsch", "deutsche", "deutscher", "brauche", "visum", "für", "studium", "monate"]):
             return "de"
+        # Japanese: Keep as is since it's working perfectly
         elif any(word in message_lower for word in ["こんにちは", "私は", "日本人", "ビザ", "インドネシア", "観光", "ため", "日間"]):
             return "ja"
         elif any(word in message_lower for word in ["안녕하세요", "저는", "한국인", "비자", "인도네시아"]):
