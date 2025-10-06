@@ -215,20 +215,59 @@ class HybridVisaService:
                 logger.info(f"✅ OpenAI fallback successful: '{openai_response[:50]}...'")
                 return openai_response
             
-            # Final fallback - language-specific responses
-            logger.warning(f"⚠️ All AI services failed, using language-specific fallback")
+            # Final fallback - intelligent language-specific responses based on intent
+            logger.warning(f"⚠️ All AI services failed, using intelligent language-specific fallback")
             message_language = self._detect_language_from_message(message)
             
-            if message_language == "fr":
-                return "Bonjour, je peux vous aider avec votre visa pour l'Indonésie."
-            elif message_language == "es":
-                return "Hola, puedo ayudarte con tu visa para Indonesia."
-            elif message_language == "de":
-                return "Hallo, ich kann Ihnen bei Ihrem Visum für Indonesien helfen."
-            elif message_language == "ja":
-                return "こんにちは、インドネシアのビザについてお手伝いできます。"
+            # Get contextual response based on intent and profile
+            if intent == "greeting":
+                if message_language == "fr":
+                    return "Bonjour! Je suis Maya de GSI Bali Agency. Comment puis-je vous aider avec votre visa pour l'Indonésie?"
+                elif message_language == "es":
+                    return "¡Hola! Soy Maya de GSI Bali Agency. ¿Cómo puedo ayudarte con tu visa para Indonesia?"
+                elif message_language == "de":
+                    return "Hallo! Ich bin Maya von GSI Bali Agency. Wie kann ich Ihnen bei Ihrem Visum für Indonesien helfen?"
+                elif message_language == "ja":
+                    return "こんにちは！私はGSI Bali Agencyのマヤです。インドネシアのビザについてどのようにお手伝いできますか？"
+                else:
+                    return "Hello! I'm Maya from GSI Bali Agency. How can I help you with your visa for Indonesia?"
+            
+            elif intent == "provide_profile_data":
+                if message_language == "fr":
+                    return "Parfait! Maintenant, pouvez-vous me dire votre nationalité et le but de votre voyage?"
+                elif message_language == "es":
+                    return "¡Perfecto! Ahora, ¿puedes decirme tu nacionalidad y el propósito de tu viaje?"
+                elif message_language == "de":
+                    return "Perfekt! Können Sie mir jetzt Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
+                elif message_language == "ja":
+                    return "完璧です！今度は、あなたの国籍と旅行の目的を教えていただけますか？"
+                else:
+                    return "Perfect! Now, can you tell me your nationality and travel purpose?"
+            
+            elif intent == "ask_recommendation":
+                if message_language == "fr":
+                    return "Je serais ravie de vous aider! Pouvez-vous me dire votre nationalité et le but de votre voyage?"
+                elif message_language == "es":
+                    return "¡Me encantaría ayudarte! ¿Puedes decirme tu nacionalidad y el propósito de tu viaje?"
+                elif message_language == "de":
+                    return "Ich helfe Ihnen gerne! Können Sie mir Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
+                elif message_language == "ja":
+                    return "お手伝いさせていただきます！あなたの国籍と旅行の目的を教えていただけますか？"
+                else:
+                    return "I'd love to help! Could you tell me your nationality and travel purpose?"
+            
             else:
-                return "Hello, I can help you with your visa for Indonesia."
+                # Default response
+                if message_language == "fr":
+                    return "Bonjour, je peux vous aider avec votre visa pour l'Indonésie."
+                elif message_language == "es":
+                    return "Hola, puedo ayudarte con tu visa para Indonesia."
+                elif message_language == "de":
+                    return "Hallo, ich kann Ihnen bei Ihrem Visum für Indonesien helfen."
+                elif message_language == "ja":
+                    return "こんにちは、インドネシアのビザについてお手伝いできます。"
+                else:
+                    return "Hello, I can help you with your visa for Indonesia."
             
         except Exception as e:
             logger.error(f"❌ AI generation failed: {e}")
@@ -243,19 +282,58 @@ class HybridVisaService:
             except Exception as fallback_error:
                 logger.warning(f"OpenAI fallback also failed: {fallback_error}")
             
-            # Final fallback - language-specific responses
+            # Final fallback - intelligent language-specific responses based on intent
             message_language = self._detect_language_from_message(message)
             
-            if message_language == "fr":
-                return "Bonjour, je peux vous aider avec votre visa pour l'Indonésie."
-            elif message_language == "es":
-                return "Hola, puedo ayudarte con tu visa para Indonesia."
-            elif message_language == "de":
-                return "Hallo, ich kann Ihnen bei Ihrem Visum für Indonesien helfen."
-            elif message_language == "ja":
-                return "こんにちは、インドネシアのビザについてお手伝いできます。"
+            # Get contextual response based on intent and profile
+            if intent == "greeting":
+                if message_language == "fr":
+                    return "Bonjour! Je suis Maya de GSI Bali Agency. Comment puis-je vous aider avec votre visa pour l'Indonésie?"
+                elif message_language == "es":
+                    return "¡Hola! Soy Maya de GSI Bali Agency. ¿Cómo puedo ayudarte con tu visa para Indonesia?"
+                elif message_language == "de":
+                    return "Hallo! Ich bin Maya von GSI Bali Agency. Wie kann ich Ihnen bei Ihrem Visum für Indonesien helfen?"
+                elif message_language == "ja":
+                    return "こんにちは！私はGSI Bali Agencyのマヤです。インドネシアのビザについてどのようにお手伝いできますか？"
+                else:
+                    return "Hello! I'm Maya from GSI Bali Agency. How can I help you with your visa for Indonesia?"
+            
+            elif intent == "provide_profile_data":
+                if message_language == "fr":
+                    return "Parfait! Maintenant, pouvez-vous me dire votre nationalité et le but de votre voyage?"
+                elif message_language == "es":
+                    return "¡Perfecto! Ahora, ¿puedes decirme tu nacionalidad y el propósito de tu viaje?"
+                elif message_language == "de":
+                    return "Perfekt! Können Sie mir jetzt Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
+                elif message_language == "ja":
+                    return "完璧です！今度は、あなたの国籍と旅行の目的を教えていただけますか？"
+                else:
+                    return "Perfect! Now, can you tell me your nationality and travel purpose?"
+            
+            elif intent == "ask_recommendation":
+                if message_language == "fr":
+                    return "Je serais ravie de vous aider! Pouvez-vous me dire votre nationalité et le but de votre voyage?"
+                elif message_language == "es":
+                    return "¡Me encantaría ayudarte! ¿Puedes decirme tu nacionalidad y el propósito de tu viaje?"
+                elif message_language == "de":
+                    return "Ich helfe Ihnen gerne! Können Sie mir Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
+                elif message_language == "ja":
+                    return "お手伝いさせていただきます！あなたの国籍と旅行の目的を教えていただけますか？"
+                else:
+                    return "I'd love to help! Could you tell me your nationality and travel purpose?"
+            
             else:
-                return "Hello, I can help you with your visa for Indonesia."
+                # Default response
+                if message_language == "fr":
+                    return "Bonjour, je peux vous aider avec votre visa pour l'Indonésie."
+                elif message_language == "es":
+                    return "Hola, puedo ayudarte con tu visa para Indonesia."
+                elif message_language == "de":
+                    return "Hallo, ich kann Ihnen bei Ihrem Visum für Indonesien helfen."
+                elif message_language == "ja":
+                    return "こんにちは、インドネシアのビザについてお手伝いできます。"
+                else:
+                    return "Hello, I can help you with your visa for Indonesia."
     
     def _build_contextual_prompt(self, message: str, intent: str, profile: Dict, 
                                profile_delta: Dict, chat_history: List[Dict]) -> str:
