@@ -199,7 +199,7 @@ class HybridVisaService:
                 logger.info(f"📥 MIA Response Data: {response_data}")
                 logger.info(f"📝 AI Response Raw: '{ai_response}'")
                 
-                if ai_response and len(ai_response.strip()) > 10:
+                if ai_response and len(ai_response.strip()) > 3:
                     logger.info(f"✅ AI response successful for {intent}: '{ai_response[:50]}...'")
                     return ai_response.strip()
                 else:
@@ -227,21 +227,26 @@ class HybridVisaService:
         """
         Build contextual prompt for AI based on conversation state
         """
+        # Detect language from message
+        message_language = self._detect_language_from_message(message)
+        
         prompt = f"""You are Maya, a professional visa consultant at GSI Bali Agency helping people get visas to visit INDONESIA.
 
 CONVERSATION CONTEXT:
 - Intent: {intent}
 - Current message: "{message}"
+- DETECTED LANGUAGE: {message_language.upper()}
 - IMPORTANT: Customer wants to visit INDONESIA (not their home country)
 
-MULTI-LANGUAGE INTELLIGENCE RULES:
-- DETECT LANGUAGE: Identify the language of their message
-- RESPOND IN SAME LANGUAGE: Always respond in the same language they used
-- SUPPORTED LANGUAGES: English, Indonesian (Bahasa Indonesia), Spanish, French, German, Japanese, Korean, Chinese, Arabic, Portuguese, Italian, Dutch, Russian, Thai, Vietnamese, Malay
+CRITICAL LANGUAGE RULES:
+- RESPOND ONLY IN: {message_language.upper()}
+- NEVER SWITCH LANGUAGES: If they wrote in French, respond in French
+- NEVER USE ENGLISH: Unless they wrote in English
 - LANGUAGE EXAMPLES:
-  * English: "Hello, I need a visa" → Respond in English
-  * Indonesian: "Halo, saya butuh visa" → Respond in Indonesian
-  * Spanish: "Hola, necesito una visa" → Respond in Spanish
+  * French: "Bonjour" → "Bonjour, je peux vous aider avec votre visa"
+  * Spanish: "Hola" → "Hola, puedo ayudarte con tu visa"
+  * German: "Hallo" → "Hallo, ich kann Ihnen bei Ihrem Visum helfen"
+  * Japanese: "こんにちは" → "こんにちは、ビザについてお手伝いできます"
 - MAINTAIN PROFESSIONALISM: Use appropriate formal/informal tone based on language
 - CULTURAL AWARENESS: Adapt response style to cultural norms of the language
 
@@ -477,7 +482,43 @@ Return ONLY valid JSON, no other text:"""
             logger.warning(f"AI extraction failed: {e}")
             
         return {}
-
+    
+    def _detect_language_from_message(self, message: str) -> str:
+        """Detect language from message using simple pattern matching"""
+        message_lower = message.lower()
+        
+        # Language detection patterns
+        if any(word in message_lower for word in ["bonjour", "salut", "je", "tu", "vous", "français", "française"]):
+            return "fr"
+        elif any(word in message_lower for word in ["hola", "soy", "necesito", "español", "española", "mexicano", "mexicana"]):
+            return "es"
+        elif any(word in message_lower for word in ["hallo", "ich", "bin", "deutsch", "deutsche", "deutscher"]):
+            return "de"
+        elif any(word in message_lower for word in ["こんにちは", "私は", "日本人", "ビザ", "インドネシア"]):
+            return "ja"
+        elif any(word in message_lower for word in ["안녕하세요", "저는", "한국인", "비자", "인도네시아"]):
+            return "ko"
+        elif any(word in message_lower for word in ["你好", "我是", "中国人", "签证", "印度尼西亚"]):
+            return "zh"
+        elif any(word in message_lower for word in ["مرحبا", "أنا", "عربي", "فيزا", "إندونيسيا"]):
+            return "ar"
+        elif any(word in message_lower for word in ["olá", "sou", "português", "portuguesa", "visto", "indonésia"]):
+            return "pt"
+        elif any(word in message_lower for word in ["ciao", "sono", "italiano", "italiana", "visto", "indonesia"]):
+            return "it"
+        elif any(word in message_lower for word in ["hallo", "ik", "ben", "nederlands", "nederlandse", "visum", "indonesië"]):
+            return "nl"
+        elif any(word in message_lower for word in ["привет", "я", "русский", "русская", "виза", "индонезия"]):
+            return "ru"
+        elif any(word in message_lower for word in ["สวัสดี", "ฉัน", "ไทย", "วีซ่า", "อินโดนีเซีย"]):
+            return "th"
+        elif any(word in message_lower for word in ["xin chào", "tôi", "việt nam", "thị thực", "indonesia"]):
+            return "vi"
+        elif any(word in message_lower for word in ["halo", "saya", "indonesia", "malaysia", "visa"]):
+            return "ms"
+        else:
+            return "en"  # Default to English
+    
     def _get_contextual_fallback(self, intent: str, profile: Dict, profile_delta: Dict) -> str:
         """
         Contextual fallback responses when AI fails
