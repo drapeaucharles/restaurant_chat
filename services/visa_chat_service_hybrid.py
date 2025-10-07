@@ -551,33 +551,63 @@ RESPONSE GUIDELINES FOR {intent.upper()}:"""
 - Explain why you need this info to give the best recommendation"""
         
         elif intent == "ask_requirements":
-            prompt += """
+            # Get database products for requirements
+            products = self._get_database_visa_products(db)
+            if products:
+                prompt += f"""
+- AVAILABLE DATABASE PRODUCTS (use these exact names):
+"""
+                for product in products:
+                    prompt += f"  * {product['name']} - {product['duration_days']} days - {product['category']}\n"
+                
+                prompt += """
 - REQUIREMENTS INTELLIGENCE RULES:
   * Analyze their profile to determine visa type first
   * BASE REQUIREMENTS: Passport (6+ months), photo, application form, accommodation proof, return ticket
-  * SPONSOR REQUIREMENTS: Required for B211A, B211B, KITAS, VITAS (not for E-KIT)
+  * SPONSOR REQUIREMENTS: Required for long-term visas (KITAS, Student Visa, Work Permit)
   * PURPOSE-SPECIFIC: Add requirements based on purpose (business letter, medical documents, etc.)
   * DURATION-SPECIFIC: Long-term visas may need additional financial proof
 - TIMELINE EXPECTATIONS:
-  * E-KIT: 1-3 business days processing
-  * B211A/B211B: 3-5 business days processing
-  * KITAS/VITAS: 7-14 business days processing
+  * Short-term visas: 1-3 business days processing
+  * Medium-term visas: 3-5 business days processing
+  * Long-term visas: 7-14 business days processing
   * Always mention processing time when discussing requirements
 - Provide requirements that match their specific visa recommendation
 - Be practical and actionable
 - Mention next steps"""
+            else:
+                prompt += """
+- REQUIREMENTS INTELLIGENCE RULES:
+  * Ask for their nationality, purpose, and duration first
+  * BASE REQUIREMENTS: Passport (6+ months), photo, application form, accommodation proof, return ticket
+  * Explain that requirements vary by visa type
+  * Ask for more information to provide specific requirements"""
         
         elif intent == "ask_price":
-            prompt += """
+            # Get database products for pricing
+            products = self._get_database_visa_products(db)
+            if products:
+                prompt += f"""
+- AVAILABLE DATABASE PRODUCTS (use these exact names and prices):
+"""
+                for product in products:
+                    prompt += f"  * {product['name']} - {product['price']:,} IDR - {product['duration_days']} days\n"
+                
+                prompt += """
 - PRICING INTELLIGENCE RULES:
   * Match pricing to their recommended visa type
-  * STANDARD PRICING: E-KIT (IDR 500,000), B211A (IDR 1,500,000), B211B (IDR 1,500,000)
-  * LONG-TERM PRICING: KITAS/VITAS (varies by type, typically IDR 3,000,000+)
+  * ALWAYS use exact pricing from database above
   * EXPLAIN VALUE: Mention what's included (processing, government fees, support)
   * COMPARISON: If multiple options, explain cost differences
   * ALWAYS INCLUDE PRICING: When recommending visas, always mention cost
 - Be transparent about pricing
 - Ask if they want to proceed"""
+            else:
+                prompt += """
+- PRICING INTELLIGENCE RULES:
+  * Ask for their nationality, purpose, and duration first
+  * Explain that pricing varies by visa type
+  * Ask for more information to provide specific pricing"""
         
         prompt += """
         
