@@ -245,16 +245,58 @@ class HybridVisaService:
                     return "Perfect! Now, can you tell me your nationality and travel purpose?"
             
             elif intent == "ask_recommendation":
-                if message_language == "fr":
-                    return "Je serais ravie de vous aider! Pouvez-vous me dire votre nationalité et le but de votre voyage?"
-                elif message_language == "es":
-                    return "¡Me encantaría ayudarte! ¿Puedes decirme tu nacionalidad y el propósito de tu viaje?"
-                elif message_language == "de":
-                    return "Ich helfe Ihnen gerne! Können Sie mir Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
-                elif message_language == "ja":
-                    return "お手伝いさせていただきます！あなたの国籍と旅行の目的を教えていただけますか？"
+                # Check if we have enough profile data to make a recommendation
+                if profile.get("nationality_iso2") and profile.get("purpose"):
+                    duration = profile.get("intended_stay_days", 0)
+                    
+                    # Make specific recommendations based on profile data
+                    if message_language == "fr":
+                        if duration <= 30:
+                            return f"Parfait! Basé sur votre profil (nationalité: {profile['nationality_iso2']}, but: {profile['purpose']}, durée: {duration} jours), je recommande l'E-KIT pour {duration} jours. Coût: 500,000 IDR."
+                        elif duration <= 60:
+                            return f"Parfait! Basé sur votre profil (nationalité: {profile['nationality_iso2']}, but: {profile['purpose']}, durée: {duration} jours), je recommande le B211A (30 jours + extension). Coût: 1,500,000 IDR."
+                        else:
+                            return f"Parfait! Basé sur votre profil (nationalité: {profile['nationality_iso2']}, but: {profile['purpose']}, durée: {duration} jours), je recommande le KITAS pour un séjour long terme. Coût: variable selon le type."
+                    elif message_language == "es":
+                        if duration <= 30:
+                            return f"¡Perfecto! Basado en tu perfil (nacionalidad: {profile['nationality_iso2']}, propósito: {profile['purpose']}, duración: {duration} días), recomiendo E-KIT para {duration} días. Costo: 500,000 IDR."
+                        elif duration <= 60:
+                            return f"¡Perfecto! Basado en tu perfil (nacionalidad: {profile['nationality_iso2']}, propósito: {profile['purpose']}, duración: {duration} días), recomiendo B211A (30 días + extensión). Costo: 1,500,000 IDR."
+                        else:
+                            return f"¡Perfecto! Basado en tu perfil (nacionalidad: {profile['nationality_iso2']}, propósito: {profile['purpose']}, duración: {duration} días), recomiendo KITAS para estadía larga. Costo: variable según tipo."
+                    elif message_language == "de":
+                        if duration <= 30:
+                            return f"Perfekt! Basierend auf Ihrem Profil (Nationalität: {profile['nationality_iso2']}, Zweck: {profile['purpose']}, Dauer: {duration} Tage), empfehle ich E-KIT für {duration} Tage. Kosten: 500,000 IDR."
+                        elif duration <= 60:
+                            return f"Perfekt! Basierend auf Ihrem Profil (Nationalität: {profile['nationality_iso2']}, Zweck: {profile['purpose']}, Dauer: {duration} Tage), empfehle ich B211A (30 Tage + Verlängerung). Kosten: 1,500,000 IDR."
+                        else:
+                            return f"Perfekt! Basierend auf Ihrem Profil (Nationalität: {profile['nationality_iso2']}, Zweck: {profile['purpose']}, Dauer: {duration} Tage), empfehle ich KITAS für Langzeitaufenthalt. Kosten: je nach Typ variabel."
+                    elif message_language == "ja":
+                        if duration <= 30:
+                            return f"完璧です！あなたのプロフィール（国籍: {profile['nationality_iso2']}, 目的: {profile['purpose']}, 期間: {duration}日）に基づいて、{duration}日間のE-KITをお勧めします。費用: 500,000 IDR。"
+                        elif duration <= 60:
+                            return f"完璧です！あなたのプロフィール（国籍: {profile['nationality_iso2']}, 目的: {profile['purpose']}, 期間: {duration}日）に基づいて、B211A（30日+延長）をお勧めします。費用: 1,500,000 IDR。"
+                        else:
+                            return f"完璧です！あなたのプロフィール（国籍: {profile['nationality_iso2']}, 目的: {profile['purpose']}, 期間: {duration}日）に基づいて、長期滞在用のKITASをお勧めします。費用: タイプにより異なります。"
+                    else:  # English
+                        if duration <= 30:
+                            return f"Perfect! Based on your profile (nationality: {profile['nationality_iso2']}, purpose: {profile['purpose']}, duration: {duration} days), I recommend E-KIT for {duration} days. Cost: 500,000 IDR."
+                        elif duration <= 60:
+                            return f"Perfect! Based on your profile (nationality: {profile['nationality_iso2']}, purpose: {profile['purpose']}, duration: {duration} days), I recommend B211A (30 days + extension). Cost: 1,500,000 IDR."
+                        else:
+                            return f"Perfect! Based on your profile (nationality: {profile['nationality_iso2']}, purpose: {profile['purpose']}, duration: {duration} days), I recommend KITAS for long-term stay. Cost: varies by type."
                 else:
-                    return "I'd love to help! Could you tell me your nationality and travel purpose?"
+                    # Don't have enough profile data yet
+                    if message_language == "fr":
+                        return "Je serais ravie de vous aider! Pouvez-vous me dire votre nationalité et le but de votre voyage?"
+                    elif message_language == "es":
+                        return "¡Me encantaría ayudarte! ¿Puedes decirme tu nacionalidad y el propósito de tu viaje?"
+                    elif message_language == "de":
+                        return "Ich helfe Ihnen gerne! Können Sie mir Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
+                    elif message_language == "ja":
+                        return "お手伝いさせていただきます！あなたの国籍と旅行の目的を教えていただけますか？"
+                    else:
+                        return "I'd love to help! Could you tell me your nationality and travel purpose?"
             
             else:
                 # Default response - ensure we always have language-specific responses
@@ -311,16 +353,58 @@ class HybridVisaService:
                     return "Perfect! Now, can you tell me your nationality and travel purpose?"
             
             elif intent == "ask_recommendation":
-                if message_language == "fr":
-                    return "Je serais ravie de vous aider! Pouvez-vous me dire votre nationalité et le but de votre voyage?"
-                elif message_language == "es":
-                    return "¡Me encantaría ayudarte! ¿Puedes decirme tu nacionalidad y el propósito de tu viaje?"
-                elif message_language == "de":
-                    return "Ich helfe Ihnen gerne! Können Sie mir Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
-                elif message_language == "ja":
-                    return "お手伝いさせていただきます！あなたの国籍と旅行の目的を教えていただけますか？"
+                # Check if we have enough profile data to make a recommendation
+                if profile.get("nationality_iso2") and profile.get("purpose"):
+                    duration = profile.get("intended_stay_days", 0)
+                    
+                    # Make specific recommendations based on profile data
+                    if message_language == "fr":
+                        if duration <= 30:
+                            return f"Parfait! Basé sur votre profil (nationalité: {profile['nationality_iso2']}, but: {profile['purpose']}, durée: {duration} jours), je recommande l'E-KIT pour {duration} jours. Coût: 500,000 IDR."
+                        elif duration <= 60:
+                            return f"Parfait! Basé sur votre profil (nationalité: {profile['nationality_iso2']}, but: {profile['purpose']}, durée: {duration} jours), je recommande le B211A (30 jours + extension). Coût: 1,500,000 IDR."
+                        else:
+                            return f"Parfait! Basé sur votre profil (nationalité: {profile['nationality_iso2']}, but: {profile['purpose']}, durée: {duration} jours), je recommande le KITAS pour un séjour long terme. Coût: variable selon le type."
+                    elif message_language == "es":
+                        if duration <= 30:
+                            return f"¡Perfecto! Basado en tu perfil (nacionalidad: {profile['nationality_iso2']}, propósito: {profile['purpose']}, duración: {duration} días), recomiendo E-KIT para {duration} días. Costo: 500,000 IDR."
+                        elif duration <= 60:
+                            return f"¡Perfecto! Basado en tu perfil (nacionalidad: {profile['nationality_iso2']}, propósito: {profile['purpose']}, duración: {duration} días), recomiendo B211A (30 días + extensión). Costo: 1,500,000 IDR."
+                        else:
+                            return f"¡Perfecto! Basado en tu perfil (nacionalidad: {profile['nationality_iso2']}, propósito: {profile['purpose']}, duración: {duration} días), recomiendo KITAS para estadía larga. Costo: variable según tipo."
+                    elif message_language == "de":
+                        if duration <= 30:
+                            return f"Perfekt! Basierend auf Ihrem Profil (Nationalität: {profile['nationality_iso2']}, Zweck: {profile['purpose']}, Dauer: {duration} Tage), empfehle ich E-KIT für {duration} Tage. Kosten: 500,000 IDR."
+                        elif duration <= 60:
+                            return f"Perfekt! Basierend auf Ihrem Profil (Nationalität: {profile['nationality_iso2']}, Zweck: {profile['purpose']}, Dauer: {duration} Tage), empfehle ich B211A (30 Tage + Verlängerung). Kosten: 1,500,000 IDR."
+                        else:
+                            return f"Perfekt! Basierend auf Ihrem Profil (Nationalität: {profile['nationality_iso2']}, Zweck: {profile['purpose']}, Dauer: {duration} Tage), empfehle ich KITAS für Langzeitaufenthalt. Kosten: je nach Typ variabel."
+                    elif message_language == "ja":
+                        if duration <= 30:
+                            return f"完璧です！あなたのプロフィール（国籍: {profile['nationality_iso2']}, 目的: {profile['purpose']}, 期間: {duration}日）に基づいて、{duration}日間のE-KITをお勧めします。費用: 500,000 IDR。"
+                        elif duration <= 60:
+                            return f"完璧です！あなたのプロフィール（国籍: {profile['nationality_iso2']}, 目的: {profile['purpose']}, 期間: {duration}日）に基づいて、B211A（30日+延長）をお勧めします。費用: 1,500,000 IDR。"
+                        else:
+                            return f"完璧です！あなたのプロフィール（国籍: {profile['nationality_iso2']}, 目的: {profile['purpose']}, 期間: {duration}日）に基づいて、長期滞在用のKITASをお勧めします。費用: タイプにより異なります。"
+                    else:  # English
+                        if duration <= 30:
+                            return f"Perfect! Based on your profile (nationality: {profile['nationality_iso2']}, purpose: {profile['purpose']}, duration: {duration} days), I recommend E-KIT for {duration} days. Cost: 500,000 IDR."
+                        elif duration <= 60:
+                            return f"Perfect! Based on your profile (nationality: {profile['nationality_iso2']}, purpose: {profile['purpose']}, duration: {duration} days), I recommend B211A (30 days + extension). Cost: 1,500,000 IDR."
+                        else:
+                            return f"Perfect! Based on your profile (nationality: {profile['nationality_iso2']}, purpose: {profile['purpose']}, duration: {duration} days), I recommend KITAS for long-term stay. Cost: varies by type."
                 else:
-                    return "I'd love to help! Could you tell me your nationality and travel purpose?"
+                    # Don't have enough profile data yet
+                    if message_language == "fr":
+                        return "Je serais ravie de vous aider! Pouvez-vous me dire votre nationalité et le but de votre voyage?"
+                    elif message_language == "es":
+                        return "¡Me encantaría ayudarte! ¿Puedes decirme tu nacionalidad y el propósito de tu viaje?"
+                    elif message_language == "de":
+                        return "Ich helfe Ihnen gerne! Können Sie mir Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
+                    elif message_language == "ja":
+                        return "お手伝いさせていただきます！あなたの国籍と旅行の目的を教えていただけますか？"
+                    else:
+                        return "I'd love to help! Could you tell me your nationality and travel purpose?"
             
             else:
                 # Default response - ensure we always have language-specific responses
