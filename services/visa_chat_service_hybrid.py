@@ -4,6 +4,13 @@ Hybrid Visa Chat Service - Best of Both Worlds
 - Uses WorkingVisaFlowOrchestrator for routing and profile management
 - Uses AI for natural response generation
 - Maintains conversation context and progression
+
+🚨 CRITICAL RULES - NO HARDCODING:
+- NEVER hardcode product names like "E-KIT", "B211A", "KITAS"
+- ALWAYS use database products as source of truth
+- NEVER hardcode pricing like "500,000 IDR"
+- ALWAYS query database for actual product data
+- See DEVELOPMENT_RULES.md for complete guidelines
 """
 
 import json
@@ -217,6 +224,8 @@ class HybridVisaService:
             
             # Final fallback - intelligent language-specific responses based on intent
             logger.warning(f"⚠️ All AI services failed, using intelligent language-specific fallback")
+            logger.error(f"🚨 WARNING: Using hardcoded fallback responses - this violates no-hardcoding rules!")
+            logger.error(f"🚨 SHOULD: Query database for actual products instead of hardcoded types")
             message_language = self._detect_language_from_message(message)
             
             # Get contextual response based on intent and profile
@@ -325,6 +334,8 @@ class HybridVisaService:
                 logger.warning(f"OpenAI fallback also failed: {fallback_error}")
             
             # Final fallback - intelligent language-specific responses based on intent
+            logger.error(f"🚨 WARNING: Using hardcoded fallback responses in exception handler - this violates no-hardcoding rules!")
+            logger.error(f"🚨 SHOULD: Query database for actual products instead of hardcoded types")
             message_language = self._detect_language_from_message(message)
             
             # Get contextual response based on intent and profile
