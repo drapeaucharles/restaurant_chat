@@ -300,6 +300,99 @@ class HybridVisaService:
                     else:
                         return "I'd love to help! Could you tell me your nationality and travel purpose?"
             
+            elif intent == "ask_requirements":
+                # Check if we have enough profile data to provide specific requirements
+                if profile.get("nationality_iso2") and profile.get("purpose"):
+                    # Get database products and find best match
+                    products = self._get_database_visa_products(db)
+                    recommended_product = self._find_best_visa_match(profile, products)
+                    
+                    if recommended_product:
+                        product_name = recommended_product["name"]
+                        
+                        # Provide specific requirements using ACTUAL database products
+                        if message_language == "fr":
+                            return f"Pour {product_name}, vous aurez besoin de: passeport (6+ mois), photo, formulaire de demande, preuve d'hébergement, billet de retour."
+                        elif message_language == "es":
+                            return f"Para {product_name}, necesitarás: pasaporte (6+ meses), foto, formulario de solicitud, comprobante de alojamiento, boleto de regreso."
+                        elif message_language == "de":
+                            return f"Für {product_name} benötigen Sie: Reisepass (6+ Monate), Foto, Antragsformular, Unterkunftsnachweis, Rückflugticket."
+                        elif message_language == "ja":
+                            return f"{product_name}には以下が必要です：パスポート（6ヶ月以上）、写真、申請書、宿泊証明、帰国チケット。"
+                        else:  # English
+                            return f"For {product_name}, you'll need: passport (6+ months), photo, application form, accommodation proof, return ticket."
+                    else:
+                        # No database products found - fallback to generic response
+                        if message_language == "fr":
+                            return "Je serais ravie de vous aider! Pouvez-vous me dire votre nationalité et le but de votre voyage?"
+                        elif message_language == "es":
+                            return "¡Me encantaría ayudarte! ¿Puedes decirme tu nacionalidad y el propósito de tu viaje?"
+                        elif message_language == "de":
+                            return "Ich helfe Ihnen gerne! Können Sie mir Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
+                        elif message_language == "ja":
+                            return "お手伝いさせていただきます！あなたの国籍と旅行の目的を教えていただけますか？"
+                        else:
+                            return "I'd love to help! Could you tell me your nationality and travel purpose?"
+                else:
+                    # Don't have enough profile data yet
+                    if message_language == "fr":
+                        return "Je serais ravie de vous aider! Pouvez-vous me dire votre nationalité et le but de votre voyage?"
+                    elif message_language == "es":
+                        return "¡Me encantaría ayudarte! ¿Puedes decirme tu nacionalidad y el propósito de tu viaje?"
+                    elif message_language == "de":
+                        return "Ich helfe Ihnen gerne! Können Sie mir Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
+                    elif message_language == "ja":
+                        return "お手伝いさせていただきます！あなたの国籍と旅行の目的を教えていただけますか？"
+                    else:
+                        return "I'd love to help! Could you tell me your nationality and travel purpose?"
+            
+            elif intent == "ask_price":
+                # Check if we have enough profile data to provide specific pricing
+                if profile.get("nationality_iso2") and profile.get("purpose"):
+                    # Get database products and find best match
+                    products = self._get_database_visa_products(db)
+                    recommended_product = self._find_best_visa_match(profile, products)
+                    
+                    if recommended_product:
+                        product_name = recommended_product["name"]
+                        product_price = recommended_product["price"]
+                        
+                        # Provide specific pricing using ACTUAL database products
+                        if message_language == "fr":
+                            return f"{product_name} coûte {product_price:,} IDR. Cela inclut les frais de traitement, les frais gouvernementaux et notre support."
+                        elif message_language == "es":
+                            return f"{product_name} cuesta {product_price:,} IDR. Esto incluye procesamiento, tarifas gubernamentales y nuestro apoyo."
+                        elif message_language == "de":
+                            return f"{product_name} kostet {product_price:,} IDR. Dies beinhaltet Bearbeitung, Regierungsgebühren und unsere Unterstützung."
+                        elif message_language == "ja":
+                            return f"{product_name}の費用は{product_price:,} IDRです。処理費、政府手数料、サポートが含まれます。"
+                        else:  # English
+                            return f"{product_name} costs {product_price:,} IDR. This includes processing, government fees, and our support."
+                    else:
+                        # No database products found - fallback to generic response
+                        if message_language == "fr":
+                            return "Je serais ravie de vous aider! Pouvez-vous me dire votre nationalité et le but de votre voyage?"
+                        elif message_language == "es":
+                            return "¡Me encantaría ayudarte! ¿Puedes decirme tu nacionalidad y el propósito de tu viaje?"
+                        elif message_language == "de":
+                            return "Ich helfe Ihnen gerne! Können Sie mir Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
+                        elif message_language == "ja":
+                            return "お手伝いさせていただきます！あなたの国籍と旅行の目的を教えていただけますか？"
+                        else:
+                            return "I'd love to help! Could you tell me your nationality and travel purpose?"
+                else:
+                    # Don't have enough profile data yet
+                    if message_language == "fr":
+                        return "Je serais ravie de vous aider! Pouvez-vous me dire votre nationalité et le but de votre voyage?"
+                    elif message_language == "es":
+                        return "¡Me encantaría ayudarte! ¿Puedes decirme tu nacionalidad y el propósito de tu viaje?"
+                    elif message_language == "de":
+                        return "Ich helfe Ihnen gerne! Können Sie mir Ihre Nationalität und den Zweck Ihrer Reise mitteilen?"
+                    elif message_language == "ja":
+                        return "お手伝いさせていただきます！あなたの国籍と旅行の目的を教えていただけますか？"
+                    else:
+                        return "I'd love to help! Could you tell me your nationality and travel purpose?"
+            
             else:
                 # Default response - ensure we always have language-specific responses
                 if message_language == "fr":
