@@ -88,7 +88,7 @@ class HybridVisaService:
                 profile=current_profile,
                 profile_delta=profile_delta,
                 chat_history=chat_history,
-                db=db
+                db=self.db
             )
             
             # Add comprehensive debug info to response for real-time debugging
@@ -412,7 +412,7 @@ class HybridVisaService:
             
             # Try OpenAI fallback even on exception
             try:
-                prompt = self._build_contextual_prompt(message, intent, profile, profile_delta, chat_history, db)
+                prompt = self._build_contextual_prompt(message, intent, profile, profile_delta, chat_history, self.db)
                 openai_response = self._try_openai_fallback(prompt)
                 if openai_response:
                     logger.info(f"✅ OpenAI fallback successful on exception: '{openai_response[:50]}...'")
