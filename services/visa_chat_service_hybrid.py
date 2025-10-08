@@ -87,7 +87,8 @@ class HybridVisaService:
                 intent=intent,
                 profile=current_profile,
                 profile_delta=profile_delta,
-                chat_history=chat_history
+                chat_history=chat_history,
+                db=db
             )
             
             # Add comprehensive debug info to response for real-time debugging
@@ -177,13 +178,13 @@ class HybridVisaService:
             return {}
     
     def _generate_contextual_ai_response(self, message: str, intent: str, profile: Dict, 
-                                       profile_delta: Dict, chat_history: List[Dict]) -> str:
+                                       profile_delta: Dict, chat_history: List[Dict], db) -> str:
         """
         Generate natural AI response based on context
         """
         try:
             # Build contextual prompt based on intent and profile
-            prompt = self._build_contextual_prompt(message, intent, profile, profile_delta, chat_history)
+            prompt = self._build_contextual_prompt(message, intent, profile, profile_delta, chat_history, db)
             logger.info(f"🤖 AI PROMPT DEBUG: Intent={intent}, Profile={profile}, ProfileDelta={profile_delta}")
             logger.info(f"🤖 AI PROMPT LENGTH: {len(prompt)} characters")
             
@@ -411,7 +412,7 @@ class HybridVisaService:
             
             # Try OpenAI fallback even on exception
             try:
-                prompt = self._build_contextual_prompt(message, intent, profile, profile_delta, chat_history)
+                prompt = self._build_contextual_prompt(message, intent, profile, profile_delta, chat_history, db)
                 openai_response = self._try_openai_fallback(prompt)
                 if openai_response:
                     logger.info(f"✅ OpenAI fallback successful on exception: '{openai_response[:50]}...'")
@@ -517,7 +518,7 @@ class HybridVisaService:
                     return "Hello, I can help you with your visa for Indonesia."
     
     def _build_contextual_prompt(self, message: str, intent: str, profile: Dict, 
-                               profile_delta: Dict, chat_history: List[Dict]) -> str:
+                                profile_delta: Dict, chat_history: List[Dict], db) -> str:
         """
         Build contextual prompt for AI based on conversation state
         """
