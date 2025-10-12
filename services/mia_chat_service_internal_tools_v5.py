@@ -2005,6 +2005,10 @@ Respond:"""
             if response.status_code == 200:
                 answer = response.json().get("response", "")
                 
+                # Handle None response from MIA backend
+                if answer is None:
+                    answer = "I'm having trouble connecting to my knowledge base right now. Please try again in a moment."
+                
                 # Always add debug info
                 tool_name = selected_tools[0].get("tool")
                 debug_info = {
@@ -2261,6 +2265,10 @@ Respond:"""
         
         if final_response.status_code == 200:
             answer = final_response.json().get("response", "")
+            
+            # Handle None response from MIA backend
+            if answer is None:
+                answer = "I'm having trouble connecting to my knowledge base right now. Please try again in a moment."
             
             # === ALLERGY TWO-MESSAGE FLOW ===
             # Check if this was an allergy update and implement two-message flow
